@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Visu agents — 5 versions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Public+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   Studio clair — feuille de style canonique (design-studio-clair/studio-clair.css)
+   Inlinée ici pour un livrable standalone. Source : ~/work/iakaframe/design-studio-clair/
+   ========================================================================= */
+:root{
+  --sc-bg:#f7f7f4; --sc-surface:#ffffff; --sc-well:#f0efeb; --sc-border:#e2e0d9;
+  --sc-ink:#1c1c1a; --sc-ink-muted:#6f6d64; --sc-ink-faint:#a3a199;
+  --sc-accent:#3454d1; --sc-accent-2:#0e8a82;
+  --sc-ok:#1a7f5a; --sc-warn:#b5790a; --sc-danger:#c1372c; --sc-info:#2f6fb5;
+  --sc-radius:8px;
+  --sc-font-display:"Manrope",system-ui,sans-serif;
+  --sc-font-body:"Public Sans",system-ui,sans-serif;
+  --sc-font-mono:"Fira Code","SF Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --sc-bg:#14161a; --sc-surface:#1c1f24; --sc-well:#22252b; --sc-border:#2d3138;
+    --sc-ink:#e9e8e4; --sc-ink-muted:#9a9a92; --sc-ink-faint:#63666c;
+    --sc-accent:#7c93f0; --sc-accent-2:#3fd6c8;
+    --sc-ok:#4ad393; --sc-warn:#e0a83f; --sc-danger:#ef6b5e; --sc-info:#7fb2ec;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --sc-bg:#14161a; --sc-surface:#1c1f24; --sc-well:#22252b; --sc-border:#2d3138;
+  --sc-ink:#e9e8e4; --sc-ink-muted:#9a9a92; --sc-ink-faint:#63666c;
+  --sc-accent:#7c93f0; --sc-accent-2:#3fd6c8;
+  --sc-ok:#4ad393; --sc-warn:#e0a83f; --sc-danger:#ef6b5e; --sc-info:#7fb2ec;
+  color-scheme:dark;
+}
+body.sc{ background:var(--sc-bg); color:var(--sc-ink); font-family:var(--sc-font-body); -webkit-font-smoothing:antialiased; }
+.sc-hero{ display:flex; flex-direction:column; gap:6px; }
+.sc-hero h1{ font-family:var(--sc-font-display); font-weight:800; letter-spacing:-0.01em; margin:0; font-size:1.7rem; }
+.sc-hero .sc-sub{ color:var(--sc-ink-muted); font-size:0.95rem; max-width:64ch; }
+.sc-section-label{ font-family:var(--sc-font-mono); text-transform:uppercase; font-size:0.7rem; letter-spacing:0.08em; color:var(--sc-accent); }
+.sc-card{ background:var(--sc-surface); border:1px solid var(--sc-border); border-radius:var(--sc-radius); }
+.sc-badge{ display:inline-flex; align-items:center; gap:4px; font-family:var(--sc-font-mono); font-size:0.7rem; padding:2px 8px; border-radius:999px; border:1px solid var(--sc-border); background:var(--sc-well); color:var(--sc-ink-muted); white-space:nowrap; }
+.sc-badge.b-live{ color:var(--sc-accent-2); border-color:var(--sc-accent-2); }
+.sc-badge.b-ok{ color:var(--sc-ok); } .sc-badge.b-warn{ color:var(--sc-warn); }
+.sc-badge.b-danger{ color:var(--sc-danger); } .sc-badge.b-info{ color:var(--sc-info); }
+.sc-chip{ font-family:var(--sc-font-mono); font-size:0.68rem; padding:1px 6px; border-radius:4px; background:var(--sc-well); color:var(--sc-ink-muted); border:1px solid var(--sc-border); white-space:nowrap; }
+.sc-pastille{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+.sc-note{ border-left:3px solid var(--sc-border); background:var(--sc-well); padding:8px 12px; font-size:0.85rem; border-radius:0 6px 6px 0; }
+.sc-note.tip{ border-color:var(--sc-accent-2); }
+.sc-tabs{ display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--sc-border); }
+.sc-tab{ font-family:var(--sc-font-mono); font-size:0.75rem; padding:8px 12px; color:var(--sc-ink-muted); border-bottom:2px solid transparent; cursor:pointer; background:none; border-top:none; border-left:none; border-right:none; }
+.sc-tab.active{ color:var(--sc-accent); border-bottom-color:var(--sc-accent); }
+.sc-tab:hover{ color:var(--sc-ink); }
+table.sc-table{ width:100%; border-collapse:collapse; font-size:0.83rem; }
+table.sc-table th, table.sc-table td{ border-bottom:1px solid var(--sc-border); padding:6px 10px; text-align:left; }
+table.sc-table th{ font-family:var(--sc-font-mono); text-transform:uppercase; font-size:0.65rem; letter-spacing:0.05em; color:var(--sc-ink-muted); cursor:pointer; user-select:none; }
+table.sc-table th:hover{ color:var(--sc-accent); }
+table.sc-table tr:hover td{ background:var(--sc-well); }
+
+/* ===================== mise en page de la page (maquette) ===================== */
+*{ box-sizing:border-box; min-width:0; }
+body{ margin:0; padding-block:28px; }
+.pv-wrap{ max-width:1100px; margin:0 auto; padding:0 16px; display:flex; flex-direction:column; gap:22px; }
+.pv-topbar{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.pv-theme-btn{ font-family:var(--sc-font-mono); font-size:0.72rem; padding:6px 10px; border-radius:6px; border:1px solid var(--sc-border); background:var(--sc-surface); color:var(--sc-ink-muted); cursor:pointer; }
+.pv-theme-btn:hover{ color:var(--sc-accent); border-color:var(--sc-accent); }
+
+/* légende roster */
+.pv-roster{ padding:10px 12px; }
+.pv-roster summary{ font-family:var(--sc-font-mono); font-size:0.72rem; color:var(--sc-ink-muted); cursor:pointer; text-transform:uppercase; letter-spacing:.05em; }
+.pv-roster-grid{ display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:10px; }
+.pv-roster-item{ display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--sc-ink-muted); }
+.pv-roster-item b{ color:var(--sc-ink); font-weight:600; }
+
+/* sprite */
+.spr{ display:inline-flex; align-items:center; justify-content:center; flex:none; line-height:0; }
+.spr svg{ display:block; filter:drop-shadow(0 0 .5px rgba(0,0,0,.55)); }
+.spr-blank{ background:var(--sc-well); border:1px dashed var(--sc-border); border-radius:4px; color:var(--sc-ink-faint); font-size:9px; }
+
+/* parti pris note sous chaque version */
+.pv-partipris{ margin-top:14px; }
+.pv-partipris .k{ color:var(--sc-accent); font-family:var(--sc-font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:.05em; }
+
+/* ---------- V1 popover ---------- */
+.pv-popover-stage{ display:flex; justify-content:center; padding:20px 0; background:
+  repeating-linear-gradient(45deg, var(--sc-well) 0 10px, var(--sc-bg) 10px 20px);
+  border-radius:12px; }
+.pv-popover{ width:320px; background:var(--sc-surface); border:1px solid var(--sc-border);
+  border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.16); overflow:hidden; }
+.pv-popover-head{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px;
+  border-bottom:1px solid var(--sc-border); font-family:var(--sc-font-mono); font-size:0.75rem; color:var(--sc-ink-muted); }
+.pv-popover-head b{ color:var(--sc-ink); font-family:var(--sc-font-display); font-weight:700; }
+.pv-popover-list{ display:flex; flex-direction:column; }
+.pv-prow{ display:flex; align-items:center; gap:8px; padding:9px 14px; border-bottom:1px solid var(--sc-border); font-size:0.8rem; flex-wrap:wrap; }
+.pv-prow:last-child{ border-bottom:none; }
+.pv-prow .proj{ font-family:var(--sc-font-mono); color:var(--sc-ink-muted); font-size:0.72rem; min-width:108px; }
+.pv-bracket{ color:var(--sc-ink-faint); font-family:var(--sc-font-mono); }
+.pv-kids{ display:inline-flex; align-items:center; gap:4px; }
+.pv-node{ display:inline-flex; align-items:center; gap:4px; }
+.pv-popover-empty{ padding:16px 14px; font-size:0.78rem; color:var(--sc-ink-faint); font-family:var(--sc-font-mono); }
+.pv-popover-foot{ padding:7px 14px; border-top:1px solid var(--sc-border); font-family:var(--sc-font-mono); font-size:0.65rem; color:var(--sc-ink-faint); display:flex; justify-content:space-between; }
+
+/* ---------- V2 arbre ---------- */
+.pv-tree-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr)); gap:14px; }
+.pv-tree-card{ padding:14px 16px; }
+.pv-tree-card h3{ margin:0 0 10px; font-family:var(--sc-font-display); font-size:0.95rem; display:flex; justify-content:space-between; align-items:baseline; }
+.pv-tree-card h3 .cnt{ font-family:var(--sc-font-mono); font-size:0.68rem; color:var(--sc-ink-muted); font-weight:400; }
+ul.pv-tree, ul.pv-tree ul{ list-style:none; margin:0; padding-left:18px; border-left:1px dashed var(--sc-border); }
+ul.pv-tree{ padding-left:0; border-left:none; }
+.pv-tree li{ position:relative; padding:5px 0 5px 12px; }
+ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; width:10px; height:1px; background:var(--sc-border); }
+.pv-node-line{ display:flex; align-items:flex-start; gap:8px; }
+.pv-node-body{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.pv-node-name{ display:flex; align-items:center; gap:6px; font-weight:600; font-size:0.83rem; }
+.pv-node-task{ font-size:0.78rem; color:var(--sc-ink-muted); overflow-wrap:anywhere; }
+.pv-node-meta{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:2px; }
+.pv-node.idle{ opacity:.55; }
+.pv-dot{ width:6px; height:6px; border-radius:50%; background:var(--sc-accent-2); flex:none; box-shadow:0 0 0 3px color-mix(in srgb, var(--sc-accent-2) 22%, transparent); animation:pv-pulse 1.8s ease-in-out infinite; }
+.pv-dot.off{ background:var(--sc-ink-faint); box-shadow:none; animation:none; }
+@keyframes pv-pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+@media (prefers-reduced-motion: reduce){ .pv-dot{ animation:none; } }
+
+/* ---------- V3 salle des équipes ---------- */
+.pv-room-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
+.pv-room{ padding:14px; display:flex; flex-direction:column; gap:10px; }
+.pv-room-head{ display:flex; justify-content:space-between; align-items:baseline; }
+.pv-room-head h3{ margin:0; font-family:var(--sc-font-display); font-size:0.9rem; }
+.pv-room-head .cnt{ font-family:var(--sc-font-mono); font-size:0.68rem; color:var(--sc-ink-muted); }
+.pv-room-wall{ display:flex; flex-wrap:wrap; gap:8px; min-height:52px; align-content:flex-start; }
+.pv-avatar{ position:relative; width:44px; height:44px; border-radius:9px; display:flex; align-items:center; justify-content:center; }
+.pv-avatar.live{ box-shadow:0 0 0 2px var(--sc-accent-2); }
+.pv-avatar.idle{ opacity:.5; }
+.pv-avatar .rn{ position:absolute; bottom:-4px; right:-4px; width:14px; height:14px; border-radius:50%; background:var(--sc-surface); border:1px solid var(--sc-border); font-size:8px; display:flex; align-items:center; justify-content:center; font-family:var(--sc-font-mono); color:var(--sc-ink-muted); }
+.pv-room-empty{ font-size:0.75rem; color:var(--sc-ink-faint); font-family:var(--sc-font-mono); }
+
+/* ---------- V4 table ---------- */
+.pv-table-wrap{ overflow-x:auto; }
+.pv-t-persona{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.pv-t-num{ font-family:var(--sc-font-mono); font-variant-numeric:tabular-nums; color:var(--sc-ink-muted); }
+.pv-sort-ind{ opacity:.5; font-size:.65em; }
+
+/* ---------- V5 frise ---------- */
+.pv-timeline{ display:flex; flex-direction:column; gap:16px; }
+.pv-axis{ position:relative; height:18px; margin-left:150px; font-family:var(--sc-font-mono); font-size:0.65rem; color:var(--sc-ink-faint); }
+.pv-axis span{ position:absolute; transform:translateX(-50%); }
+.pv-lane{ display:flex; align-items:flex-start; gap:10px; }
+.pv-lane-label{ width:140px; flex:none; font-family:var(--sc-font-mono); font-size:0.72rem; color:var(--sc-ink-muted); text-align:right; padding-top:5px; }
+.pv-lane-track{ position:relative; flex:1; background:var(--sc-well); border-radius:6px; border:1px solid var(--sc-border);
+  display:flex; flex-direction:column; gap:3px; padding:4px; }
+.pv-agent-row{ position:relative; height:20px; }
+.pv-bar{ position:absolute; top:0; height:20px; min-width:20px; border-radius:5px; display:flex; align-items:center; padding:0 6px; gap:4px; font-size:0.66rem; color:#fff; overflow:hidden; white-space:nowrap; }
+.pv-bar.live::after{ content:""; position:absolute; right:-3px; top:50%; transform:translateY(-50%); width:7px; height:7px; border-radius:50%; background:var(--sc-accent-2); box-shadow:0 0 0 3px color-mix(in srgb, var(--sc-accent-2) 30%, transparent); animation:pv-pulse 1.8s ease-in-out infinite; }
+.pv-bar.idle{ opacity:.45; }
+.pv-tl-grid{ position:absolute; inset:0; }
+.pv-tl-grid i{ position:absolute; top:0; bottom:0; width:1px; background:var(--sc-border); opacity:.6; }
+
+footer.pv-foot{ text-align:center; font-family:var(--sc-font-mono); font-size:0.68rem; color:var(--sc-ink-faint); padding-top:10px; }
+
+@media (max-width: 480px){
+  .pv-axis, .pv-lane-label{ display:none; }
+  .pv-popover{ width:100%; }
+}
+</style>
+</head>
+<body class="sc">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="ic-odin" viewBox="0 0 8 8"><g fill="#fff"><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/><rect x="0" y="3" width="3" height="1"/><rect x="5" y="3" width="3" height="1"/><rect x="0" y="4" width="3" height="1"/><rect x="5" y="4" width="3" height="1"/><rect x="1" y="5" width="6" height="1"/><rect x="2" y="6" width="4" height="1"/></g></symbol>
+<symbol id="ic-aragorn" viewBox="0 0 8 8"><g fill="#fff"><rect x="3" y="0" width="2" height="1"/><rect x="3" y="1" width="2" height="1"/><rect x="3" y="2" width="2" height="1"/><rect x="3" y="3" width="2" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="3" y="5" width="2" height="1"/><rect x="2" y="6" width="4" height="1"/><rect x="3" y="7" width="2" height="1"/></g></symbol>
+<symbol id="ic-gandalf" viewBox="0 0 8 8"><g fill="#fff"><rect x="3" y="0" width="2" height="1"/><rect x="3" y="1" width="2" height="1"/><rect x="2" y="2" width="4" height="1"/><rect x="2" y="3" width="4" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="1" y="5" width="6" height="1"/><rect x="0" y="6" width="7" height="1"/></g></symbol>
+<symbol id="ic-gimli" viewBox="0 0 8 8"><g fill="#fff"><rect x="1" y="0" width="2" height="1"/><rect x="1" y="1" width="3" height="1"/><rect x="1" y="2" width="4" height="1"/><rect x="1" y="3" width="5" height="1"/><rect x="1" y="4" width="4" height="1"/><rect x="1" y="5" width="3" height="1"/><rect x="2" y="6" width="2" height="1"/><rect x="2" y="7" width="2" height="1"/></g></symbol>
+<symbol id="ic-legolas" viewBox="0 0 8 8"><g fill="#fff"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="0" y="4" width="8" height="1"/><rect x="1" y="5" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="3" y="7" width="2" height="1"/></g></symbol>
+<symbol id="ic-helm" viewBox="0 0 8 8"><g fill="#fff"><rect x="1" y="0" width="6" height="1"/><rect x="0" y="1" width="8" height="1"/><rect x="0" y="2" width="8" height="1"/><rect x="0" y="3" width="8" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="4" height="1"/><rect x="3" y="6" width="2" height="1"/></g></symbol>
+<symbol id="ic-loki" viewBox="0 0 8 8"><g fill="#fff"><rect x="1" y="0" width="6" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="4" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="1" y="6" width="6" height="1"/></g></symbol>
+<symbol id="ic-nathalie" viewBox="0 0 8 8"><g fill="#fff"><rect x="0" y="1" width="2" height="1"/><rect x="6" y="1" width="2" height="1"/><rect x="0" y="2" width="3" height="1"/><rect x="5" y="2" width="3" height="1"/><rect x="0" y="3" width="8" height="1"/><rect x="0" y="4" width="8" height="1"/><rect x="0" y="5" width="3" height="1"/><rect x="5" y="5" width="3" height="1"/><rect x="0" y="6" width="2" height="1"/><rect x="6" y="6" width="2" height="1"/></g></symbol>
+<symbol id="ic-feanor" viewBox="0 0 8 8"><g fill="#fff"><rect x="3" y="0" width="2" height="1"/><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/><rect x="0" y="3" width="8" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="4" height="1"/><rect x="3" y="6" width="2" height="1"/></g></symbol>
+<symbol id="ic-opaque" viewBox="0 0 8 8"><g fill="#fff"><rect x="2" y="1" width="4" height="1"/><rect x="1" y="2" width="6" height="1"/><rect x="1" y="3" width="6" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="1" y="5" width="6" height="1"/><rect x="2" y="6" width="4" height="1"/></g></symbol>
+</defs>
+</svg>
+
+<div class="pv-wrap">
+
+  <div class="pv-topbar">
+    <div class="sc-hero">
+      <span class="sc-section-label">IakaAgentsMonitor · maquette</span>
+      <h1>Visu des agents — 5 partis pris</h1>
+      <p class="sc-sub">Qui travaille en ce moment, pour quel projet, sur quel runner, avec quel
+      modèle — cinq façons de le montrer. Données fictives mais plausibles ; charte
+      <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).</p>
+    </div>
+    <button class="pv-theme-btn" id="themeBtn" type="button">☾ / ☀ thème</button>
+  </div>
+
+  <details class="sc-card pv-roster">
+    <summary>Roster — pastilles &amp; sprites (repère)</summary>
+    <div class="pv-roster-grid" id="rosterGrid"></div>
+  </details>
+
+  <nav class="sc-tabs" id="tabs"></nav>
+
+  <main id="views"></main>
+
+  <footer class="pv-foot">maquette — Loki · charte design-studio-clair · données fictives, 26/09/2026</footer>
+</div>
+
+<script>
+/* ============================= données fictives ============================= */
+const PERSONAS = {
+  odin:      { name:'Odin',    letter:'O', color:'#d6a916', phase:'portefeuille' },
+  aragorn:   { name:'Aragorn', letter:'A', color:'#d9772e', phase:'coordination' },
+  gandalf:   { name:'Gandalf', letter:'G', color:'#3b6ea5', phase:'cadrage' },
+  gimli_dev: { name:'Gimli',   letter:'D', color:'#c0392b', phase:'dev' },
+  legolas_p2:{ name:'Legolas', letter:'L', color:'#c0392b', phase:'P2' },
+  helm:      { name:'Helm',    letter:'H', color:'#7d4fb5', phase:'prod' },
+  loki:      { name:'Loki',    letter:'K', color:'#d9772e', phase:'design' },
+  nathalie:  { name:'Nathalie',letter:'N', color:'#d9772e', phase:'doc' },
+  feanor:    { name:'Fëanor',  letter:'F', color:'#d9772e', phase:'frame' },
+};
+const SYMBOL = { odin:'odin', aragorn:'aragorn', gandalf:'gandalf', gimli_dev:'gimli',
+  legolas_p2:'legolas', helm:'helm', loki:'loki', nathalie:'nathalie', feanor:'feanor' };
+const RUNNERS = { claude:'Claude Code', codex:'Codex', 'ollama-localhost':'Ollama · local', 'ollama-lan':'Ollama · LAN' };
+
+const SESSIONS = [
+  { project:'iakaos', agents:[
+    { id:'o1', persona:'odin', runner:'claude', model:'Sonnet', task:'Portefeuille — vague du sous-lot 6·6', startedMin:52, activeSec:3, parent:null },
+    { id:'a1', persona:'aragorn', runner:'claude', model:'Sonnet', task:'Coordonner le gate Legolas du sous-lot 6·6', startedMin:38, activeSec:3, parent:'o1' },
+    { id:'l1', persona:'legolas_p2', runner:'claude', model:'Haiku', task:'Static-check 6 ELF + garde P3', startedMin:12, activeSec:8, parent:'a1' },
+    { id:'d1', persona:'gimli_dev', runner:'claude', model:'Sonnet', task:'Régression E-4 — remontage IAKAOSCFG au boot', startedMin:20, activeSec:60, parent:'a1' },
+    { id:'d2', persona:'gimli_dev', runner:'ollama-localhost', model:'qwen2.5-coder', task:'Décimation Douglas-Peucker (script local)', startedMin:6, activeSec:40, parent:'d1' },
+  ]},
+  { project:'IakaAgentsMonitor', agents:[
+    { id:'o2', persona:'odin', runner:'claude', model:'Sonnet', task:'Portefeuille du projet', startedMin:11, activeSec:2, parent:null },
+    { id:'g1', persona:'gandalf', runner:'claude', model:'Opus', task:'Cadrer la liste des agents (tray macOS)', startedMin:11, activeSec:2, parent:'o2' },
+  ]},
+  { project:'iakaframe', agents:[
+    { id:'o3', persona:'odin', runner:'claude', model:'Fable', task:'Portefeuille — pause &amp; synthèse', startedMin:58, activeSec:1, parent:null },
+    { id:'k1', persona:'loki', runner:'claude', model:'Sonnet', task:'Maquette 5 versions — visu agents', startedMin:6, activeSec:0, parent:'o3' },
+    { id:'n1', persona:'nathalie', runner:'claude', model:'Haiku', task:'Rafraîchir le guide iakastart', startedMin:22, activeSec:45, parent:'o3' },
+  ]},
+  { project:'iakaTokenCounter', agents:[
+    { id:'o4', persona:'odin', runner:'claude', model:'Haiku', task:'Veille branche D7 (non fusionnée)', startedMin:190, activeSec:1620, parent:null },
+  ]},
+  { project:'naonedge-vps', agents:[
+    { id:'o5', persona:'odin', runner:'claude', model:'Sonnet', task:'Portefeuille infra', startedMin:72, activeSec:2460, parent:null },
+    { id:'h1', persona:'helm', runner:'claude', model:'Opus', task:'Health-checks post-gel bw 2026.8.0', startedMin:65, activeSec:2460, parent:'o5' },
+  ]},
+  { project:'iakaspotify', agents:[
+    { id:'o6', persona:null, runner:'codex', model:'—', task:'Session Codex (pas de compagnon persona/délégation)', startedMin:18, activeSec:4, parent:null, opaque:true },
+    { id:'o7', persona:'odin', runner:'ollama-lan', model:'qwen2.5-coder', task:'Génération de playlists de test (fixtures)', startedMin:9, activeSec:6, parent:null },
+  ]},
+];
+
+const LIVENESS = 90; // s — DA-1 IAKAAM_LIVENESS_SECS
+const isLive = a => a.activeSec <= LIVENESS;
+function fmtStarted(min){ if(min<60) return min+' min'; const h=Math.floor(min/60), m=min%60; return h+' h'+(m?' '+m+' min':''); }
+function fmtAgo(sec){ if(sec<60) return sec+' s'; const min=Math.round(sec/60); if(min<60) return min+' min'; const h=Math.floor(min/60), m=min%60; return h+' h'+(m?' '+m+' min':''); }
+
+const FLAT = [];
+SESSIONS.forEach(s => s.agents.forEach(a => FLAT.push(Object.assign({project:s.project}, a))));
+const byId = Object.fromEntries(FLAT.map(a => [a.id, a]));
+const childrenOf = pid => FLAT.filter(a => a.parent === pid);
+
+function sprite(key, size, title){
+  if(!key){
+    return `<span class="spr" style="width:${size}px;height:${size}px" title="${title||''}">`+
+      `<svg viewBox="0 0 8 8" width="${size}" height="${size}"><rect width="8" height="8" rx="1.6" fill="#8a8a86"/><use href="#ic-opaque"/></svg></span>`;
+  }
+  const p = PERSONAS[key], sym = SYMBOL[key];
+  return `<span class="spr" style="width:${size}px;height:${size}px" title="${title||''}">`+
+    `<svg viewBox="0 0 8 8" width="${size}" height="${size}"><rect width="8" height="8" rx="1.6" fill="${p.color}"/><use href="#ic-${sym}"/></svg></span>`;
+}
+function tip(a){
+  const p = a.persona ? PERSONAS[a.persona].name+' — ' : 'Codex — ';
+  return `${p}${a.task} — actif il y a ${fmtAgo(a.activeSec)} — démarré il y a ${fmtStarted(a.startedMin)}`;
+}
+
+/* ============================= roster (légende) ============================= */
+const rosterGrid = document.getElementById('rosterGrid');
+rosterGrid.innerHTML = Object.entries(PERSONAS).map(([key,p]) =>
+  `<span class="pv-roster-item">${sprite(key,20)} <b>${p.name}</b> · ${p.phase}</span>`
+).join('') + `<span class="pv-roster-item">${sprite(null,20,'Codex')} <b>Codex</b> · pas de délégation visible</span>`;
+
+/* ============================= V1 — popover barre de menus ============================= */
+function viewPopover(){
+  const liveSessions = SESSIONS.map(s => ({project:s.project, roots:s.agents.filter(a=>!a.parent && isLive(a))}))
+    .filter(s => s.roots.length);
+  function nodeHTML(id){
+    const a = byId[id];
+    const kids = childrenOf(id).filter(isLive);
+    let html = `<span class="pv-node">${sprite(a.persona,18,tip(a))}</span>`;
+    if(kids.length) html += ` <span class="pv-bracket">(</span> <span class="pv-kids">${kids.map(k=>nodeHTML(k.id)).join(' ')}</span> <span class="pv-bracket">)</span>`;
+    return html;
+  }
+  const rows = liveSessions.length ? liveSessions.map(s =>
+    `<div class="pv-prow"><span class="proj">${s.project}</span>${s.roots.map(r=>nodeHTML(r.id)).join(' ')}</div>`
+  ).join('') : `<div class="pv-popover-empty">Aucun agent en cours</div>`;
+  const total = FLAT.filter(isLive).length;
+  return `
+  <div class="pv-popover-stage">
+    <div class="pv-popover">
+      <div class="pv-popover-head"><b>IakaAgentsMonitor</b><span>${total} agent${total>1?'s':''}</span></div>
+      <div class="pv-popover-list">${rows}</div>
+      <div class="pv-popover-foot"><span>tick 5 s</span><span>seuil 90 s</span></div>
+    </div>
+  </div>
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Parti pris</span> — reproduit l'app réelle : la popover de barre de menus,
+    en clic gauche sur l'icône. Ne montre que ce qui est <b>vivant</b> (transcript touché ≤ 90 s) ;
+    un projet disparaît entièrement quand son dernier agent s'éteint. <span class="k">Pour quand</span>
+    — l'usage quotidien, coup d'œil de 2 secondes ; c'est la V1 la plus proche du MVP cadré par Gandalf.
+  </div>`;
+}
+
+/* ============================= V2 — arbre de délégation ============================= */
+function viewTree(){
+  function li(a){
+    const kids = childrenOf(a.id);
+    const live = isLive(a);
+    return `<li>
+      <div class="pv-node-line pv-node ${live?'':'idle'}">
+        ${sprite(a.persona,26,tip(a))}
+        <div class="pv-node-body">
+          <div class="pv-node-name"><span class="pv-dot ${live?'':'off'}"></span>${a.persona?PERSONAS[a.persona].name:'Codex'}<span class="sc-chip">${a.persona?PERSONAS[a.persona].phase:'opaque'}</span></div>
+          <div class="pv-node-task">${a.task}</div>
+          <div class="pv-node-meta">
+            <span class="sc-chip">${RUNNERS[a.runner]}</span>
+            <span class="sc-chip">${a.model}</span>
+            <span class="sc-badge ${live?'b-live':''}">${live?'actif il y a '+fmtAgo(a.activeSec):'inactif depuis '+fmtAgo(a.activeSec)}</span>
+            <span class="sc-badge">démarré il y a ${fmtStarted(a.startedMin)}</span>
+          </div>
+        </div>
+      </div>
+      ${kids.length?`<ul>${kids.map(li).join('')}</ul>`:''}
+    </li>`;
+  }
+  const cards = SESSIONS.map(s => {
+    const roots = s.agents.filter(a=>!a.parent);
+    const liveCount = s.agents.filter(isLive).length;
+    return `<div class="sc-card pv-tree-card">
+      <h3>${s.project} <span class="cnt">${liveCount}/${s.agents.length} vivant${liveCount>1?'s':''}</span></h3>
+      <ul class="pv-tree">${roots.map(li).join('')}</ul>
+    </div>`;
+  }).join('');
+  return `<div class="pv-tree-grid">${cards}</div>
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Parti pris</span> — un panneau par projet, la chaîne de délégation dépliée
+    exactement comme au § « Restitution en relais » de la méthode (qui a délégué à qui, à quelle
+    profondeur). Les sessions inactives restent visibles, estompées. <span class="k">Pour quand</span>
+    — comprendre une salve d'agents imbriquée (portefeuille → coordination → dev), débug d'un
+    enchaînement d'agents.
+  </div>`;
+}
+
+/* ============================= V3 — salle des équipes ============================= */
+function viewRoom(){
+  const cards = SESSIONS.map(s => {
+    const wall = s.agents.map(a => {
+      const live = isLive(a);
+      return `<span class="pv-avatar ${live?'live':'idle'}" title="${tip(a)}">
+        ${sprite(a.persona,44,'')}
+        <span class="rn">${a.runner==='claude'?'C':a.runner==='codex'?'X':a.runner.startsWith('ollama')?'Ω':'?'}</span>
+      </span>`;
+    }).join('');
+    return `<div class="sc-card pv-room">
+      <div class="pv-room-head"><h3>${s.project}</h3><span class="cnt">${s.agents.length}</span></div>
+      <div class="pv-room-wall">${wall || '<span class="pv-room-empty">salle vide</span>'}</div>
+    </div>`;
+  }).join('');
+  return `<div class="pv-room-grid">${cards}</div>
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Parti pris</span> — une « salle » par projet, un avatar pixel-art par agent ;
+    l'anneau teal = vivant, l'avatar terne = inactif, le petit disque en coin donne le runner
+    (C = Claude Code, X = Codex, Ω = Ollama). Le texte disparaît, seule la forme et la couleur
+    portent l'info. <span class="k">Pour quand</span> — vue d'ambiance sur un second écran, on
+    « sent » l'activité du portefeuille sans lire une ligne.
+  </div>`;
+}
+
+/* ============================= V4 — tableau dense ============================= */
+let tableSort = { col:'startedMin', dir:1 };
+function viewTable(){
+  return `<div class="sc-card pv-table-wrap"><table class="sc-table" id="denseTable">
+    <thead><tr>
+      <th data-col="persona">Agent</th><th data-col="project">Projet</th>
+      <th data-col="runner">Runner</th><th data-col="model">Modèle</th>
+      <th data-col="task">Tâche</th>
+      <th data-col="startedMin">Démarré il y a</th>
+      <th data-col="activeSec">Actif il y a</th>
+      <th data-col="statut">Statut</th>
+    </tr></thead>
+    <tbody id="denseBody"></tbody>
+  </table></div>
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Parti pris</span> — une ligne par agent, colonnes triables (clic sur l'en-tête) :
+    runner et modèle deviennent des <b>facettes</b> comparables d'un coup d'œil, plutôt que noyés dans
+    une bulle. <span class="k">Pour quand</span> — audit « qui tourne sur quel modèle en ce moment »,
+    repérer un agent resté actif trop longtemps sur un modèle cher (Opus), triage avant clôture.
+  </div>`;
+}
+function renderTableBody(){
+  const rows = FLAT.slice().sort((a,b) => {
+    const ka = tableSort.col==='statut' ? (isLive(a)?0:1) : a[tableSort.col];
+    const kb = tableSort.col==='statut' ? (isLive(b)?0:1) : b[tableSort.col];
+    if(ka<kb) return -1*tableSort.dir; if(ka>kb) return 1*tableSort.dir; return 0;
+  });
+  document.getElementById('denseBody').innerHTML = rows.map(a => `<tr>
+    <td class="pv-t-persona">${sprite(a.persona,20,'')} ${a.persona?PERSONAS[a.persona].name:'Codex'}</td>
+    <td>${a.project}</td>
+    <td><span class="sc-chip">${RUNNERS[a.runner]}</span></td>
+    <td><span class="sc-chip">${a.model}</span></td>
+    <td>${a.task}</td>
+    <td class="pv-t-num">${fmtStarted(a.startedMin)}</td>
+    <td class="pv-t-num">${fmtAgo(a.activeSec)}</td>
+    <td>${isLive(a)?'<span class="sc-badge b-live">vivant</span>':'<span class="sc-badge">inactif</span>'}</td>
+  </tr>`).join('');
+}
+
+/* ============================= V5 — frise temporelle ============================= */
+function viewTimeline(){
+  const maxMin = Math.max(...FLAT.map(a=>a.startedMin)) + 10;
+  const ticks = [0,15,30,60,90,120,180].filter(t=>t<=maxMin);
+  const axis = ticks.map(t => `<span style="left:${100-(t/maxMin*100)}%">-${t}min</span>`).join('') + `<span style="left:100%">now</span>`;
+  const gridLines = ticks.map(t => `<i style="left:${100-(t/maxMin*100)}%"></i>`).join('');
+  const lanes = SESSIONS.map(s => {
+    const rows = s.agents.map(a => {
+      const live = isLive(a);
+      const startPct = 100 - (a.startedMin/maxMin*100);
+      const endPct = live ? 100 : 100 - (a.activeSec/60/maxMin*100);
+      const widthPct = Math.max(endPct-startPct, 1.5);
+      const color = a.persona ? PERSONAS[a.persona].color : '#8a8a86';
+      const showLabel = widthPct >= 7;
+      return `<div class="pv-agent-row"><span class="pv-bar ${live?'live':'idle'}" style="left:${startPct}%; width:${widthPct}%; background:${color}" title="${tip(a)}">
+        ${sprite(a.persona,14,'')}${showLabel?' '+(a.persona?PERSONAS[a.persona].name:'Codex'):''}
+      </span></div>`;
+    }).join('');
+    return `<div class="pv-lane"><span class="pv-lane-label">${s.project}</span>
+      <div class="pv-lane-track"><span class="pv-tl-grid">${gridLines}</span>${rows}</div>
+    </div>`;
+  }).join('');
+  return `<div class="sc-card" style="padding:16px;">
+    <div class="pv-timeline">
+      <div class="pv-axis">${axis}</div>
+      ${lanes}
+    </div>
+  </div>
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Parti pris</span> — une piste par projet, une barre par agent de son démarrage
+    à maintenant (bord teal pulsé = vivant) ou à sa dernière activité (barre pâle = éteinte).
+    <span class="k">Pour quand</span> — vue portefeuille de fin de journée : qui a tourné longtemps,
+    qui vient de démarrer, où se sont concentrées les délégations — complète l'état des lieux plutôt
+    que de le remplacer.
+  </div>`;
+}
+
+/* ============================= tabs & boot ============================= */
+const VIEWS = [
+  { id:'popover',  label:'V1 · Popover',        render:viewPopover },
+  { id:'tree',     label:'V2 · Arbre délégation',render:viewTree },
+  { id:'room',     label:'V3 · Salle des équipes',render:viewRoom },
+  { id:'table',    label:'V4 · Tableau dense',   render:viewTable },
+  { id:'timeline', label:'V5 · Frise temporelle',render:viewTimeline },
+];
+const tabsEl = document.getElementById('tabs');
+const viewsEl = document.getElementById('views');
+tabsEl.innerHTML = VIEWS.map((v,i) => `<button class="sc-tab${i===0?' active':''}" data-id="${v.id}">${v.label}</button>`).join('');
+
+function showView(id){
+  const v = VIEWS.find(v=>v.id===id);
+  viewsEl.innerHTML = v.render();
+  [...tabsEl.children].forEach(b => b.classList.toggle('active', b.dataset.id===id));
+  if(id==='table'){ renderTableBody(); bindSort(); }
+}
+function bindSort(){
+  document.querySelectorAll('#denseTable th').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      tableSort.dir = (tableSort.col===col) ? -tableSort.dir : 1;
+      tableSort.col = col;
+      renderTableBody();
+    };
+  });
+}
+tabsEl.addEventListener('click', e => {
+  const b = e.target.closest('.sc-tab');
+  if(b){ showView(b.dataset.id); history.replaceState(null,'','#'+b.dataset.id); }
+});
+const initId = VIEWS.some(v=>v.id===location.hash.slice(1)) ? location.hash.slice(1) : 'popover';
+showView(initId);
+
+document.getElementById('themeBtn').onclick = () => {
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', cur==='dark' ? 'light' : 'dark');
+};
+</script>
+</body>
+</html>
