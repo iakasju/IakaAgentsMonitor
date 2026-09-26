@@ -1,7 +1,8 @@
 //! tray — icône de barre de menus (Q5-A) : icône FIXE monochrome (mode « template » macOS),
 //! titre texte = effectif d'agents en cours (`set_title`, DA-2 : toujours affiché, `0` compris).
-//! Aucune rasterisation SVG, aucune dépendance de rendu d'icône. Clic gauche = afficher/masquer
-//! la fenêtre ; menu clic droit « Afficher » / « Quitter ».
+//! Aucune rasterisation SVG, aucune dépendance de rendu d'icône. Clic gauche = ouvre DIRECTEMENT
+//! la fenêtre, ancrée sous l'icône (amendement A3, point 9) ; menu clic droit « Afficher » /
+//! « Quitter ».
 //!
 //! Provenance : patron repris d'iakaTokenCounter (`src-tauri/src/tray.rs`, branche
 //! `worktree-agent-a73ae73650ed5e328`, commit `1c9fd0e`), simplifié : plus de composition
@@ -9,7 +10,7 @@
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, PhysicalPosition, Position, Rect, WebviewWindow};
 
 /// Identifiant du tray, pour le retrouver via `app.tray_by_id`.
 pub const TRAY_ID: &str = "main";
@@ -34,10 +35,11 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
+                rect,
                 ..
             } = event
             {
-                toggle_window(tray.app_handle());
+                toggle_window(tray.app_handle(), rect);
             }
         });
 
@@ -77,11 +79,32 @@ fn show_window(app: &AppHandle) {
     }
 }
 
-fn toggle_window(app: &AppHandle) {
+/// Ancre la fenêtre juste sous l'icône (amendement A3, point 9) : bord droit aligné sur le bord
+/// droit de l'icône (convention macOS des apps de barre de menus), quelques pixels sous elle.
+/// Best-effort : une erreur de positionnement (taille de fenêtre indisponible…) n'empêche jamais
+/// l'ouverture, elle garde juste l'emplacement précédent.
+fn position_window_under_tray(window: &WebviewWindow, icon_rect: Rect) {
+    let (Ok(win_size), Ok(scale)) = (window.outer_size(), window.scale_factor()) else {
+        return;
+    };
+    let icon_pos: PhysicalPosition<f64> = icon_rect.position.to_physical(scale);
+    let icon_size: tauri::PhysicalSize<f64> = icon_rect.size.to_physical(scale);
+    let x = (icon_pos.x + icon_size.width - win_size.width as f64).max(0.0);
+    let y = icon_pos.y + icon_size.height + 4.0;
+    let _ = window.set_position(Position::Physical(PhysicalPosition {
+        x: x.round() as i32,
+        y: y.round() as i32,
+    }));
+}
+
+/// Clic gauche sur l'icône : ouvre DIRECTEMENT la fenêtre (amendement A3, point 9 — plus de
+/// popover intermédiaire), ancrée sous l'icône ; un second clic la masque (bascule).
+fn toggle_window(app: &AppHandle, icon_rect: Rect) {
     if let Some(w) = app.get_webview_window("popover") {
         if w.is_visible().unwrap_or(false) {
             let _ = w.hide();
         } else {
+            position_window_under_tray(&w, icon_rect);
             let _ = w.show();
             let _ = w.set_focus();
         }
