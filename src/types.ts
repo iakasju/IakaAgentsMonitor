@@ -25,6 +25,9 @@ export interface AgentNode {
   activeSecs: number;
   startedAgo: string;
   startedSecs: number | null;
+  /** Modèle de CET agent, déjà résolu en libellé lisible côté Rust (ex. « Opus 5.5 »),
+   * `"—"` si indisponible (amendement A1, passe corrective post-gate Legolas du 26/09). */
+  model: string;
   tooltip: string;
   children: AgentNode[];
   overflow: number | null;

@@ -9,9 +9,9 @@
 
 import type { AgentNode, AgentsSnapshot, SessionNode } from "./types";
 
-/** Colonnes triables du tableau (amendement A1). "runner" reste une constante pour ce lot
- * (Q6-A : macOS + Claude Code seul) — pas de tri utile, gardée pour l'ordre visuel des colonnes. */
-type SortCol = "agent" | "project" | "task" | "active" | "started";
+/** Colonnes triables du tableau (amendement A1). "runner" n'en fait PAS partie : c'est une
+ * constante pour ce lot (Q6-A : macOS + Claude Code seul), affichée mais non triable. */
+type SortCol = "agent" | "project" | "task" | "active" | "started" | "model";
 
 interface SortState {
   col: SortCol;
@@ -43,6 +43,8 @@ function sortValue(col: SortCol, project: string, node: AgentNode): string | num
       return project.toLowerCase();
     case "task":
       return node.task.toLowerCase();
+    case "model":
+      return node.model.toLowerCase();
     case "active":
       return node.activeSecs;
     case "started":
@@ -95,30 +97,54 @@ function flatten(sessions: SessionNode[]): Row[] {
   return rows;
 }
 
-const COLUMNS: Array<{ col: SortCol; label: string }> = [
-  { col: "agent", label: "Agent" },
-  { col: "project", label: "Projet" },
-  { col: "task", label: "Tâche" },
-  { col: "active", label: "Actif il y a" },
-  { col: "started", label: "Démarré il y a" },
+/** Ordre des colonnes = celui de l'amendement A1 (agent, projet, runner, modèle, tâche, actif il
+ * y a, démarré il y a). "runner" est la seule colonne non triable (constante pour ce lot,
+ * Q6-A : macOS + Claude Code seul). */
+type ColumnDef = { id: SortCol | "runner"; label: string; sortable: boolean };
+const COLUMNS: ColumnDef[] = [
+  { id: "agent", label: "Agent", sortable: true },
+  { id: "project", label: "Projet", sortable: true },
+  { id: "runner", label: "Runner", sortable: false },
+  { id: "model", label: "Modèle", sortable: true },
+  { id: "task", label: "Tâche", sortable: true },
+  { id: "active", label: "Actif il y a", sortable: true },
+  { id: "started", label: "Démarré il y a", sortable: true },
 ];
 
 function headerRow(): HTMLElement {
   const tr = document.createElement("tr");
-  for (const { col, label } of COLUMNS) {
+  for (const { id, label, sortable } of COLUMNS) {
     const th = document.createElement("th");
     th.textContent = label;
-    th.dataset.col = col;
-    if (sort && sort.col === col) {
-      th.textContent += sort.dir === 1 ? " ▲" : " ▼";
+    if (sortable) {
+      th.dataset.col = id;
+      if (sort && sort.col === id) {
+        th.textContent += sort.dir === 1 ? " ▲" : " ▼";
+      }
     }
     tr.appendChild(th);
   }
-  // Runner : constante pour ce lot (Q6-A, macOS + Claude Code seul), pas de tri.
-  const runnerTh = document.createElement("th");
-  runnerTh.textContent = "Runner";
-  tr.appendChild(runnerTh);
   return tr;
+}
+
+/** Contenu texte d'une cellule (hors colonne Agent, rendue à part pour l'indentation + sprite).
+ * Une ligne de débordement (« +N agent(s) ») ne remplit que la colonne Agent : le reste est vide. */
+function cellText(id: Exclude<ColumnDef["id"], "agent">, row: Row): string {
+  if (row.node.overflow !== null) return "";
+  switch (id) {
+    case "project":
+      return row.project;
+    case "runner":
+      return "Claude Code";
+    case "model":
+      return row.node.model || "—";
+    case "task":
+      return row.node.task || "—";
+    case "active":
+      return row.node.activeAgo;
+    case "started":
+      return row.node.startedAgo || "—";
+  }
 }
 
 function agentRow(row: Row): HTMLElement {
@@ -126,36 +152,24 @@ function agentRow(row: Row): HTMLElement {
   tr.className = row.node.overflow !== null ? "agents-overflow-row" : "";
   tr.title = row.node.tooltip;
 
-  const agentTd = document.createElement("td");
-  agentTd.className = "agents-cell-agent";
-  agentTd.style.paddingLeft = `${row.depth * 16}px`;
-  agentTd.appendChild(renderSpriteIcon(row.node));
-  const name = document.createElement("span");
-  name.className = "agents-persona";
-  name.textContent = row.node.persona;
-  agentTd.appendChild(name);
-  tr.appendChild(agentTd);
-
-  const projectTd = document.createElement("td");
-  projectTd.textContent = row.node.overflow !== null ? "" : row.project;
-  tr.appendChild(projectTd);
-
-  const taskTd = document.createElement("td");
-  taskTd.className = "agents-cell-task";
-  taskTd.textContent = row.node.task || "—";
-  tr.appendChild(taskTd);
-
-  const activeTd = document.createElement("td");
-  activeTd.textContent = row.node.overflow !== null ? "" : row.node.activeAgo;
-  tr.appendChild(activeTd);
-
-  const startedTd = document.createElement("td");
-  startedTd.textContent = row.node.overflow !== null ? "" : row.node.startedAgo || "—";
-  tr.appendChild(startedTd);
-
-  const runnerTd = document.createElement("td");
-  runnerTd.textContent = row.node.overflow !== null ? "" : "Claude Code";
-  tr.appendChild(runnerTd);
+  for (const { id } of COLUMNS) {
+    if (id === "agent") {
+      const agentTd = document.createElement("td");
+      agentTd.className = "agents-cell-agent";
+      agentTd.style.paddingLeft = `${row.depth * 16}px`;
+      agentTd.appendChild(renderSpriteIcon(row.node));
+      const name = document.createElement("span");
+      name.className = "agents-persona";
+      name.textContent = row.node.persona;
+      agentTd.appendChild(name);
+      tr.appendChild(agentTd);
+      continue;
+    }
+    const td = document.createElement("td");
+    if (id === "task") td.className = "agents-cell-task";
+    td.textContent = cellText(id, row);
+    tr.appendChild(td);
+  }
 
   return tr;
 }
