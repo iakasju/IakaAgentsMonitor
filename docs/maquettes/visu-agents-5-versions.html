@@ -146,7 +146,10 @@ ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; wi
 .pv-sort-ind{ opacity:.5; font-size:.65em; }
 .pv-tree-guide{ font-family:var(--sc-font-mono); color:var(--sc-ink-faint); white-space:pre; }
 .pv-reste{ display:flex; align-items:center; gap:6px; }
-.pv-reste-track{ position:relative; flex:none; width:56px; height:6px; background:var(--sc-well); border:1px solid var(--sc-border); border-radius:3px; overflow:hidden; }
+.pv-reste-track{ position:relative; flex:none; width:56px; height:6px; background:var(--sc-well); border:1px solid var(--sc-border); border-radius:3px; overflow:visible; }
+/* A4 point 3 : la piste ne doit PAS rogner le repère de dépassement (même défaut relevé côté
+   app, src/styles.css .reste-track) — le remplissage reste dans les bornes (pct <= 100), seul
+   .pv-reste-mark dépasse volontairement de 2 px en haut/bas pour rester visible. */
 .pv-reste-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:2px 0 0 2px; }
 .pv-reste-fill.full{ border-radius:2px; }
 .pv-reste-mark{ position:absolute; right:0; top:-2px; bottom:-2px; width:2px; background:var(--sc-danger); }
@@ -172,6 +175,13 @@ ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; wi
 .pv-mockup-body th, .pv-mockup-body td{ padding:4px 6px !important; }
 .pv-mockup-foot{ padding:5px 12px; border-top:1px solid var(--sc-border); font-family:var(--sc-font-mono); font-size:0.6rem; color:var(--sc-ink-faint); display:flex; justify-content:space-between; flex:none; }
 .pv-mockup-caption{ text-align:center; font-family:var(--sc-font-mono); font-size:0.68rem; color:var(--sc-ink-faint); margin:8px 0 0; }
+/* A4 point 2 : bouton « agrandir » à côté du compteur et du ☾/☀, dans l'entête de la fenêtre
+   produit — même cluster que le futur topbar-right de l'app (index.html : #count, #themeBtn). */
+.pv-mockup-head-right{ display:flex; align-items:center; gap:7px; }
+.pv-mockup-mini-btn{ font-family:var(--sc-font-mono); font-size:0.62rem; line-height:1; padding:3px 7px; border:1px solid var(--sc-border); border-radius:5px; background:var(--sc-surface); color:var(--sc-ink-muted); flex:none; }
+.pv-mockup-wide-wrap{ margin-top:22px; padding-top:18px; border-top:1px dashed var(--sc-border); }
+.pv-mockup-screen-wide{ max-width:1040px; margin:0 auto; }
+.pv-mockup-window.wide{ width:1000px; }
 
 /* ---------- Icônes 4×4 (onglet) ---------- */
 .ic-mono{ margin:0; line-height:.74; letter-spacing:0; font-family:var(--sc-font-mono); }
@@ -288,9 +298,9 @@ const PERSONAS = {
   aragorn:   { name:'Aragorn', letter:'A', color:'#d9772e', phase:'coordination' },
   gandalf:   { name:'Gandalf', letter:'G', color:'#3b6ea5', phase:'cadrage' },
   gimli_dev: { name:'Gimli',   letter:'D', color:'#c0392b', phase:'dev' },
-  legolas_p2:{ name:'Legolas', letter:'L', color:'#c0392b', phase:'P2' },
+  legolas_p2:{ name:'Legolas', letter:'E', color:'#c0392b', phase:'P2' },
   helm:      { name:'Helm',    letter:'H', color:'#7d4fb5', phase:'prod' },
-  loki:      { name:'Loki',    letter:'K', color:'#d9772e', phase:'design' },
+  loki:      { name:'Loki',    letter:'L', color:'#d9772e', phase:'design' },
   nathalie:  { name:'Nathalie',letter:'N', color:'#d9772e', phase:'doc' },
   feanor:    { name:'Fëanor',  letter:'F', color:'#d9772e', phase:'frame' },
 };
@@ -501,6 +511,11 @@ function buildTreeRows(){
   walk(FLAT.filter(a=>!a.parent), 0, '');
   return rows;
 }
+// A4 point 1 : la colonne Tâche n'affiche plus le suffixe « (~N min) » — l'estimation ne vit
+// que dans la colonne Reste (cf. specs/instructions/temps-restant.md, retrait systématique du
+// suffixe valide du texte de la tâche). Les autres onglets (V1/V2/V5) gardent le texte brut :
+// ils lisent a.task directement via tip()/viewTree(), inchangés.
+function taskLabel(task){ return task.replace(/\s*\(~\s*\d+\s*min\)\s*$/, ''); }
 function personaCellHTML(row){
   const a = row.a;
   const guide = row.guide ? `<span class="pv-tree-guide">${row.guide}</span>` : '';
@@ -566,7 +581,7 @@ function rowHTML(row, compact){
     <td>${a.project}</td>
     <td><span class="sc-chip">${RUNNERS[a.runner]}</span></td>
     <td><span class="sc-chip">${a.model}</span></td>
-    <td>${a.task}</td>
+    <td>${taskLabel(a.task)}</td>
     <td class="pv-t-num">${fmtStarted(a.startedMin)}</td>
     <td class="pv-t-num">${fmtAgo(a.activeSec)}</td>
     <td>${reste}</td>
@@ -580,7 +595,10 @@ function viewTable(){
     un clic gauche sur l'icône de barre de menus ouvre directement une petite fenêtre (520 × 360)
     qui l'affiche, comme ci-dessous. L'indentation matérialise la délégation : chaque agent délégué
     apparaît sous son parent, décalé d'un niveau, avec des guides <code>├─</code> / <code>└─</code> /
-    <code>│</code>.
+    <code>│</code>. <span class="k">Amendement A4</span> — l'aperçu ne montre plus que les 5
+    colonnes ci-dessous ; le bouton <b>agrandir</b>, à côté du compteur et du ☾/☀, bascule vers le
+    tableau complet à 8 colonnes (fenêtre élargie, choix mémorisé) — variante illustrée sous la
+    légende.
   </div>
 
   <div class="pv-mockup-stage"><div class="pv-mockup-screen">
@@ -592,7 +610,13 @@ function viewTable(){
     </div>
     <div class="pv-mockup-notch-row"><span class="pv-mockup-notch"></span></div>
     <div class="pv-mockup-window-wrap"><div class="pv-mockup-window">
-      <div class="pv-mockup-head"><b>IakaAgentsMonitor</b><span id="mbHeadCount">${total} agent${total>1?'s':''}</span></div>
+      <div class="pv-mockup-head"><b>IakaAgentsMonitor</b>
+        <span class="pv-mockup-head-right">
+          <span id="mbHeadCount">${total} agent${total>1?'s':''}</span>
+          <button class="pv-mockup-mini-btn" type="button" title="Basculer le thème">☾/☀</button>
+          <button class="pv-mockup-mini-btn" type="button" title="Agrandir la fenêtre">agrandir</button>
+        </span>
+      </div>
       <div class="pv-mockup-body"><table class="sc-table" id="miniTable">
         <thead><tr>
           <th>Agent</th><th>Projet</th><th>Runner</th><th>Actif</th><th>Reste</th>
@@ -602,6 +626,28 @@ function viewTable(){
       <div class="pv-mockup-foot"><span>tick 5 s</span><span>seuil 90 s</span></div>
     </div></div>
     <p class="pv-mockup-caption">aperçu produit — fenêtre ancrée sous l'icône, 520 × 360</p>
+  </div></div>
+
+  <div class="pv-mockup-wide-wrap"><div class="pv-mockup-screen-wide">
+    <div class="pv-mockup-window-wrap"><div class="pv-mockup-window wide">
+      <div class="pv-mockup-head"><b>IakaAgentsMonitor</b>
+        <span class="pv-mockup-head-right">
+          <span id="mbWideHeadCount">${total} agent${total>1?'s':''}</span>
+          <button class="pv-mockup-mini-btn" type="button" title="Basculer le thème">☾/☀</button>
+          <button class="pv-mockup-mini-btn" type="button" title="Réduire la fenêtre">réduire</button>
+        </span>
+      </div>
+      <div class="pv-mockup-body"><table class="sc-table" id="wideMiniTable">
+        <thead><tr>
+          <th>Agent</th><th>Projet</th><th>Runner</th><th>Modèle</th><th>Tâche</th>
+          <th>Démarré il y a</th><th>Actif il y a</th><th>Reste</th>
+        </tr></thead>
+        <tbody id="wideMiniBody"></tbody>
+      </table></div>
+      <div class="pv-mockup-foot"><span>tick 5 s</span><span>seuil 90 s</span></div>
+    </div></div>
+    <p class="pv-mockup-caption">variante « fenêtre agrandie » — bouton agrandir cliqué, ~1000 px,
+      8 colonnes, même liste vivante</p>
   </div></div>
 
   <div class="sc-card pv-table-wrap"><table class="sc-table" id="denseTable">
@@ -668,6 +714,14 @@ function renderTableBody(){
     const total = liveRows.length;
     const trayEl = document.getElementById('mbTrayCount'); if(trayEl) trayEl.textContent = total;
     const headEl = document.getElementById('mbHeadCount'); if(headEl) headEl.textContent = total+' agent'+(total>1?'s':'');
+    // A4 point 2 : la fenêtre agrandie montre la même liste vivante, en 8 colonnes.
+    const wideBody = document.getElementById('wideMiniBody');
+    if(wideBody){
+      wideBody.innerHTML = liveRows.length ? liveRows.map(r => rowHTML(r,false)).join('')
+        : `<tr><td colspan="8" style="font-family:var(--sc-font-mono);color:var(--sc-ink-faint);font-size:0.72rem;">Aucun agent en cours</td></tr>`;
+      const wideHeadEl = document.getElementById('mbWideHeadCount');
+      if(wideHeadEl) wideHeadEl.textContent = total+' agent'+(total>1?'s':'');
+    }
   }
   addSortIndicators();
 }
