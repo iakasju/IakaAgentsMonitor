@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Capacites de la GUI tray : popover, evenements core. Aucun sidecar, aucun reseau.","local":true,"windows":["popover"],"permissions":["core:default"]}}
