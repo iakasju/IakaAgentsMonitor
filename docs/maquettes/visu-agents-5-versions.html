@@ -144,6 +144,40 @@ ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; wi
 .pv-t-persona{ display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .pv-t-num{ font-family:var(--sc-font-mono); font-variant-numeric:tabular-nums; color:var(--sc-ink-muted); }
 .pv-sort-ind{ opacity:.5; font-size:.65em; }
+.pv-tree-guide{ font-family:var(--sc-font-mono); color:var(--sc-ink-faint); white-space:pre; }
+
+/* ---------- V4 mockup (fenêtre produit, ancrée sous la barre de menus) ---------- */
+.pv-mockup-stage{ padding:20px 16px 24px; background:var(--sc-well); border:1px solid var(--sc-border); border-radius:14px; }
+.pv-mockup-screen{ max-width:760px; margin:0 auto; }
+.pv-menubar{ height:24px; background:#1d1d1f; border-radius:6px 6px 0 0; display:flex; align-items:center; justify-content:space-between; padding:0 10px; font-size:0.68rem; color:#f0f0f0; font-family:var(--sc-font-body); }
+.pv-menubar .mb-left{ opacity:.8; }
+.pv-menubar .mb-right{ display:flex; align-items:center; gap:10px; }
+.pv-menubar .mb-tray{ display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.14); padding:2px 7px; border-radius:5px; font-family:var(--sc-font-mono); }
+.pv-mockup-notch-row{ display:flex; justify-content:flex-end; padding-right:32px; }
+.pv-mockup-notch{ width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:6px solid var(--sc-surface); }
+.pv-mockup-window-wrap{ display:flex; justify-content:flex-end; padding-right:14px; }
+.pv-mockup-window{ width:520px; max-width:100%; height:360px; background:var(--sc-surface); border:1px solid var(--sc-border); border-radius:10px; box-shadow:0 18px 40px rgba(0,0,0,.22); display:flex; flex-direction:column; overflow:hidden; }
+.pv-mockup-head{ padding:8px 12px; border-bottom:1px solid var(--sc-border); display:flex; justify-content:space-between; align-items:center; font-family:var(--sc-font-mono); font-size:0.7rem; color:var(--sc-ink-muted); flex:none; }
+.pv-mockup-head b{ color:var(--sc-ink); font-family:var(--sc-font-display); font-weight:700; font-size:0.85rem; }
+.pv-mockup-body{ flex:1; overflow:auto; }
+.pv-mockup-body table{ font-size:0.66rem; width:100%; }
+.pv-mockup-body th, .pv-mockup-body td{ padding:4px 6px !important; }
+.pv-mockup-foot{ padding:5px 12px; border-top:1px solid var(--sc-border); font-family:var(--sc-font-mono); font-size:0.6rem; color:var(--sc-ink-faint); display:flex; justify-content:space-between; flex:none; }
+.pv-mockup-caption{ text-align:center; font-family:var(--sc-font-mono); font-size:0.68rem; color:var(--sc-ink-faint); margin:8px 0 0; }
+
+/* ---------- Icônes 4×4 (onglet) ---------- */
+.ic-mono{ margin:0; line-height:.74; letter-spacing:0; font-family:var(--sc-font-mono); }
+.pv-ic-style{ padding:16px 18px; margin-bottom:16px; }
+.pv-ic-style-h{ margin:0 0 4px; font-family:var(--sc-font-display); font-size:1.05rem; }
+.pv-ic-style-desc{ margin:0 0 14px; color:var(--sc-ink-muted); font-size:0.85rem; max-width:74ch; }
+.pv-ic-sub{ font-family:var(--sc-font-mono); text-transform:uppercase; font-size:0.65rem; letter-spacing:.06em; color:var(--sc-ink-muted); margin:14px 0 8px; }
+.pv-ic-context-row{ display:flex; flex-wrap:wrap; gap:12px; }
+.pv-ic-context{ flex:1 1 300px; border-radius:8px; overflow:hidden; border:1px solid var(--sc-border); }
+.pv-ic-enlarge-row{ display:flex; flex-wrap:wrap; gap:12px; }
+.pv-ic-swatch{ flex:1 1 320px; display:flex; flex-wrap:wrap; gap:14px; padding:16px; border-radius:8px; border:1px solid var(--sc-border); }
+.pv-ic-cell{ display:flex; flex-direction:column; align-items:center; gap:5px; width:64px; }
+.pv-ic-name{ font-family:var(--sc-font-body); font-size:0.66rem; text-align:center; }
+.pv-ic-code{ margin:0; background:var(--sc-well); border:1px solid var(--sc-border); border-radius:8px; padding:12px; font-family:var(--sc-font-mono); font-size:0.68rem; line-height:1.5; overflow-x:auto; color:var(--sc-ink); }
 
 /* ---------- V5 frise ---------- */
 .pv-timeline{ display:flex; flex-direction:column; gap:16px; }
@@ -192,8 +226,11 @@ footer.pv-foot{ text-align:center; font-family:var(--sc-font-mono); font-size:0.
       <span class="sc-section-label">IakaAgentsMonitor · maquette</span>
       <h1>Visu des agents — 5 partis pris</h1>
       <p class="sc-sub">Qui travaille en ce moment, pour quel projet, sur quel runner, avec quel
-      modèle — cinq façons de le montrer. Données fictives mais plausibles ; charte
-      <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).</p>
+      modèle — cinq façons de le montrer, plus un onglet de choix d'icônes. Données fictives mais
+      plausibles ; charte <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).
+      <b>Amendement A1</b> (26/09) : <b>V4 · Tableau dense</b> devient la vue par défaut du produit —
+      indentation de délégation, tri « arbre » — et un nouvel onglet <b>Icônes 4×4</b> propose trois
+      partis pris de pixel art pour les 9 personas.</p>
     </div>
     <button class="pv-theme-btn" id="themeBtn" type="button">☾ / ☀ thème</button>
   </div>
@@ -383,10 +420,105 @@ function viewRoom(){
   </div>`;
 }
 
-/* ============================= V4 — tableau dense ============================= */
+/* ============================= V4 — tableau dense (indenté, tri « arbre ») ============================= */
 let tableSort = { col:'startedMin', dir:1 };
+
+// Tri "arbre" : chaque fratrie (agents qui partagent le même parent — les orchestrateurs
+// racines forment eux-mêmes une fratrie) est triée indépendamment par la colonne choisie ;
+// l'ordre visuel reste un parcours en profondeur, l'indentation ne bouge donc jamais.
+function compareBy(a,b){
+  const col = tableSort.col;
+  let ka, kb;
+  if(col === 'statut'){ ka = isLive(a)?0:1; kb = isLive(b)?0:1; }
+  else if(col === 'persona'){
+    ka = (a.persona?PERSONAS[a.persona].name:'Codex').toLowerCase();
+    kb = (b.persona?PERSONAS[b.persona].name:'Codex').toLowerCase();
+  } else {
+    ka = a[col]; kb = b[col];
+    if(typeof ka === 'string') ka = ka.toLowerCase();
+    if(typeof kb === 'string') kb = kb.toLowerCase();
+  }
+  if(ka<kb) return -1*tableSort.dir; if(ka>kb) return 1*tableSort.dir; return 0;
+}
+function buildTreeRows(){
+  const rows = [];
+  function walk(list, depth, prefix){
+    const sorted = list.slice().sort(compareBy);
+    sorted.forEach((a,i) => {
+      const isLast = i === sorted.length-1;
+      const guide = depth===0 ? '' : prefix + (isLast ? '└─ ' : '├─ ');
+      rows.push({ a, depth, guide });
+      const kids = childrenOf(a.id);
+      if(kids.length){
+        const childPrefix = depth===0 ? '' : prefix + (isLast ? '   ' : '│  ');
+        walk(kids, depth+1, childPrefix);
+      }
+    });
+  }
+  walk(FLAT.filter(a=>!a.parent), 0, '');
+  return rows;
+}
+function personaCellHTML(row){
+  const a = row.a;
+  const guide = row.guide ? `<span class="pv-tree-guide">${row.guide}</span>` : '';
+  return `${guide}${sprite(a.persona,20,'')} ${a.persona?PERSONAS[a.persona].name:'Codex'}`;
+}
+function rowHTML(row, compact){
+  const a = row.a;
+  const statut = isLive(a) ? '<span class="sc-badge b-live">vivant</span>' : '<span class="sc-badge">inactif</span>';
+  if(compact){
+    return `<tr>
+      <td class="pv-t-persona">${personaCellHTML(row)}</td>
+      <td>${a.project}</td>
+      <td><span class="sc-chip">${RUNNERS[a.runner]}</span></td>
+      <td class="pv-t-num">${fmtAgo(a.activeSec)}</td>
+      <td>${statut}</td>
+    </tr>`;
+  }
+  return `<tr>
+    <td class="pv-t-persona">${personaCellHTML(row)}</td>
+    <td>${a.project}</td>
+    <td><span class="sc-chip">${RUNNERS[a.runner]}</span></td>
+    <td><span class="sc-chip">${a.model}</span></td>
+    <td>${a.task}</td>
+    <td class="pv-t-num">${fmtStarted(a.startedMin)}</td>
+    <td class="pv-t-num">${fmtAgo(a.activeSec)}</td>
+    <td>${statut}</td>
+  </tr>`;
+}
 function viewTable(){
-  return `<div class="sc-card pv-table-wrap"><table class="sc-table" id="denseTable">
+  const total = FLAT.filter(isLive).length;
+  return `
+  <div class="pv-partipris sc-note tip" style="margin-top:0;">
+    <span class="k">Amendement A1</span> — ce tableau devient la <b>vue par défaut du produit</b> :
+    un clic gauche sur l'icône de barre de menus ouvre directement une petite fenêtre (520 × 360)
+    qui l'affiche, comme ci-dessous. L'indentation matérialise la délégation : chaque agent délégué
+    apparaît sous son parent, décalé d'un niveau, avec des guides <code>├─</code> / <code>└─</code> /
+    <code>│</code>.
+  </div>
+
+  <div class="pv-mockup-stage"><div class="pv-mockup-screen">
+    <div class="pv-menubar">
+      <span class="mb-left">Finder&nbsp;&nbsp;Fichier&nbsp;&nbsp;Édition&nbsp;&nbsp;Fenêtre&nbsp;&nbsp;Aide</span>
+      <span class="mb-right"><span>🔎</span><span>🔔</span>
+        <span class="mb-tray">🗂 <b id="mbTrayCount">${total}</b></span><span>mar. 14:32</span>
+      </span>
+    </div>
+    <div class="pv-mockup-notch-row"><span class="pv-mockup-notch"></span></div>
+    <div class="pv-mockup-window-wrap"><div class="pv-mockup-window">
+      <div class="pv-mockup-head"><b>IakaAgentsMonitor</b><span id="mbHeadCount">${total} agent${total>1?'s':''}</span></div>
+      <div class="pv-mockup-body"><table class="sc-table" id="miniTable">
+        <thead><tr>
+          <th>Agent</th><th>Projet</th><th>Runner</th><th>Actif</th><th>Statut</th>
+        </tr></thead>
+        <tbody id="miniBody"></tbody>
+      </table></div>
+      <div class="pv-mockup-foot"><span>tick 5 s</span><span>seuil 90 s</span></div>
+    </div></div>
+    <p class="pv-mockup-caption">aperçu produit — fenêtre ancrée sous l'icône, 520 × 360</p>
+  </div></div>
+
+  <div class="sc-card pv-table-wrap"><table class="sc-table" id="denseTable">
     <thead><tr>
       <th data-col="persona">Agent</th><th data-col="project">Projet</th>
       <th data-col="runner">Runner</th><th data-col="model">Modèle</th>
@@ -398,28 +530,38 @@ function viewTable(){
     <tbody id="denseBody"></tbody>
   </table></div>
   <div class="pv-partipris sc-note tip">
-    <span class="k">Parti pris</span> — une ligne par agent, colonnes triables (clic sur l'en-tête) :
-    runner et modèle deviennent des <b>facettes</b> comparables d'un coup d'œil, plutôt que noyés dans
-    une bulle. <span class="k">Pour quand</span> — audit « qui tourne sur quel modèle en ce moment »,
-    repérer un agent resté actif trop longtemps sur un modèle cher (Opus), triage avant clôture.
+    <span class="k">Parti pris</span> — une ligne par agent, indentée sous son parent : la
+    hiérarchie de délégation se lit sans quitter le tableau, runner et modèle restent des
+    <b>facettes</b> triables. <span class="k">Tri « arbre » (mode par défaut, seul mode du MVP)</span>
+    — cliquer sur un en-tête trie <b>chaque fratrie indépendamment</b> : les orchestrateurs de
+    session (les racines, une par projet) se réordonnent entre eux, puis, sous chaque parent, ses
+    enfants directs se réordonnent entre eux — jamais l'inverse. L'ordre visuel reste un parcours en
+    profondeur ; l'indentation, elle, ne bouge jamais. <span class="k">Pour quand</span> — audit
+    « qui tourne sur quel modèle en ce moment », repérer un agent resté actif trop longtemps sur un
+    modèle cher (Opus), triage avant clôture — désormais aussi l'écran d'entrée de l'app.
   </div>`;
 }
-function renderTableBody(){
-  const rows = FLAT.slice().sort((a,b) => {
-    const ka = tableSort.col==='statut' ? (isLive(a)?0:1) : a[tableSort.col];
-    const kb = tableSort.col==='statut' ? (isLive(b)?0:1) : b[tableSort.col];
-    if(ka<kb) return -1*tableSort.dir; if(ka>kb) return 1*tableSort.dir; return 0;
+function addSortIndicators(){
+  document.querySelectorAll('#denseTable th').forEach(th => {
+    const base = th.textContent.replace(/\s*[▲▼]\s*$/,'');
+    th.textContent = base + (th.dataset.col===tableSort.col ? (tableSort.dir>0?' ▲':' ▼') : '');
   });
-  document.getElementById('denseBody').innerHTML = rows.map(a => `<tr>
-    <td class="pv-t-persona">${sprite(a.persona,20,'')} ${a.persona?PERSONAS[a.persona].name:'Codex'}</td>
-    <td>${a.project}</td>
-    <td><span class="sc-chip">${RUNNERS[a.runner]}</span></td>
-    <td><span class="sc-chip">${a.model}</span></td>
-    <td>${a.task}</td>
-    <td class="pv-t-num">${fmtStarted(a.startedMin)}</td>
-    <td class="pv-t-num">${fmtAgo(a.activeSec)}</td>
-    <td>${isLive(a)?'<span class="sc-badge b-live">vivant</span>':'<span class="sc-badge">inactif</span>'}</td>
-  </tr>`).join('');
+}
+function renderTableBody(){
+  const rows = buildTreeRows();
+  document.getElementById('denseBody').innerHTML = rows.map(r => rowHTML(r,false)).join('');
+  const miniBody = document.getElementById('miniBody');
+  if(miniBody){
+    // la fenêtre produit ne montre que ce qui est vivant (comme la popover réelle, V1) —
+    // le tableau complet ci-dessous reste lui exhaustif, pour l'audit (vivant + inactif).
+    const liveRows = rows.filter(r => isLive(r.a));
+    miniBody.innerHTML = liveRows.length ? liveRows.map(r => rowHTML(r,true)).join('')
+      : `<tr><td colspan="5" style="font-family:var(--sc-font-mono);color:var(--sc-ink-faint);font-size:0.72rem;">Aucun agent en cours</td></tr>`;
+    const total = liveRows.length;
+    const trayEl = document.getElementById('mbTrayCount'); if(trayEl) trayEl.textContent = total;
+    const headEl = document.getElementById('mbHeadCount'); if(headEl) headEl.textContent = total+' agent'+(total>1?'s':'');
+  }
+  addSortIndicators();
 }
 
 /* ============================= V5 — frise temporelle ============================= */
@@ -459,13 +601,140 @@ function viewTimeline(){
   </div>`;
 }
 
+/* ============================= Icônes 4×4 — 3 partis pris ============================= */
+// Contrainte commune : 4 caractères de large, une seule teinte par icône (la couleur de la
+// pastille du persona). Grilles copiables telles quelles (cf. onglet, bloc "grille texte source").
+const ICON_STYLES = {
+  A: { // blocs pleins — 4 colonnes × 4 lignes, binaire (█ / vide)
+    odin:      ['█ █ ','████','████',' ██ '],
+    aragorn:   [' ██ ','█  █','█  █',' ██ '],
+    gandalf:   ['  █ ',' ██ ',' ███','████'],
+    gimli_dev: ['███ ','████','  █ ','  █ '],
+    legolas_p2:[' ██ ','█   ','█   ',' ██ '],
+    helm:      [' ██ ','████','█  █','█  █'],
+    loki:      ['█  █',' ██ ','████','█  █'],
+    nathalie:  ['████','█  █','█  █','████'],
+    feanor:    [' ██ ','████','████',' ██ '],
+  },
+  B: { // demi-blocs — 4 colonnes × 4 lignes de caractères = 4×8 pixels réels (convention iakaOS sprite.py)
+    odin:      [' █ █','████','█▀██',' ██ '],
+    aragorn:   ['▄▀▀▄','▀▄▄▀','█  █',' ▀█ '],
+    gandalf:   ['  █ ',' ██ ','▄███','████'],
+    gimli_dev: ['██▄ ',' ▀██','  █ ','  █ '],
+    legolas_p2:['▄▀▀ ','█   ','█   ','▀▄▄ '],
+    helm:      [' ▀▄ ','████','█  █','█  █'],
+    loki:      ['▀▄▄▀','████',' ██ ','█  █'],
+    nathalie:  ['████','█  █','█  █','████'],
+    feanor:    [' ██ ','████','████',' ▀█ '],
+  },
+  C: { // glyphes symboliques — une nuance (▓) + accent (●) pour les silhouettes, traits de
+       // boîte ┌┐└┘─│ pour les trois insignes encadrés (Aragorn, Helm, Nathalie)
+    odin:      ['▓ ▓ ','▓▓▓▓','▓●▓▓',' ▓▓ '],
+    aragorn:   ['┌──┐','│●●│','│▓▓│','└──┘'],
+    gandalf:   ['  ● ',' ▓▓ ',' ▓▓▓','▓▓▓▓'],
+    gimli_dev: ['▓▓▓ ','████','  ▓ ','  ▓ '],
+    legolas_p2:['  ▓│','██▓│',' ▓ │','   │'],
+    helm:      ['┌██┐','│▓▓│','│▓▓│','└──┘'],
+    loki:      ['▓  ▓',' ██ ','▓●▓▓','▓  ▓'],
+    nathalie:  ['┌──┐','│▓▓│','│──│','└──┘'],
+    feanor:    [' ▓▓ ','▓██▓','▓██▓',' ▓▓ '],
+  },
+};
+const ICON_TRAIT = {
+  odin:'couronne à trois pointes', aragorn:'étoile du Rôdeur (gemme encadrée)',
+  gandalf:'chapeau pointu évasé en cône', gimli_dev:'hache à lame large',
+  legolas_p2:'arc bandé (silhouette en C)', helm:'heaume voûté',
+  loki:'masque à cornes, taille pincée', nathalie:'livre / carnet (cadre rectangulaire)',
+  feanor:'gemme taillée (Silmaril)',
+};
+const ICON_META = {
+  A:{ label:'A · Blocs pleins', desc:'4 colonnes × 4 lignes, binaire (█ plein ou vide), une seule teinte par agent — le parti le plus brut, le plus proche d’un pictogramme d’app tierce. Le plus simple à stocker et à recolorer en code.' },
+  B:{ label:'B · Demi-blocs (convention iakaOS)', desc:'4 caractères de large comme A, mais 4×8 pixels réels grâce aux demi-blocs ▀ ▄ █ — la convention « grille texte + palette » de sprite.py côté iakaOS. Silhouettes plus fines (courbe de l’arc, œil d’Odin, dégradé du chapeau) à l’identique largeur de colonne.' },
+  C:{ label:'C · Glyphes symboliques', desc:'une nuance (▓) et un accent (●) pour les silhouettes, des traits de boîte ┌┐└┘─│ pour les trois insignes encadrés (Aragorn, Helm, Nathalie) — volontairement sobre : une palette de nuances mêlées (░▒▓█ ensemble) part en bouillie à cette taille, testé puis écarté.' },
+};
+function iconPre(grid, color, px){
+  return `<pre class="ic-mono" style="font-size:${px}px;color:${color}">${grid.join('\n')}</pre>`;
+}
+function swatchRow(styleKey, sizePx, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const cells = Object.keys(PERSONAS).map(key => {
+    const p = PERSONAS[key];
+    return `<div class="pv-ic-cell">${iconPre(ICON_STYLES[styleKey][key], p.color, sizePx)}<span class="pv-ic-name" style="color:${ink}">${p.name}</span></div>`;
+  }).join('');
+  return `<div class="pv-ic-swatch" style="background:${bg};border-color:${border}">${cells}</div>`;
+}
+function miniRowsForStyle(styleKey, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const faint = theme==='dark' ? '#63666c' : '#a3a199';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const sampleIds = ['o1','a1','d1'];
+  const rows = buildTreeRows().filter(r => sampleIds.includes(r.a.id));
+  const trs = rows.map(r => {
+    const a = r.a, p = PERSONAS[a.persona];
+    const guide = r.guide ? `<span style="color:${faint}">${r.guide}</span>` : '';
+    return `<tr style="border-bottom:1px solid ${border}">
+      <td style="padding:6px 8px;white-space:nowrap;"><span style="display:inline-flex;align-items:center;gap:6px;">${guide}${iconPre(ICON_STYLES[styleKey][a.persona], p.color, 9)}<span style="color:${ink};font-family:var(--sc-font-body);font-size:0.78rem;">${p.name}</span></span></td>
+      <td style="padding:6px 8px;color:${ink};font-family:var(--sc-font-mono);font-size:0.72rem;">${a.project}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;background:${bg};">${trs}</table>`;
+}
+function viewIcons(){
+  const traitList = Object.keys(ICON_TRAIT).map(k => `<b>${PERSONAS[k].name}</b> — ${ICON_TRAIT[k]}`).join(' · ');
+  const styleBlocks = ['A','B','C'].map(k => {
+    const meta = ICON_META[k];
+    return `<div class="sc-card pv-ic-style">
+      <h3 class="pv-ic-style-h">${meta.label}</h3>
+      <p class="pv-ic-style-desc">${meta.desc}</p>
+
+      <div class="pv-ic-sub">En situation — une ligne du tableau V4, taille réelle (≈ 20 px), clair &amp; sombre</div>
+      <div class="pv-ic-context-row">
+        <div class="pv-ic-context">${miniRowsForStyle(k,'light')}</div>
+        <div class="pv-ic-context">${miniRowsForStyle(k,'dark')}</div>
+      </div>
+
+      <div class="pv-ic-sub">Agrandi — les 9 personas, clair &amp; sombre</div>
+      <div class="pv-ic-enlarge-row">
+        ${swatchRow(k, 26, 'light')}
+        ${swatchRow(k, 26, 'dark')}
+      </div>
+
+      <div class="pv-ic-sub">Grille texte source (copiable telle quelle dans le code)</div>
+      <pre class="pv-ic-code">${JSON.stringify(ICON_STYLES[k], null, 2)}</pre>
+    </div>`;
+  }).join('');
+  return `
+  <div class="pv-partipris sc-note tip" style="margin-top:0;">
+    <span class="k">3 partis pris</span> — même contrainte (4 caractères de large, une seule teinte
+    par agent : la couleur de sa pastille), trois façons d'en tirer une silhouette reconnaissable.
+    <span class="k">Trait distinctif</span> par persona — ${traitList}.
+  </div>
+  ${styleBlocks}
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Recommandation Loki</span> — <b>B, demi-blocs</b> : au même encombrement (4
+    caractères de large) que A, la résolution verticale réelle double (4×8 pixels), donc les
+    silhouettes restent lisibles à 16-20 px sans perdre le rendu franc, deux tons, qui supporte bien
+    la réduction — et il reprend la convention de sprite déjà en usage dans iakaOS (« grille texte +
+    palette », demi-bloc <code>▀</code>), un même dialecte visuel entre les deux produits. <b>A</b>
+    reste le repli le plus sûr si B, essayé pour de vrai à 16 px, se révèle encore trop fin ; <b>C</b>
+    est le plus soigné mais les nuances <code>░▒▓</code> perdent en lisibilité une fois réduites
+    sous ~20 px — à réserver à un usage agrandi (fiche d'un agent, à-propos) plutôt qu'à la colonne
+    du tableau. En attendant le choix de Stéphane, le tableau V4 garde son sprite vectoriel actuel
+    (lettre dans un carré à la couleur de la pastille, cf. instruction).
+  </div>`;
+}
+
 /* ============================= tabs & boot ============================= */
 const VIEWS = [
   { id:'popover',  label:'V1 · Popover',        render:viewPopover },
   { id:'tree',     label:'V2 · Arbre délégation',render:viewTree },
   { id:'room',     label:'V3 · Salle des équipes',render:viewRoom },
-  { id:'table',    label:'V4 · Tableau dense',   render:viewTable },
+  { id:'table',    label:'V4 · Tableau dense — défaut',render:viewTable },
   { id:'timeline', label:'V5 · Frise temporelle',render:viewTimeline },
+  { id:'icons',    label:'Icônes 4×4',           render:viewIcons },
 ];
 const tabsEl = document.getElementById('tabs');
 const viewsEl = document.getElementById('views');
@@ -491,7 +760,7 @@ tabsEl.addEventListener('click', e => {
   const b = e.target.closest('.sc-tab');
   if(b){ showView(b.dataset.id); history.replaceState(null,'','#'+b.dataset.id); }
 });
-const initId = VIEWS.some(v=>v.id===location.hash.slice(1)) ? location.hash.slice(1) : 'popover';
+const initId = VIEWS.some(v=>v.id===location.hash.slice(1)) ? location.hash.slice(1) : 'table';
 showView(initId);
 
 document.getElementById('themeBtn').onclick = () => {
