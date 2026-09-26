@@ -27,6 +27,20 @@ interface SortState {
 let sort: SortState | null = null;
 let lastSnapshot: AgentsSnapshot | null = null;
 
+/** Mode d'affichage (amendement A4, point 1) : compact = 5 colonnes dans la fenêtre 520×360
+ * (Agent · Projet · Runner · Actif · Reste, comme l'aperçu produit de la maquette V4) ; complet =
+ * les 8 colonnes dans la fenêtre élargie (~1000×420). Par défaut compact, comme la fenêtre créée
+ * par Tauri. Le choix mémorisé (localStorage) et le redimensionnement de la fenêtre sont pilotés
+ * par main.ts ; ce module ne fait que peindre le bon jeu de colonnes. */
+let compact = true;
+
+/** Bascule le mode d'affichage et re-peint immédiatement le dernier instantané connu (si un
+ * rendu a déjà eu lieu) — même logique que le re-tri sur clic d'en-tête. */
+export function setCompactMode(value: boolean): void {
+  compact = value;
+  if (lastSnapshot) renderAgents(lastSnapshot);
+}
+
 /** Point d'extension UNIQUE pour l'icône d'un agent (amendement A1, décision A2 : carré arrondi
  * couleur pastille + lettre, en attendant une piste de portraits jugée suffisante). */
 function renderSpriteIcon(node: AgentNode): HTMLElement {
@@ -189,22 +203,29 @@ function flatten(sessions: SessionNode[]): Row[] {
 
 /** Ordre des colonnes : Agent · Projet · Runner · Modèle · Tâche · Démarré il y a · Actif il y a
  * · Reste (specs/instructions/temps-restant.md, Q3-A : « Reste » remplace « Statut », amende
- * l'ordre fixé par l'amendement A3 de liste-des-agents.md). */
-type ColumnDef = { id: SortCol | "runner"; label: string; sortable: boolean };
+ * l'ordre fixé par l'amendement A3 de liste-des-agents.md). `compact: true` = colonne conservée
+ * dans la fenêtre 520×360 (amendement A4, point 1) : leur ordre relatif dans ce tableau, une fois
+ * filtré, donne déjà Agent · Projet · Runner · Actif · Reste, sans réordonnancement nécessaire. */
+type ColumnDef = { id: SortCol | "runner"; label: string; sortable: boolean; compact: boolean };
 const COLUMNS: ColumnDef[] = [
-  { id: "agent", label: "Agent", sortable: true },
-  { id: "project", label: "Projet", sortable: true },
-  { id: "runner", label: "Runner", sortable: false },
-  { id: "model", label: "Modèle", sortable: true },
-  { id: "task", label: "Tâche", sortable: true },
-  { id: "started", label: "Démarré il y a", sortable: true },
-  { id: "active", label: "Actif il y a", sortable: true },
-  { id: "remaining", label: "Reste", sortable: true },
+  { id: "agent", label: "Agent", sortable: true, compact: true },
+  { id: "project", label: "Projet", sortable: true, compact: true },
+  { id: "runner", label: "Runner", sortable: false, compact: true },
+  { id: "model", label: "Modèle", sortable: true, compact: false },
+  { id: "task", label: "Tâche", sortable: true, compact: false },
+  { id: "started", label: "Démarré il y a", sortable: true, compact: false },
+  { id: "active", label: "Actif il y a", sortable: true, compact: true },
+  { id: "remaining", label: "Reste", sortable: true, compact: true },
 ];
+
+/** Colonnes effectivement affichées pour le mode courant. */
+function visibleColumns(): ColumnDef[] {
+  return compact ? COLUMNS.filter((c) => c.compact) : COLUMNS;
+}
 
 function headerRow(): HTMLElement {
   const tr = document.createElement("tr");
-  for (const { id, label, sortable } of COLUMNS) {
+  for (const { id, label, sortable } of visibleColumns()) {
     const th = document.createElement("th");
     th.textContent = label;
     if (sortable) {
@@ -227,7 +248,7 @@ function agentRow(row: Row): HTMLElement {
   tr.title = row.node.tooltip;
   const isOverflow = row.node.overflow !== null;
 
-  for (const { id } of COLUMNS) {
+  for (const { id } of visibleColumns()) {
     const td = document.createElement("td");
     switch (id) {
       case "agent": {
@@ -278,7 +299,9 @@ function agentRow(row: Row): HTMLElement {
 
 function renderTable(sessions: SessionNode[]): HTMLElement {
   const table = document.createElement("table");
-  table.className = "agents-table";
+  // Amendement A4, point 1 : classe "compact" pour le style à 5 colonnes de la fenêtre 520×360
+  // (styles.css se charge de ne jamais laisser une colonne sortir de la fenêtre dans ce mode).
+  table.className = compact ? "agents-table compact" : "agents-table";
   const thead = document.createElement("thead");
   thead.appendChild(headerRow());
   table.appendChild(thead);

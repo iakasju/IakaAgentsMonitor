@@ -5,7 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { renderAgents } from "./render";
+import { renderAgents, setCompactMode } from "./render";
 import type { AgentsSnapshot } from "./types";
 
 async function refreshAgents(): Promise<void> {
@@ -21,6 +21,53 @@ listen<AgentsSnapshot>("tray://agents", (event) => {
 }).catch((e) => console.error("listen tray://agents a echoue", e));
 
 void refreshAgents();
+
+// ---- Fenetre compacte (5 colonnes, 520x360) / complete (8 colonnes, ~1000x420) -----------
+// Amendement A4, point 1. Le choix est memorise (localStorage, meme mecanique que le theme) et
+// applique aux DEUX bouts : cote rendu (colonnes affichees, render.ts) et cote fenetre native
+// (taille + reancrage sous l'icone, commande Rust `set_window_mode`).
+const COMPACT_KEY = "iakaam-compact";
+
+function loadCompactPref(): boolean {
+  try {
+    // Pas de valeur memorisee -> mode par defaut = compact (meme taille que tauri.conf.json).
+    return localStorage.getItem(COMPACT_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function saveCompactPref(value: boolean): void {
+  try {
+    localStorage.setItem(COMPACT_KEY, value ? "1" : "0");
+  } catch {
+    /* localStorage indisponible : le choix ne survit pas au redemarrage de l'app. */
+  }
+}
+
+function applyExpandButtonLabel(compact: boolean): void {
+  const btn = document.getElementById("expandBtn");
+  if (!btn) return;
+  btn.textContent = compact ? "⤢" : "⤡";
+  btn.title = compact ? "Agrandir (tableau complet)" : "Réduire (vue compacte)";
+}
+
+function setWindowMode(compact: boolean): void {
+  invoke("set_window_mode", { compact }).catch((e) => console.error("set_window_mode a echoue", e));
+}
+
+let compactMode = loadCompactPref();
+setCompactMode(compactMode);
+applyExpandButtonLabel(compactMode);
+setWindowMode(compactMode);
+
+document.getElementById("expandBtn")?.addEventListener("click", () => {
+  compactMode = !compactMode;
+  setCompactMode(compactMode);
+  applyExpandButtonLabel(compactMode);
+  saveCompactPref(compactMode);
+  setWindowMode(compactMode);
+});
 
 // ---- Theme clair/sombre (amendement A3, point 1) ----
 // Par defaut, suit macOS (media query CSS, aucun JS requis). Bascule manuelle memorisee dans

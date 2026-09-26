@@ -204,6 +204,42 @@ body {
   background: var(--sc-well);
 }
 
+/* Mode compact (amendement A4, point 1) : fenêtre 520×360, 5 colonnes seulement — Agent · Projet
+   · Runner · Actif · Reste (render.ts ne peint que celles-ci, dans cet ordre). `table-layout:
+   fixed` + largeurs en pourcentage (somme 100 %) + ellipse sur chaque cellule : garantit qu'AUCUNE
+   colonne ne sort de la fenêtre sans défilement (constat corrigé : avant cet amendement, les
+   colonnes Démarré/Actif/Reste du tableau complet à 8 colonnes sortaient de la fenêtre 520 px). Le
+   tableau complet (8 colonnes, fenêtre élargie ~1000×420) garde son comportement d'origine, sans
+   layout fixe : il a toujours eu la place. */
+.agents-table.compact {
+  table-layout: fixed;
+}
+.agents-table.compact th,
+.agents-table.compact td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agents-table.compact th:nth-child(1),
+.agents-table.compact td:nth-child(1) {
+  width: 34%;
+}
+.agents-table.compact th:nth-child(2),
+.agents-table.compact td:nth-child(2) {
+  width: 16%;
+}
+.agents-table.compact th:nth-child(3),
+.agents-table.compact td:nth-child(3) {
+  width: 16%;
+}
+.agents-table.compact th:nth-child(4),
+.agents-table.compact td:nth-child(4) {
+  width: 10%;
+}
+.agents-table.compact th:nth-child(5),
+.agents-table.compact td:nth-child(5) {
+  width: 24%;
+}
+
 .agents-cell-task {
   white-space: normal;
   max-width: 220px;
@@ -282,7 +318,11 @@ body {
   background: var(--sc-well);
   border: 1px solid var(--sc-border);
   border-radius: 3px;
-  overflow: hidden;
+  /* Amendement A4, point 3 : PAS de overflow:hidden ici, sinon le repère de dépassement
+     `.reste-mark` (dont le tracé dépasse volontairement la piste, top/bottom -2px) est rogné. Le
+     remplissage (`.reste-fill`) n'a de son côté jamais besoin d'être clippé : sa largeur est déjà
+     plafonnée à 100 % de la piste côté Rust (D9, `fillPct`), rien à en cacher. */
+  overflow: visible;
 }
 .reste-fill {
   position: absolute;
