@@ -4,6 +4,7 @@
 
 mod agents;
 mod claude_paths;
+mod estimate;
 mod state;
 mod tray;
 

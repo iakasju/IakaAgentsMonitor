@@ -25,6 +25,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::claude_paths::{
     bucket_project, claude_projects_dir, claude_transcript_files, project_of,
 };
+use crate::estimate;
 use crate::state::AppState;
 
 /// Nom d'événement poussé à la webview à chaque changement d'instantané agents.
@@ -292,10 +293,11 @@ fn first_cwd_in_transcript(path: &Path, cap: usize) -> Option<String> {
     None
 }
 
-/// Cherche `message.model` dans le premier enregistrement `"type":"assistant"` des lignes de
-/// tête d'un transcript (bornée en octets). `None` si absent/illisible dans la fenêtre lue.
-fn first_assistant_model_in_transcript(path: &Path, cap: usize) -> Option<String> {
-    let head = read_head_capped(path, cap)?;
+/// Cherche `message.model` dans le premier enregistrement `"type":"assistant"` des lignes d'une
+/// tête de transcript DÉJÀ LUE. Pure (aucune E/S) : c'est la fonction bornée
+/// [`first_assistant_model_in_transcript`] qui lit le disque, et la lecture combinée de
+/// `resolve_subagent` (DA-T7 de temps-restant.md) qui réutilise celle-ci sans relire.
+fn model_from_head(head: &str) -> Option<String> {
     for line in head.lines() {
         if line.is_empty() {
             continue;
@@ -315,6 +317,12 @@ fn first_assistant_model_in_transcript(path: &Path, cap: usize) -> Option<String
         }
     }
     None
+}
+
+/// Cherche `message.model` dans le premier enregistrement `"type":"assistant"` des lignes de
+/// tête d'un transcript (bornée en octets). `None` si absent/illisible dans la fenêtre lue.
+fn first_assistant_model_in_transcript(path: &Path, cap: usize) -> Option<String> {
+    read_head_capped(path, cap).and_then(|head| model_from_head(&head))
 }
 
 fn titlecase(s: &str) -> String {
@@ -413,12 +421,13 @@ fn truncate_task(text: &str, max_chars: usize) -> String {
     }
 }
 
-/// Cherche, dans les lignes de tête (bornées en octets) d'un transcript, le premier message
-/// UTILISATEUR RÉEL — hors lignes de service (`type` différent de `"user"`, déjà écarté
-/// structurellement) et hors balises de commande/système ([`is_service_tag`]) — et le tronque
-/// (point 11). `None` si rien d'exploitable n'a été trouvé dans la fenêtre lue.
-fn first_user_message_snippet(path: &Path, cap: usize) -> Option<String> {
-    let head = read_head_capped(path, cap)?;
+/// Cherche, dans les lignes d'une tête de transcript DÉJÀ LUE, le premier message UTILISATEUR
+/// RÉEL — hors lignes de service (`type` différent de `"user"`, déjà écarté structurellement) et
+/// hors balises de commande/système ([`is_service_tag`]) — SANS troncature (réemployé tel quel
+/// pour la grammaire de `estimate.rs`, qui a besoin des lignes complètes, pas d'un extrait
+/// tronqué à 60 caractères). Pure (aucune E/S), réutilisable pour la lecture combinée
+/// (DA-T7 de temps-restant.md).
+fn raw_user_snippet_from_head(head: &str) -> Option<String> {
     for line in head.lines() {
         if line.is_empty() {
             continue;
@@ -435,6 +444,17 @@ fn first_user_message_snippet(path: &Path, cap: usize) -> Option<String> {
         if text.trim().is_empty() || is_service_tag(&text) {
             continue;
         }
+        return Some(text);
+    }
+    None
+}
+
+/// Cherche, dans les lignes de tête (bornées en octets) d'un transcript, le premier message
+/// utilisateur réel, tronqué (point 11 de liste-des-agents.md). `None` si rien d'exploitable
+/// n'a été trouvé dans la fenêtre lue.
+fn first_user_message_snippet(path: &Path, cap: usize) -> Option<String> {
+    let head = read_head_capped(path, cap)?;
+    if let Some(text) = raw_user_snippet_from_head(&head) {
         return Some(truncate_task(&text, TASK_SNIPPET_MAX_CHARS));
     }
     None
@@ -545,8 +565,13 @@ pub struct AgentNode {
     /// « Opus 5.5 ») depuis `message.model` du premier enregistrement assistant de SON PROPRE
     /// transcript (coordinateur ou sous-agent — jamais celui d'un autre). `"—"` si absent/illisible.
     pub model: String,
+    /// Temps restant estimé (specs/instructions/temps-restant.md), `None` pour le coordinateur,
+    /// le marqueur de débordement, ou tout sous-agent sans estimation annoncée (colonne « Reste »
+    /// affiche alors un tiret, jamais de barre inventée).
+    pub estimate: Option<estimate::EstimateView>,
     /// Infobulle complète (persona — tâche — actif il y a — remontée d'ancêtre mort le cas
-    /// échéant) : conservée pour le survol, en plus des colonnes structurées.
+    /// échéant, estimation le cas échéant) : conservée pour le survol, en plus des colonnes
+    /// structurées.
     pub tooltip: String,
     pub children: Vec<AgentNode>,
     /// Nombre d'agents au-delà de la borne (8 enfants max) — `None` si aucun débordement.
@@ -571,17 +596,43 @@ struct ResolvedSubagent {
     created: Option<i64>,
     /// Modèle de CE sous-agent (amendement A1), déjà résolu en libellé lisible.
     model: String,
+    /// Libellé court (ex. `description`) débarrassé de son éventuel suffixe d'estimation valide
+    /// (specs/instructions/temps-restant.md) — devient la tâche affichée.
+    task: String,
+    /// Estimation résolue (grammaire de la consigne ou du suffixe, priorité à la consigne),
+    /// avant mise en forme (celle-ci a besoin du temps écoulé, connu seulement au moment de
+    /// construire l'arbre, cf. `build_children`).
+    estimate: Option<estimate::Estimate>,
 }
 
-/// Résout un `RawSubagent` (lecture du sidecar + mtime + liveness + modèle). Défensif : sidecar
-/// absent/illisible/invalide -> `AgentMeta::default()` (type inconnu), jamais ignoré.
+/// Résout un `RawSubagent` (lecture du sidecar + mtime + liveness + modèle + estimation).
+/// Défensif : sidecar absent/illisible/invalide -> `AgentMeta::default()` (type inconnu), jamais
+/// ignoré. DA-T7 (temps-restant.md) : la tête du transcript est lue **une seule fois** ici, et
+/// sert à la fois au modèle et à la consigne (source par runner, ici Claude Code).
 fn resolve_subagent(raw: &RawSubagent, now: i64, liveness_secs: i64) -> ResolvedSubagent {
     let sidecar = raw.transcript_path.with_extension("meta.json");
     let meta = read_agent_meta(&sidecar).unwrap_or_default();
     let mtime = mtime_of(&raw.transcript_path);
     let live = mtime.is_some_and(|m| is_live(now, m, liveness_secs));
     let created = created_of(&raw.transcript_path);
-    let model = model_label_for_transcript(&raw.transcript_path);
+
+    let head = read_head_capped(&raw.transcript_path, TRANSCRIPT_HEAD_CAP);
+    let model = head
+        .as_deref()
+        .and_then(model_from_head)
+        .map(|m| format_model_label(&m))
+        .unwrap_or_else(|| "—".to_string());
+    let raw_consigne = head.as_deref().and_then(raw_user_snippet_from_head);
+
+    // Source Claude Code du contrat neutre estimate::DelegationText (specs/instructions/
+    // temps-restant.md § Couche « source par runner ») : consigne = premier message utilisateur
+    // réel de CE sous-agent ; libellé court = description du compagnon.
+    let delegation = estimate::DelegationText {
+        consigne: raw_consigne,
+        short_label: meta.description.clone(),
+    };
+    let (resolved_task, resolved_estimate) = estimate::resolve(&delegation);
+
     ResolvedSubagent {
         agent_id: raw.agent_id.clone(),
         meta,
@@ -589,6 +640,8 @@ fn resolve_subagent(raw: &RawSubagent, now: i64, liveness_secs: i64) -> Resolved
         mtime,
         created,
         model,
+        task: resolved_task.unwrap_or_default(),
+        estimate: resolved_estimate,
     }
 }
 
@@ -670,6 +723,8 @@ fn build_session_node(
         started_ago: format_started_ago(started_secs),
         started_secs,
         model: coordinator_model,
+        // DA-T6 (temps-restant.md) : la session principale n'a jamais d'estimation.
+        estimate: None,
         tooltip: format!("Odin (coordinateur) — actif il y a {elapsed} s"),
         children: coordinator_children,
         overflow: None,
@@ -683,6 +738,19 @@ fn build_session_node(
         .unwrap_or(i64::MIN);
 
     Some((SessionNode { project, coordinator }, activity))
+}
+
+/// Combine une estimation résolue (grammaire) et une date de début en une vue affichable
+/// (DA-T1, temps-restant.md) : l'une ou l'autre absente -> pas de barre, jamais de valeur
+/// inventée à partir d'une base de temps inconnue.
+fn resolve_estimate_view(
+    parsed: Option<&estimate::Estimate>,
+    started_secs: Option<i64>,
+) -> Option<estimate::EstimateView> {
+    match (parsed, started_secs) {
+        (Some(e), Some(started)) => Some(estimate::estimate_view(e, started)),
+        _ => None,
+    }
 }
 
 /// Construit les enfants (triés, bornés à 8 + marqueur `+N`) d'un parent d'affichage donné
@@ -724,7 +792,9 @@ fn build_children(
                 s.meta.agent_type.to_ascii_lowercase()
             };
             let persona = display_persona(&s.meta.agent_type);
-            let desc = s.meta.description.clone().unwrap_or_default();
+            // Tâche déjà débarrassée d'un éventuel suffixe d'estimation valide
+            // (specs/instructions/temps-restant.md, resolve() posé dans resolve_subagent).
+            let desc = s.task.clone();
             let mut tooltip = if desc.is_empty() {
                 format!("{persona_key} — actif il y a {elapsed} s")
             } else {
@@ -756,6 +826,20 @@ fn build_children(
                 now,
             );
             let started_secs = s.created.map(|c| (now - c).max(0));
+            // Vue d'estimation (colonne « Reste », specs/instructions/temps-restant.md) : DA-T1,
+            // le temps écoulé se calcule depuis le DÉBUT de la délégation (même source que
+            // « démarré il y a »), pas depuis la dernière activité. Date de début indisponible
+            // -> pas de barre, même si une estimation a bien été annoncée (DA-T1 : "indisponible
+            // ⇒ pas de barre").
+            let estimate_view = resolve_estimate_view(s.estimate.as_ref(), started_secs);
+            if let (Some(est), Some(view)) = (&s.estimate, &estimate_view) {
+                let announced = estimate::format_estimate_announced(est);
+                if view.remaining_secs < 0 {
+                    tooltip.push_str(&format!(" — estimé {announced}, dépassement {}", view.short_label));
+                } else {
+                    tooltip.push_str(&format!(" — estimé {announced}, reste {}", view.short_label));
+                }
+            }
             AgentNode {
                 sprite,
                 persona,
@@ -765,6 +849,7 @@ fn build_children(
                 started_ago: format_started_ago(started_secs),
                 started_secs,
                 model: s.model.clone(),
+                estimate: estimate_view,
                 tooltip,
                 children,
                 overflow: None,
@@ -785,6 +870,8 @@ fn build_children(
             started_ago: String::new(),
             started_secs: None,
             model: String::new(),
+            // DA-T6 (temps-restant.md) : le marqueur de débordement n'a jamais d'estimation.
+            estimate: None,
             tooltip: format!("+{overflow} agent(s) supplémentaire(s)"),
             children: Vec::new(),
             overflow: Some(overflow as u32),
@@ -1482,6 +1569,105 @@ mod tests {
         let coord = &snap.sessions[0].coordinator;
         assert_eq!(coord.model, "Sonnet 4.5");
         assert_eq!(coord.children[0].model, "Haiku 4.5");
+    }
+
+    // ------------------- Colonne « Reste » (specs/instructions/temps-restant.md) -------------------
+
+    #[test]
+    fn resolve_estimate_view_sans_date_de_debut_est_nul() {
+        let e = estimate::Estimate {
+            lo_secs: None,
+            hi_secs: 600,
+        };
+        assert_eq!(
+            resolve_estimate_view(Some(&e), None),
+            None,
+            "date de debut indisponible -> pas de barre, meme avec une estimation valide"
+        );
+        assert_eq!(resolve_estimate_view(None, Some(120)), None);
+        assert!(resolve_estimate_view(Some(&e), Some(120)).is_some());
+    }
+
+    #[test]
+    fn arbre_estimation_depuis_la_ligne_de_consigne() {
+        let dir = tmp_projects_dir("estimate-ligne");
+        let escaped = dir.join("-w-proj");
+        write_with_mtime(&escaped.join("sid.jsonl"), &session_line("/w/proj"), 0);
+        let sub_content = r#"{"type":"user","message":{"content":"Durée estimée : ~10 min\nfais le travail"}}"#;
+        write_with_mtime(&escaped.join("sid/subagents/agent-1.jsonl"), sub_content, 0);
+        write_meta(&escaped.join("sid/subagents/agent-1.meta.json"), "gimli", None, 1);
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let child = &snap.sessions[0].coordinator.children[0];
+        assert!(child.estimate.is_some(), "estimation attendue depuis la ligne de consigne");
+        assert!(
+            child.tooltip.contains("estimé ~10 min"),
+            "infobulle DA-T4 attendue : {}",
+            child.tooltip
+        );
+    }
+
+    #[test]
+    fn arbre_balises_de_commande_en_lignes_suivantes_ignorees_pour_la_consigne() {
+        let dir = tmp_projects_dir("estimate-balises");
+        let escaped = dir.join("-w-proj");
+        write_with_mtime(&escaped.join("sid.jsonl"), &session_line("/w/proj"), 0);
+        let sub_content = concat!(
+            r#"{"type":"user","message":{"content":"Durée estimée : ~10 min\nfais le travail"}}"#,
+            "\n",
+            r#"{"type":"user","message":{"content":"<command-message>iakaframe-fabrication</command-message>"}}"#,
+        );
+        write_with_mtime(&escaped.join("sid/subagents/agent-1.jsonl"), sub_content, 0);
+        write_meta(&escaped.join("sid/subagents/agent-1.meta.json"), "gimli", None, 1);
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let child = &snap.sessions[0].coordinator.children[0];
+        assert!(
+            child.estimate.is_some(),
+            "la balise de commande en 2e ligne ne doit pas empecher de lire la 1re"
+        );
+    }
+
+    #[test]
+    fn arbre_suffixe_du_compagnon_utilise_quand_le_transcript_n_a_pas_de_ligne() {
+        let dir = tmp_projects_dir("estimate-suffixe");
+        let escaped = dir.join("-w-proj");
+        write_with_mtime(&escaped.join("sid.jsonl"), &session_line("/w/proj"), 0);
+        write_with_mtime(&escaped.join("sid/subagents/agent-1.jsonl"), "{}", 0);
+        let meta_json = r#"{"agentType":"gimli","description":"Test barre (~10 min)","spawnDepth":1}"#;
+        fs::write(escaped.join("sid/subagents/agent-1.meta.json"), meta_json).unwrap();
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let child = &snap.sessions[0].coordinator.children[0];
+        assert!(child.estimate.is_some(), "estimation attendue depuis le suffixe du libelle");
+        assert_eq!(child.task, "Test barre", "le suffixe doit etre retire de la tache affichee");
+    }
+
+    #[test]
+    fn arbre_sans_ligne_ni_suffixe_estimation_nulle() {
+        let dir = tmp_projects_dir("estimate-rien");
+        let escaped = dir.join("-w-proj");
+        write_with_mtime(&escaped.join("sid.jsonl"), &session_line("/w/proj"), 0);
+        write_with_mtime(&escaped.join("sid/subagents/agent-1.jsonl"), "{}", 0);
+        write_meta(&escaped.join("sid/subagents/agent-1.meta.json"), "gimli", None, 1);
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let child = &snap.sessions[0].coordinator.children[0];
+        assert_eq!(child.estimate, None);
+    }
+
+    #[test]
+    fn arbre_coordinateur_n_a_jamais_d_estimation() {
+        let dir = tmp_projects_dir("estimate-coordinateur");
+        let escaped = dir.join("-w-proj");
+        let coord_content = r#"{"type":"user","cwd":"/w/proj","message":{"content":"Durée estimée : ~10 min\nbonjour"}}"#;
+        write_with_mtime(&escaped.join("sid.jsonl"), coord_content, 0);
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        assert_eq!(
+            snap.sessions[0].coordinator.estimate, None,
+            "DA-T6 : la session principale n'a jamais d'estimation, meme si sa 1re ligne y ressemble"
+        );
     }
 
     // ------------------- Tâche de la session principale (amendement A3, point 11) -------------------
