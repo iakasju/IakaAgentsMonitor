@@ -252,10 +252,11 @@ footer.pv-foot{ text-align:center; font-family:var(--sc-font-mono); font-size:0.
       modèle — cinq façons de le montrer, plus un onglet de choix d'icônes. Données fictives mais
       plausibles ; charte <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).
       <b>Amendement A1</b> (26/09) : <b>V4 · Tableau dense</b> devient la vue par défaut du produit —
-      indentation de délégation, tri « arbre ». Onglet <b>Sprites 16×32</b> (26/09, consigne
-      définitive) : vrai pixel art en pied (16×32, palette 16 couleurs documentée) + buste 16×16
-      pour la ligne du tableau ; les essais précédents (icônes 2×2 · 8 bits, icônes 4×4) restent
-      consultables, repliés, pour mémoire.</p>
+      indentation de délégation, tri « arbre ». Onglet <b>Têtes</b> (26/09, retour « on ne
+      reconnaît pas assez ») : tête seule remplissant le cadre, traits exagérés façon caricature
+      8 bits, 32×32 jugé + 16×16 pour la ligne du tableau, testé à l'aveugle ; les essais
+      précédents (sprites en pied 16×32, icônes 2×2 · 8 bits, icônes 4×4) restent consultables,
+      repliés, pour mémoire.</p>
     </div>
     <button class="pv-theme-btn" id="themeBtn" type="button">☾ / ☀ thème</button>
   </div>
@@ -1094,6 +1095,134 @@ function viewSprites16(){
 }
 
 
+
+/* ============================= Têtes — pixel art caricatural, cadre plein (32×32 + 16×16) ============================= */
+const HEADS32 = {"odin":["77777777777777777777777777777777","77777777777777777777777777777777","77777777776666666666667777777777","77666666676666666666667666666677","77666666676666666666667666666677","77666666666666666666666666666677","77666666666666666666666666666677","77777777766666666666666777777777","77777777766666666666666777777777","77777777711111111111111777777777","77777777711111111111111777777777","77777777711111111111111777777777","77777777711111111166666777777777","77777777700000001144444777777777","77777777000000000140044777777777","77777777000000000140044777777777","77777777700000001144444777777777","77777777700000001144444777777777","77777777711111122111111777777777","77777777711111122111111777777777","77777777711111122111111777777777","77777775555555555555555557777777","77777775522222222222222557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777775555555555555555557777777","77777777755555555555555777777777","77777777777777777777777777777777"],"gandalf":["99999999999999955999999999999999","99999999999995555559999999999999","99999999995555555555559999999999","99999999995555555555559999999999","99999999cccccccccccccccc99999999","99999999cccccccccccccccc99999999","99999955555555555555555555999999","99999955555555555555555555999999","99999955555555555555555555999999","99999999111111111111111199999999","99999999111111111111111199999999","99999994444444111144444449999999","99999994444444111144444449999999","99999999100111111111001199999999","99999999100111222211001199999999","99999999111111222211111199999999","99999999111111222211111199999999","99994444444444444444444444449999","99994444444444444444444444449999","99994444444444444444444444449999","99994444444444444444444444449999","99994444444444444444444444449999","99994444444444444444444444449999","99999444444444444444444444499999","99999444444444444444444444499999","99999444444444444444444444499999","99999444444444444444444444499999","99999444444444444444444444499999","99999999444444444444444499999999","99999999444444444444444499999999","99999999444444444444444499999999","99999999999999999999999999999999"],"gimli_dev":["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaa66aaaaaaaaaaaaaaa","aaaaaaaaaaa6666666666aaaaaaaaaaa","aaaaaaaaaaa6666666666aaaaaaaaaaa","aaaaaaaaa66666666666666aaaaaaaaa","aaaaaaaaa66666666666666aaaaaaaaa","aaaaaaaaaddddddddddddddaaaaaaaaa","aaaaaaaaaa222222222222aaaaaaaaaa","aaaaaaaa3333332222333333aaaaaaaa","aaaaaaaa3333332222333333aaaaaaaa","aaaaaaaaaa220022222002aaaaaaaaaa","aaaaaaaaaa220011112002aaaaaaaaaa","aaaaaaaaaa222211112222aaaaaaaaaa","aaaaaaaaaa222211112222aaaaaaaaaa","aaaaaa33333333333333333333aaaaaa","aaaaaa33333333333333333333aaaaaa","aaaaaa333333333dd333333333aaaaaa","aaaaaa333333333dd333333333aaaaaa","aaaaaa333333333dd333333333aaaaaa","aaaaa3333333333dd3333333333aaaaa","aaaaa3333333333dd3333333333aaaaa","aaaaa3333333333dd3333333333aaaaa","aaaaa3333333333dd3333333333aaaaa","aaaaa3333333333dd3333333333aaaaa","aaaaaaa33333333dd33333333aaaaaaa","aaaaaaa33333333dd33333333aaaaaaa","aaaaaaa33333333dd33333333aaaaaaa","aaaaaaa33333333dd33333333aaaaaaa","aaaaaaaaaa33333dd33333aaaaaaaaaa","aaaaaaaaaa33333dd33333aaaaaaaaaa","aaaaaaaaaa333333333333aaaaaaaaaa","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],"legolas_p2":["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bbbbbbbeeeeeeeeeeeeeeeeeebbbbbbb","bbbbbbbeeeeeeeeeeeeeeeeeebbbbbbb","bbbbbbbeeeeeeeeeeeeeeeeeebbbbbbb","bbbbbbbeeeeeeeeeeeeeeeeeebbbbbbb","bbbbbeeeeeeeeeeeeeeeeeeeeeebbbbb","bbbbbeeee11111111111111eeeebbbbb","bbbbbeeee11111111111111eeeebbbbb","bbbbbeeee11111111111111eeeebbbbb","bb11beeee11111111111111eeeeb11bb","bb11bbeeee111111111111eeeebb11bb","b1111beeee111111111111eeeeb1111b","b1111beeee111111111111eeeeb1111b","111111eeee100111111001eeee111111","111111eeee100111111001eeee111111","111111eeee111111111111eeee111111","bbbbbbeeee111122221111eeeebbbbbb","bbbbbbeeee111122221111eeeebbbbbb","bbbbbbeeee111122221111eeeebbbbbb","bbbbbbeeee111111111111eeeebbbbbb","bbbbbbeeee111111111111eeeebbbbbb","bbbbeeeeeeeeeeeeeeeeeeeeeeeebbbb","bbbbeeeeeeeeeeeeeeeeeeeeeeeebbbb","bbbbeeeeeeeeeeeeeeeeeeeeeeeebbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbeeeeeeeeeeeeeeeeeeeebbbbbb","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],"aragorn":["88888888886666666666668888888888","88888886666666666666666668888888","88888886666666666666666668888888","88888666666666666666666666688888","88888666666666666666666666688888","88888666666666666666666666688888","88886666622222222222222666668888","88886666633333333333333666668888","88886666622222222222222666668888","88886666622222222222222666668888","88886666622222222222222666668888","88886666622222222222222666668888","88886666622002222220022666668888","88886666622002222220022666668888","88886666622222111122222666668888","88886666622222111122222666668888","88886666622222111122222666668888","88886666622222222222222666668888","88886666623333333333332666668888","88886666623322222222332666668888","88886666623333333333332666668888","88886666623333333333332666668888","88888888823333333333332888888888","88888888823333333333332888888888","88888888823333333333332888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888"],"helm":["cccccccccccccccccccccccccccccccc","cccccccccccccccccccccccccccccccc","cccccc66666666666666666666cccccc","cccccc66666666666666666666cccccc","cccccc66666666666666666666cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc66660006666660006666cccccc","cccccc66660006666660006666cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc55555555555555555555cccccc","cccccc66666666666666666666cccccc","cccccc66666666666666666666cccccc","cccccc66666666666666666666cccccc","cccccccccccccccccccccccccccccccc","cccccccccccccccccccccccccccccccc"],"loki":["88888888888888888888888888888888","88888888888888888888888888888888","88777778888888888888888887777788","88777778888888888888888887777788","88777778888888888888888887777788","87777788888888888888888888777778","87777788888888888888888888777778","87777788888888888888888888777778","87777788111111111111111188777778","88877777111111111111111177777888","88877777111111111111111177777888","88877777111111111111111177777888","88888888111111111111111188888888","8888888811bbbbb11bbbbb1188888888","88888888111001111110011188888888","88888888111001111110011188888888","88888888111111111111111188888888","88888888111111222211111188888888","88888888111111222211111188888888","88888888111111222211111188888888","88888888111111110011111188888888","88888888111000002222111188888888","88888888111111111111111188888888","88888888111111111111111188888888","88888888111111111111111188888888","88888888111111111111111188888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888"],"nathalie":["88888888888833333333888844488888","88888888888833333333888844488888","88888888888833333333888844488888","88888888883333333333330000008888","88888888883333333333338844488888","88888888883333333333338844488888","88888888883333333333338844488888","88888888811111111111111844488888","88888888813333333333331888888888","88888888811111111111111888888888","88888888811111111111111888888888","88888888811111111111111888888888","88888888811111111111111888888888","88888888000000111100000088888888","88888888055550111105555088888888","88888888055550000005555088888888","88888888055550111105555088888888","88888888055550111105555088888888","88888888000000222200000088888888","88888888811111222211111888888888","88888888811111222211111888888888","88888888811111111111111888888888","888888888111aaaaaaaa111888888888","88888888811111111111111888888888","88888888811111111111111888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888"],"feanor":["88888888888888888888888888888888","88888888880000444400008888888888","8888888888000e4444e0008888888888","8888888888000eeeeee0008888888888","88888888822244eeee44222888888888","88888888822244eeee44222888888888","888888888ddddeeeeeedddd888888888","8888888882222eeeeee2222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822200222220022888888888","88888888822200222220022888888888","88888888822222111122222888888888","88888888822222111122222888888888","88888888822222111122222888888888","88888888822222222222222888888888","88888888822220000002222888888888","88888888822220000002222888888888","88888888822220000002222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888822222222222222888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888","88888888888888888888888888888888"]};
+
+const HEAD_TRAITS = {
+  odin:'bandeau/casque ailé, borgne (bandeau bien visible), barbe grise',
+  gandalf:'grand chapeau pointu gris, longue barbe blanche, sourcils broussailleux',
+  gimli_dev:'casque de nain, énorme barbe rousse fournie',
+  legolas_p2:'cheveux blonds longs, oreilles pointues, visage imberbe',
+  aragorn:'capuche de rôdeur, cheveux/barbe courte bruns',
+  helm:'heaume fermé avec fente de visière',
+  loki:'grandes cornes dorées recourbées, sourire en coin, accent vert',
+  nathalie:'chignon, lunettes, plume derrière l’oreille',
+  feanor:'circlet/bandeau avec gemme lumineuse au front, cheveux noirs',
+};
+function downsampleHead(grid32){
+  const out = [];
+  for(let y=0;y<16;y++){ let r=''; for(let x=0;x<16;x++) r+=grid32[y*2][x*2]; out.push(r); }
+  return out;
+}
+const HEADS16 = Object.fromEntries(Object.keys(HEADS32).map(k => [k, downsampleHead(HEADS32[k])]));
+function headImg(grid, cssSize, extraStyle){ return spriteImg(grid, PALETTE16, cssSize, extraStyle); }
+function headCard(key, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const p = PERSONAS[key];
+  return `<div class="pv-spr-card" style="background:${bg};border-color:${border}">
+    <span class="pv-spr-name" style="color:${ink}">${p.name}</span>
+    <div class="pv-spr-sub" style="color:${ink}">32×32 — jugé</div>
+    <div class="pv-spr-scalerow">
+      <div>${headImg(HEADS32[key],64)}<div class="lbl">×2</div></div>
+      <div>${headImg(HEADS32[key],96)}<div class="lbl">×3</div></div>
+    </div>
+    <div class="pv-spr-sub" style="color:${ink}">16×16 — réduction tableau</div>
+    <div class="pv-spr-scalerow">
+      <div>${headImg(HEADS16[key],32)}<div class="lbl">×2</div></div>
+      <div>${headImg(HEADS16[key],64)}<div class="lbl">×4</div></div>
+    </div>
+  </div>`;
+}
+function headSituationRows(theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const faint = theme==='dark' ? '#63666c' : '#a3a199';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const sampleIds = ['o1','a1','d1','l1'];
+  const rows = buildTreeRows().filter(r => sampleIds.includes(r.a.id));
+  const trs = rows.map(r => {
+    const a = r.a, p = PERSONAS[a.persona];
+    const guide = r.guide ? `<span style="color:${faint}">${r.guide}</span>` : '';
+    const img = headImg(HEADS16[a.persona], 20, 'border-radius:3px;');
+    return `<tr style="border-bottom:1px solid ${border}">
+      <td style="padding:6px 8px;white-space:nowrap;"><span style="display:inline-flex;align-items:center;gap:6px;">${guide}${img}<span style="color:${ink};font-family:var(--sc-font-body);font-size:0.78rem;">${p.name}</span></span></td>
+      <td style="padding:6px 8px;color:${ink};font-family:var(--sc-font-mono);font-size:0.72rem;">${a.project}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;background:${bg};">${trs}</table>`;
+}
+function headBlindTestHTML(){
+  const order = ['gandalf','feanor','loki','helm','odin','nathalie','gimli_dev','legolas_p2','aragorn'];
+  const unlabeled = order.map((k,i) => `<div class="pv-spr-card"><span class="pv-spr-sub">#${i+1}</span>${headImg(HEADS32[k],72)}</div>`).join('');
+  const labelled = order.map((k,i) => `<div class="pv-spr-card"><span class="pv-spr-sub">#${i+1}</span>${headImg(HEADS32[k],56)}<span class="pv-spr-name">${PERSONAS[k].name}</span></div>`).join('');
+  return `
+  <div class="pv-ic-sub">1 — Sans légende (devine avant de faire défiler ; ordre mélangé, pas l'ordre du roster)</div>
+  <div class="pv-spr-grid">${unlabeled}</div>
+  <div class="pv-ic-sub">2 — Réponses</div>
+  <div class="pv-spr-grid">${labelled}</div>`;
+}
+function viewHeads(){
+  const traitList = Object.keys(HEAD_TRAITS).map(k => `<b>${PERSONAS[k].name}</b> — ${HEAD_TRAITS[k]}`).join(' · ');
+  const cardsLight = Object.keys(PERSONAS).map(k => headCard(k,'light')).join('');
+  const cardsDark = Object.keys(PERSONAS).map(k => headCard(k,'dark')).join('');
+  return `
+  <div class="pv-partipris sc-note tip" style="margin-top:0;">
+    <span class="k">Retour de Stéphane</span> — « on ne reconnaît pas assez » : tête seule qui
+    remplit tout le cadre (pas de corps, pas d'épaules), traits exagérés façon caricature 8 bits
+    pour la reconnaissance immédiate. Deux formats : <b>32×32</b> (celui qu'on juge) et
+    <b>16×16</b> (réduction exacte, un pixel sur deux, pour la ligne du tableau V4). Palette 16
+    couleurs (la même que les sprites en pied). <span class="k">Traits</span> —
+    ${traitList}.
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Palette 16 couleurs (identique aux sprites en pied)</h3>
+    ${paletteLegend16HTML()}
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Test à l'aveugle — masque les noms</h3>
+    <p class="pv-ic-style-desc">Fait ici, pour de vrai, avant de livrer : devine chaque tête avant
+    de regarder les réponses juste en dessous. Deux têtes ont dû être reprises après ce test
+    (Gimli — la barbe ne se lisait pas comme une barbe, juste des rayures ; Fëanor — la capuche
+    noire mangeait tout le visage, la gemme ne se voyait plus).</p>
+    ${headBlindTestHTML()}
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Les 9 têtes — 32×32 et 16×16, clair &amp; sombre</h3>
+    <div class="pv-ic-sub">Clair</div>
+    <div class="pv-spr-grid">${cardsLight}</div>
+    <div class="pv-ic-sub">Sombre</div>
+    <div class="pv-spr-grid" style="background:#0d0f12;padding:14px;border-radius:10px;">${cardsDark}</div>
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">En situation — dans une ligne du tableau V4 (16×16, ≈ 20 px)</h3>
+    <div class="pv-ic-context-row">
+      <div class="pv-ic-context">${headSituationRows('light')}</div>
+      <div class="pv-ic-context">${headSituationRows('dark')}</div>
+    </div>
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Définitions source (copiables)</h3>
+    <p class="pv-ic-style-desc">Grilles 32×32 (jugées) ; le 16×16 de la colonne du tableau est une
+    <b>réduction exacte</b> — un pixel gardé sur deux, ligne sur deux (<code>grid32[y*2][x*2]</code>),
+    pas un redessin. Palette : voir plus haut (identique aux sprites en pied).</p>
+    <pre class="pv-ic-code" style="max-height:380px;overflow-y:auto;">${JSON.stringify(HEADS32, null, 1)}</pre>
+  </div>
+
+  <details class="sc-card" style="padding:14px 18px;">
+    <summary style="cursor:pointer;font-family:var(--sc-font-mono);font-size:0.72rem;color:var(--sc-ink-muted);text-transform:uppercase;letter-spacing:.05em;">Comparaison — anciennes propositions (Sprites 16×32 en pied, puis Icônes 2×2 · 8 bits, puis Icônes 4×4)</summary>
+    <div style="margin-top:14px;">${viewSprites16()}</div>
+  </details>`;
+}
+
+
 /* ============================= tabs & boot ============================= */
 const VIEWS = [
   { id:'popover',  label:'V1 · Popover',        render:viewPopover },
@@ -1101,7 +1230,7 @@ const VIEWS = [
   { id:'room',     label:'V3 · Salle des équipes',render:viewRoom },
   { id:'table',    label:'V4 · Tableau dense — défaut',render:viewTable },
   { id:'timeline', label:'V5 · Frise temporelle',render:viewTimeline },
-  { id:'sprites16',label:'Sprites 16×32',        render:viewSprites16 },
+  { id:'heads',    label:'Têtes',                render:viewHeads },
 ];
 const tabsEl = document.getElementById('tabs');
 const viewsEl = document.getElementById('views');
