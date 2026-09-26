@@ -1,7 +1,7 @@
 # Instruction : Liste des agents en cours — MVP tray macOS
 
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Gimli (P2).
-> Statut : **PROPOSÉE — en attente d'arbitrage de Stéphane (Q1 à Q6)**. Les recommandations
+> Statut : **VALIDÉE par Stéphane le 26/09/2026** (« go ») : Q1 à Q6 = A. Maquette de référence : `docs/maquettes/visu-agents-5-versions.html`, version 1 (fenêtre de barre de menus). Les recommandations
 > ci-dessous sont les valeurs par défaut : si Stéphane dit « go » sans autre précision, ce sont
 > elles qui s'appliquent.
 > Besoin du décideur, verbatim (26/09) : « la liste des agents, je la veux dans IakaAgentsMonitor ».

@@ -1,4 +1,4 @@
-# PROJET — <Nom du projet>
+# PROJET — IakaAgentsMonitor
 
 > Espace Cowork (réflexion). Document de vision et de specs.
 > **Aucun code n'est écrit ici** — seulement des décisions et des spécifications.
@@ -7,7 +7,16 @@
 
 ## Vision
 
-<!-- Le problème résolu, pour qui, et le résultat attendu en une fois lu. -->
+IakaAgentsMonitor répond à une seule question : **« qui travaille en ce moment, et pour qui ? »**.
+C'est un petit moniteur de barre de menus qui montre, d'un coup d'œil, les agents Claude Code en
+cours sur le poste — leur persona iakaframe (lettre à la couleur de sa pastille), le projet sur
+lequel ils tournent, la tâche qu'on leur a confiée, qui a délégué à qui, et depuis quand. Il est
+**autonome** (aucun service, aucun bus, aucun compte), **en lecture seule** sur les fichiers que
+Claude Code écrit déjà, et complète iakaTokenCounter sans le recouvrir : l'un mesure ce que
+coûtent les agents, l'autre montre ce qu'ils font. D'abord le Mac, ensuite l'IdeaPad, puis, si le
+besoin s'en fait sentir, une vue réunissant plusieurs machines.
+
+Première feature : `specs/instructions/liste-des-agents.md` (validée le 26/09/2026). Maquettes : `docs/maquettes/visu-agents-5-versions.html` (version 1 retenue).
 
 ## Objectifs
 
