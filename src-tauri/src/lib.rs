@@ -2,6 +2,8 @@
 //! Squelette (etape 1 de specs/instructions/liste-des-agents.md) : sera complete par les etapes
 //! suivantes (claude_paths, agents, tray).
 
+mod claude_paths;
+
 /// Point d'entree de l'app (appele par `main.rs`).
 pub fn run() {
     tauri::Builder::default()
