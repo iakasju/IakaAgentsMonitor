@@ -2,6 +2,7 @@
 
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Gimli (P2).
 > Statut : **PROPOSÉE, en attente d'arbitrage de Stéphane** (Q1 à Q9 ci-dessous). Rien n'est à
+> **Arbitrage (26/09/2026)** : « go » de Stéphane sur les recommandations d'Odin — Q1 à Q9 = A (Q1 : réutiliser le broker iakahub d'iakaTokenCounter, repli fichiers quand il est absent ; passage à un Mosquitto permanent à reconsidérer quand le bus servira à plusieurs apps). Révisable en une phrase. Lancement après livraison de `temps-restant` (Q8).
 > coder avant le « go ».
 > Décision du décideur (26/09, « go MQTT ») : rendre l'app **agnostique du runner** en passant par
 > le **MQTT local**. Chaque runner publie une **fiche d'agent normalisée** ; l'app ne fait que
