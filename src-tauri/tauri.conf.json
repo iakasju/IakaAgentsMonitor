@@ -14,9 +14,9 @@
       {
         "label": "popover",
         "title": "IakaAgentsMonitor",
-        "width": 340,
-        "height": 480,
-        "minWidth": 300,
+        "width": 620,
+        "height": 420,
+        "minWidth": 480,
         "resizable": true,
         "decorations": false,
         "visible": false,
