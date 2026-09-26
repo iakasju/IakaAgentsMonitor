@@ -17,25 +17,35 @@
 
 ## Ce qu'est ce projet
 
-<!-- 2-4 lignes : à quoi sert le projet, pour qui, le résultat produit. -->
+Moniteur de barre de menus macOS : d'un coup d'œil, qui travaille en ce moment (agents Claude
+Code en cours), sur quel projet, quelle tâche leur a été confiée, qui a délégué à qui, et depuis
+quand. App autonome, en lecture seule sur les transcripts que Claude Code écrit déjà localement
+(`~/.claude/projects/`) — aucun service, aucun bus, aucun port. Complète iakaTokenCounter (qui
+mesure la conso) sans le recouvrir. Cf. `specs/instructions/liste-des-agents.md`.
 
-Stack : <!-- ex: React + TypeScript + Tauri/Rust + SQLite -->
+Stack : Tauri 2 (Rust) + TypeScript/Vite, sans dépendance externe (aucune lib MQTT, aucun
+sidecar). Icône de barre de menus fixe (mode template macOS) + titre = effectif d'agents ;
+fenêtre = tableau des agents, indenté par délégation, colonnes triables.
 
 ---
 
 ## Commandes à utiliser
 
 ```bash
-# ex:
-# npm run dev          # démarrer en dev
-# npm run build        # build de prod
-# npm run test:all     # tous les tests
-# npm run lint:all     # typecheck + lint
-# bash scripts/quality-report.sh   # rapport qualité consolidé
+npm run dev             # front seul (Vite, port 5180 — 5173 est pris par le worktree de
+                         # dev d'iakaTokenCounter, ne jamais le réutiliser)
+npm run tauri dev       # app complète (tray + fenêtre), rechargement à chaud
+npm run build           # build front de prod
+npm run tauri build     # bundle .app macOS
+npm run typecheck       # tsc --noEmit
+
+cd src-tauri
+cargo test               # 41+ tests (roster, sidecar, liveness, arbre, tri, projet)
+cargo clippy --all-targets -- -D warnings
 ```
 
-<!-- Si un Makefile/scripts existent, exiger de passer par eux plutôt que les
-     commandes brutes (docker compose, cargo, etc.). -->
+Aucun Makefile/script séparé : les commandes npm/cargo ci-dessus suffisent (app native de
+bureau, pas de Docker — cf. `specs/instructions/liste-des-agents.md` § Périmètre).
 
 ---
 
