@@ -14,6 +14,18 @@ export interface Sprite {
   fg: string;
 }
 
+/** Estimation de temps restant, déjà mise en forme côté Rust (miroir `estimate::EstimateView`,
+ * specs/instructions/temps-restant.md). Rien à calculer côté webview : `fillPct`/`level`
+ * pilotent la barre, `shortLabel` le texte de cellule, `longLabel` l'annonce accessible
+ * (`aria-valuetext`), `remainingSecs` sert uniquement au tri (négatif = dépassement). */
+export interface EstimateView {
+  fillPct: number;
+  level: "ok" | "warn" | "over";
+  shortLabel: string;
+  longLabel: string;
+  remainingSecs: number;
+}
+
 /** Nœud d'agent déjà résolu pour l'affichage (miroir Rust `agents::AgentNode`). Un nœud marqueur
  * de débordement porte `overflow` non-null et n'a pas d'enfants. Les champs `*Secs` sont bruts
  * (tri de tableau uniquement) ; `*Ago` sont déjà formatés côté Rust (D9). */
@@ -28,6 +40,10 @@ export interface AgentNode {
   /** Modèle de CET agent, déjà résolu en libellé lisible côté Rust (ex. « Opus 5.5 »),
    * `"—"` si indisponible (amendement A1, passe corrective post-gate Legolas du 26/09). */
   model: string;
+  /** Temps restant estimé (colonne « Reste »), `null` pour le coordinateur, le marqueur de
+   * débordement, ou tout agent sans estimation annoncée — cellule à tiret, jamais de barre
+   * inventée. */
+  estimate: EstimateView | null;
   tooltip: string;
   children: AgentNode[];
   overflow: number | null;

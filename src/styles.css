@@ -36,6 +36,12 @@
   --sc-ink-faint: #a3a199;
   --sc-accent: #3454d1;
   --sc-accent-2: #0e8a82;
+  /* Jetons de niveau (colonne « Reste », specs/instructions/temps-restant.md) — valeurs de la
+     maquette finalisée par Loki (commit f671cc4) : l'orange clair a été ASSOMBRI (#b5790a ->
+     #8f6108) pour passer le contraste texte AA (4,5:1) sur fond clair, mesuré 5,41:1. */
+  --sc-ok: #1a7f5a;
+  --sc-warn: #8f6108;
+  --sc-danger: #c1372c;
   --sc-font-display: "Manrope", system-ui, sans-serif;
   --sc-font-body: "Public Sans", system-ui, sans-serif;
   --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
@@ -55,6 +61,9 @@
     --sc-ink-faint: #63666c;
     --sc-accent: #7c93f0;
     --sc-accent-2: #3fd6c8;
+    --sc-ok: #4ad393;
+    --sc-warn: #e0a83f;
+    --sc-danger: #ef6b5e;
     color-scheme: dark;
   }
 }
@@ -68,6 +77,9 @@
   --sc-ink-faint: #63666c;
   --sc-accent: #7c93f0;
   --sc-accent-2: #3fd6c8;
+  --sc-ok: #4ad393;
+  --sc-warn: #e0a83f;
+  --sc-danger: #ef6b5e;
   color-scheme: dark;
 }
 
@@ -251,30 +263,60 @@ body {
   white-space: nowrap;
 }
 
-/* Badge de statut (amendement A3, point 3) : pastille + libellé, même famille que .sc-badge. */
-.badge {
+/* Colonne « Reste » (specs/instructions/temps-restant.md) : barre qui se colore par palier
+   (3 niveaux nets, DA-T3) + texte court. Dimensions et classes reprises telles quelles de la
+   maquette finalisée par Loki (commit f671cc4, onglet V4). Le texte reste en
+   `--sc-ink-muted` par défaut (vert/orange ne colorent QUE la barre) ; seul le dépassement
+   (`.over`) colore aussi le texte, en `--sc-danger` — l'information n'est jamais portée par la
+   seule couleur, le texte est toujours présent. */
+.reste {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+}
+.reste-track {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 6px;
+  background: var(--sc-well);
+  border: 1px solid var(--sc-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.reste-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px 0 0 2px;
+}
+.reste-fill.full {
+  border-radius: 2px;
+}
+.reste-mark {
+  position: absolute;
+  right: 0;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--sc-danger);
+}
+.reste-txt {
   font-family: var(--sc-font-mono);
   font-size: 10px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--sc-border);
-  background: var(--sc-well);
-  color: var(--sc-ink-muted);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--sc-ink-muted);
 }
-.badge.b-live {
-  color: var(--sc-accent-2);
-  border-color: var(--sc-accent-2);
+.reste-txt.over {
+  color: var(--sc-danger);
+  font-weight: 600;
 }
-.badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sc-accent-2);
-  flex: none;
+.reste-dash {
+  font-family: var(--sc-font-mono);
+  color: var(--sc-ink-faint);
+  font-size: 10px;
 }
 
 .agents-more {

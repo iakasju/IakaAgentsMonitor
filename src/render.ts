@@ -11,11 +11,11 @@
 
 import type { AgentNode, AgentsSnapshot, SessionNode } from "./types";
 
-/** Colonnes triables du tableau. "runner" et "statut" n'en font PAS partie : "runner" est une
- * constante pour ce lot (Q6-A : macOS + Claude Code seul), "statut" aussi de fait — le backend
- * n'inclut JAMAIS un agent mort dans l'instantané (D2 : "session sans agent vivant -> absente"),
- * donc toute ligne affichée est "vivant" ; trier cette colonne serait un no-op. */
-type SortCol = "agent" | "project" | "task" | "active" | "started" | "model";
+/** Colonnes triables du tableau. "runner" n'en fait PAS partie : c'est une constante pour ce
+ * lot (Q6-A : macOS + Claude Code seul). "remaining" (colonne « Reste ») a un comparateur dédié
+ * (cf. `compareNodes`) : les tirets (sans estimation) restent TOUJOURS en dernier, quel que soit
+ * le sens du tri (specs/instructions/temps-restant.md, Q6-A). */
+type SortCol = "agent" | "project" | "task" | "active" | "started" | "model" | "remaining";
 
 interface SortState {
   col: SortCol;
@@ -46,18 +46,56 @@ function renderChip(text: string): HTMLElement {
   return el;
 }
 
-/** Badge de statut (amendement A3, point 3) : pastille + « vivant » — la seule valeur possible
- * dans ce tableau (cf. note sur `SortCol` ci-dessus). */
-function renderStatusBadge(): HTMLElement {
-  const el = document.createElement("span");
-  el.className = "badge b-live";
-  const dot = document.createElement("span");
-  dot.className = "badge-dot";
-  el.append(dot, document.createTextNode("vivant"));
-  return el;
+/** Barre « Reste » (remplace la colonne Statut, specs/instructions/temps-restant.md) : piste
+ * accessible (`role="progressbar"`, `aria-valuetext` = phrase longue déjà composée en Rust),
+ * remplissage coloré par palier, texte court à côté. Sans estimation (session principale, ligne
+ * de débordement, délégation sans durée annoncée) : un tiret, jamais de barre inventée (DA-T6). */
+function renderRemainingCell(node: AgentNode): HTMLElement {
+  const est = node.estimate;
+  if (!est) {
+    const dash = document.createElement("span");
+    dash.className = "reste-dash";
+    dash.title = "pas de durée estimée annoncée (session principale ou délégation sans durée)";
+    dash.textContent = "—";
+    return dash;
+  }
+  const wrap = document.createElement("span");
+  wrap.className = "reste";
+
+  const track = document.createElement("span");
+  track.className = "reste-track";
+  track.setAttribute("role", "progressbar");
+  track.setAttribute("aria-valuemin", "0");
+  track.setAttribute("aria-valuemax", "100");
+  track.setAttribute("aria-valuenow", String(Math.round(est.fillPct)));
+  track.setAttribute("aria-valuetext", est.longLabel);
+
+  const fill = document.createElement("span");
+  fill.className = "reste-fill" + (est.fillPct >= 100 ? " full" : "");
+  fill.style.width = `${est.fillPct}%`;
+  fill.style.background =
+    est.level === "ok" ? "var(--sc-ok)" : est.level === "warn" ? "var(--sc-warn)" : "var(--sc-danger)";
+  track.appendChild(fill);
+  if (est.level === "over") {
+    const mark = document.createElement("span");
+    mark.className = "reste-mark";
+    track.appendChild(mark);
+  }
+
+  const txt = document.createElement("span");
+  txt.className = "reste-txt" + (est.level === "over" ? " over" : "");
+  txt.textContent = est.shortLabel;
+
+  wrap.append(track, txt);
+  return wrap;
 }
 
-function sortValue(col: SortCol, project: string, node: AgentNode): string | number {
+/** Colonnes dont le tri compare un champ simple déjà résolu par Rust (D9) — "remaining" est
+ * exclu : son tri a une règle propre (tirets toujours en dernier), traitée à part dans
+ * `compareNodes`. */
+type SimpleSortCol = Exclude<SortCol, "remaining">;
+
+function sortValue(col: SimpleSortCol, project: string, node: AgentNode): string | number {
   switch (col) {
     case "agent":
       return node.persona.toLowerCase();
@@ -76,6 +114,21 @@ function sortValue(col: SortCol, project: string, node: AgentNode): string | num
 }
 
 function compareNodes(col: SortCol, dir: 1 | -1, project: string, a: AgentNode, b: AgentNode): number {
+  if (col === "remaining") {
+    // Q6-A (temps-restant.md) : dépassement = valeur négative, donc en tête en tri croissant ;
+    // SANS estimation = TOUJOURS en dernier, quel que soit le sens du tri (pas seulement en
+    // tri croissant) — comparateur dédié plutôt qu'une valeur sentinelle sensible à `dir`.
+    const ra = a.estimate?.remainingSecs;
+    const rb = b.estimate?.remainingSecs;
+    const aHas = ra !== undefined;
+    const bHas = rb !== undefined;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    if (!aHas && !bHas) return 0;
+    if (ra! < rb!) return -1 * dir;
+    if (ra! > rb!) return 1 * dir;
+    return 0;
+  }
   const va = sortValue(col, project, a);
   const vb = sortValue(col, project, b);
   if (va < vb) return -1 * dir;
@@ -134,9 +187,10 @@ function flatten(sessions: SessionNode[]): Row[] {
   return rows;
 }
 
-/** Ordre des colonnes = celui de l'amendement A3, point 6 : Agent · Projet · Runner · Modèle ·
- * Tâche · Démarré il y a · Actif il y a · Statut. */
-type ColumnDef = { id: SortCol | "runner" | "statut"; label: string; sortable: boolean };
+/** Ordre des colonnes : Agent · Projet · Runner · Modèle · Tâche · Démarré il y a · Actif il y a
+ * · Reste (specs/instructions/temps-restant.md, Q3-A : « Reste » remplace « Statut », amende
+ * l'ordre fixé par l'amendement A3 de liste-des-agents.md). */
+type ColumnDef = { id: SortCol | "runner"; label: string; sortable: boolean };
 const COLUMNS: ColumnDef[] = [
   { id: "agent", label: "Agent", sortable: true },
   { id: "project", label: "Projet", sortable: true },
@@ -145,7 +199,7 @@ const COLUMNS: ColumnDef[] = [
   { id: "task", label: "Tâche", sortable: true },
   { id: "started", label: "Démarré il y a", sortable: true },
   { id: "active", label: "Actif il y a", sortable: true },
-  { id: "statut", label: "Statut", sortable: false },
+  { id: "remaining", label: "Reste", sortable: true },
 ];
 
 function headerRow(): HTMLElement {
@@ -210,8 +264,10 @@ function agentRow(row: Row): HTMLElement {
       case "active":
         td.textContent = isOverflow ? "" : row.node.activeAgo;
         break;
-      case "statut":
-        if (!isOverflow) td.appendChild(renderStatusBadge());
+      case "remaining":
+        // DA-T6 : la ligne de débordement affiche aussi un tiret (pas de barre), contrairement
+        // aux autres colonnes qui restent simplement vides pour cette ligne.
+        td.appendChild(renderRemainingCell(row.node));
         break;
     }
     tr.appendChild(td);
