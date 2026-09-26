@@ -4,3 +4,6 @@ node_modules/
 dist/
 build/
 target/
+
+# Tauri : code genere (artefact de build, regenere par `tauri dev`/`tauri build`).
+src-tauri/gen/
