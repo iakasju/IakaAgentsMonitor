@@ -2,7 +2,9 @@
 //! titre texte = effectif d'agents en cours (`set_title`, DA-2 : toujours affiché, `0` compris).
 //! Aucune rasterisation SVG, aucune dépendance de rendu d'icône. Clic gauche = ouvre DIRECTEMENT
 //! la fenêtre, ancrée sous l'icône (amendement A3, point 9) ; menu clic droit « Afficher » /
-//! « Quitter ».
+//! « Quitter ». Amendement A4 (point 1) : la fenêtre bascule entre un mode compact (520×360,
+//! 5 colonnes) et un mode complet (1000×420, 8 colonnes), commande `set_window_mode` appelée par
+//! le bouton « agrandir » du frontend.
 //!
 //! Provenance : patron repris d'iakaTokenCounter (`src-tauri/src/tray.rs`, branche
 //! `worktree-agent-a73ae73650ed5e328`, commit `1c9fd0e`), simplifié : plus de composition
@@ -10,7 +12,16 @@
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, PhysicalPosition, Position, Rect, WebviewWindow};
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, Position, Rect, WebviewWindow};
+
+use crate::state::AppState;
+
+/// Taille de la fenêtre en mode compact (amendement A4, point 1) : 5 colonnes
+/// (Agent · Projet · Runner · Actif · Reste), même valeur que `tauri.conf.json`.
+const COMPACT_SIZE: (f64, f64) = (520.0, 360.0);
+/// Taille de la fenêtre en mode complet (amendement A4, point 1) : 8 colonnes
+/// (Agent · Projet · Runner · Modèle · Tâche · Démarré · Actif · Reste).
+const EXPANDED_SIZE: (f64, f64) = (1000.0, 420.0);
 
 /// Identifiant du tray, pour le retrouver via `app.tray_by_id`.
 pub const TRAY_ID: &str = "main";
@@ -98,8 +109,12 @@ fn position_window_under_tray(window: &WebviewWindow, icon_rect: Rect) {
 }
 
 /// Clic gauche sur l'icône : ouvre DIRECTEMENT la fenêtre (amendement A3, point 9 — plus de
-/// popover intermédiaire), ancrée sous l'icône ; un second clic la masque (bascule).
+/// popover intermédiaire), ancrée sous l'icône ; un second clic la masque (bascule). Mémorise
+/// aussi le rect de l'icône (amendement A4, point 1) : `set_window_mode` le réutilise pour
+/// réancrer la fenêtre après un changement de taille déclenché depuis le bouton « agrandir », qui
+/// lui ne reçoit aucun rect.
 fn toggle_window(app: &AppHandle, icon_rect: Rect) {
+    app.state::<AppState>().last_tray_rect.lock().unwrap().replace(icon_rect);
     if let Some(w) = app.get_webview_window("popover") {
         if w.is_visible().unwrap_or(false) {
             let _ = w.hide();
@@ -108,5 +123,24 @@ fn toggle_window(app: &AppHandle, icon_rect: Rect) {
             let _ = w.show();
             let _ = w.set_focus();
         }
+    }
+}
+
+/// Bascule la taille de la fenêtre entre les deux modes de l'amendement A4 (point 1). Appelée par
+/// le bouton « agrandir » du frontend (le choix — compact/complet — est mémorisé côté webview,
+/// `localStorage`, pas ici). Réancre sous l'icône avec le dernier rect connu (mémorisé à chaque
+/// clic sur l'icône par `toggle_window`) ; sans rect connu (avant tout premier clic), redimensionne
+/// seulement — la position sera correcte au premier clic, qui repositionne toujours la fenêtre.
+#[tauri::command]
+pub fn set_window_mode(app: AppHandle, compact: bool) {
+    let Some(window) = app.get_webview_window("popover") else {
+        return;
+    };
+    let (width, height) = if compact { COMPACT_SIZE } else { EXPANDED_SIZE };
+    let _ = window.set_size(LogicalSize::new(width, height));
+
+    let rect = *app.state::<AppState>().last_tray_rect.lock().unwrap();
+    if let Some(rect) = rect {
+        position_window_under_tray(&window, rect);
     }
 }

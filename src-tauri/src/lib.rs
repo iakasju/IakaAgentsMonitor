@@ -16,7 +16,10 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(app_state)
-        .invoke_handler(tauri::generate_handler![agents::get_running_agents])
+        .invoke_handler(tauri::generate_handler![
+            agents::get_running_agents,
+            tray::set_window_mode
+        ])
         .setup(move |app| {
             // macOS : app tray-only. Politique d'activation `Accessory` (equiv. LSUIElement) =>
             // pas d'icone au Dock ni d'entree dans le selecteur d'apps (Cmd-Tab).

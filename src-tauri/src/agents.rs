@@ -84,14 +84,15 @@ pub struct Sprite {
 /// - **Lettre de Gimli changée de `G` à `I`** (2ᵉ lettre du nom) : elle collisionnait visuellement
 ///   avec le `G` de Gandalf (fonds différents, mais même lettre — repéré par Stéphane). `I` reste
 ///   mnémotechnique (toujours tirée du nom) et ne collisionne avec aucune autre lettre du roster.
-///   Reste non traité (hors périmètre de cet amendement, signalé) : Legolas et Loki partagent
-///   toujours la lettre `L` (fonds distincts : rouge vs orange).
+///
+/// Amendement A4 (point 2, 26/09) : **lettre de Legolas changée de `L` à `E`** (2ᵉ lettre du nom,
+/// même logique que Gimli/`I`) — elle collisionnait visuellement avec Loki, qui garde `L`.
 const ROSTER: &[(&str, char, &str, &str)] = &[
     ("odin", 'O', "#FFD60A", "#0B0D12"),
     ("aragorn", 'A', "#FF9F0A", "#0B0D12"),
     ("gandalf", 'G', "#0A84FF", "#0B0D12"),
     ("gimli", 'I', "#FF3B30", "#0B0D12"),
-    ("legolas", 'L', "#FF3B30", "#0B0D12"),
+    ("legolas", 'E', "#FF3B30", "#0B0D12"),
     ("helm", 'H', "#BF5AF2", "#0B0D12"),
     ("loki", 'L', "#FF9F0A", "#0B0D12"),
     ("nathalie", 'N', "#FF9F0A", "#0B0D12"),
@@ -1021,12 +1022,13 @@ mod tests {
 
     #[test]
     fn sprite_for_rend_les_neuf_personas_du_roster() {
-        // Amendement A3 (contraste AA + lettre distincte pour Gimli, cf. doc du ROSTER).
+        // Amendement A3 (contraste AA + lettre distincte pour Gimli) puis A4 (lettre distincte
+        // pour Legolas), cf. doc du ROSTER.
         assert_eq!(sprite_for("odin"), Sprite { letter: 'O', bg: "#FFD60A", fg: "#0B0D12" });
         assert_eq!(sprite_for("aragorn"), Sprite { letter: 'A', bg: "#FF9F0A", fg: "#0B0D12" });
         assert_eq!(sprite_for("gandalf"), Sprite { letter: 'G', bg: "#0A84FF", fg: "#0B0D12" });
         assert_eq!(sprite_for("gimli"), Sprite { letter: 'I', bg: "#FF3B30", fg: "#0B0D12" });
-        assert_eq!(sprite_for("legolas"), Sprite { letter: 'L', bg: "#FF3B30", fg: "#0B0D12" });
+        assert_eq!(sprite_for("legolas"), Sprite { letter: 'E', bg: "#FF3B30", fg: "#0B0D12" });
         assert_eq!(sprite_for("helm"), Sprite { letter: 'H', bg: "#BF5AF2", fg: "#0B0D12" });
         assert_eq!(sprite_for("loki"), Sprite { letter: 'L', bg: "#FF9F0A", fg: "#0B0D12" });
         assert_eq!(sprite_for("nathalie"), Sprite { letter: 'N', bg: "#FF9F0A", fg: "#0B0D12" });
