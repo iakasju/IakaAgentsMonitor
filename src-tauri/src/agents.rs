@@ -75,17 +75,46 @@ pub struct Sprite {
 /// Table figée `agentType -> (lettre, fond, texte)`. Codée en dur : l'app reste autonome, aucune
 /// lecture de `~/work/iakaframe` à l'exécution. Source : frontmatter `pastille` de
 /// `~/work/iakaframe/library/personas/*.md`.
+///
+/// Passe corrective — amendement A3 (contraste, 26/09) :
+/// - **Texte des lettres en `#0B0D12`** (quasi-noir) pour gandalf/gimli/legolas/helm : le blanc
+///   sur leurs fonds (bleu/rouge/violet) ne passait PAS le AA normal-text (4,5:1) — mesuré
+///   3,52–3,65:1. Sombre sur ces quatre fonds donne 5,3–5,5:1, largement au-dessus du seuil.
+/// - **Lettre de Gimli changée de `G` à `I`** (2ᵉ lettre du nom) : elle collisionnait visuellement
+///   avec le `G` de Gandalf (fonds différents, mais même lettre — repéré par Stéphane). `I` reste
+///   mnémotechnique (toujours tirée du nom) et ne collisionne avec aucune autre lettre du roster.
+///   Reste non traité (hors périmètre de cet amendement, signalé) : Legolas et Loki partagent
+///   toujours la lettre `L` (fonds distincts : rouge vs orange).
 const ROSTER: &[(&str, char, &str, &str)] = &[
     ("odin", 'O', "#FFD60A", "#0B0D12"),
     ("aragorn", 'A', "#FF9F0A", "#0B0D12"),
-    ("gandalf", 'G', "#0A84FF", "#FFFFFF"),
-    ("gimli", 'G', "#FF3B30", "#FFFFFF"),
-    ("legolas", 'L', "#FF3B30", "#FFFFFF"),
-    ("helm", 'H', "#BF5AF2", "#FFFFFF"),
+    ("gandalf", 'G', "#0A84FF", "#0B0D12"),
+    ("gimli", 'I', "#FF3B30", "#0B0D12"),
+    ("legolas", 'L', "#FF3B30", "#0B0D12"),
+    ("helm", 'H', "#BF5AF2", "#0B0D12"),
     ("loki", 'L', "#FF9F0A", "#0B0D12"),
     ("nathalie", 'N', "#FF9F0A", "#0B0D12"),
     ("feanor", 'F', "#FF9F0A", "#0B0D12"),
 ];
+
+/// Nom d'affichage d'un persona, avec majuscule (amendement A3, point 7). Table explicite plutôt
+/// qu'un simple `titlecase` : porte les accents (« Fëanor ») que `titlecase` ne saurait pas
+/// ajouter. Type hors roster -> `titlecase` du type brut (repli honnête, jamais un nom inventé).
+fn display_persona(agent_type: &str) -> String {
+    match agent_type.to_ascii_lowercase().as_str() {
+        "odin" => "Odin".to_string(),
+        "aragorn" => "Aragorn".to_string(),
+        "gandalf" => "Gandalf".to_string(),
+        "gimli" => "Gimli".to_string(),
+        "legolas" => "Legolas".to_string(),
+        "helm" => "Helm".to_string(),
+        "loki" => "Loki".to_string(),
+        "nathalie" => "Nathalie".to_string(),
+        "feanor" => "Fëanor".to_string(),
+        "" => "Inconnu".to_string(),
+        other => titlecase(other),
+    }
+}
 
 /// Fond/texte du repli « hors roster » (gris neutre) : jamais déguisé en persona de la frame.
 const FALLBACK_BG: &str = "#6F6F78";
@@ -335,6 +364,90 @@ fn model_label_for_transcript(path: &Path) -> String {
         .unwrap_or_else(|| "—".to_string())
 }
 
+// ===================== Tâche de la session principale (amendement A3, point 11) =====================
+
+/// Nombre maximal de caractères conservés dans le libellé de tâche (point 11), avant troncature
+/// avec « … ».
+const TASK_SNIPPET_MAX_CHARS: usize = 60;
+
+/// Extrait le texte d'UN enregistrement `"type":"user"` : `message.content` est soit une chaîne
+/// directe, soit un tableau de blocs (`[{"type":"text","text":"..."}]`, forme la plus courante
+/// des transcripts réels) — on prend le premier bloc texte rencontré. `None` si ni l'une ni
+/// l'autre forme n'est exploitable.
+fn extract_user_text(v: &serde_json::Value) -> Option<String> {
+    let content = v.get("message")?.get("content")?;
+    if let Some(s) = content.as_str() {
+        return Some(s.to_string());
+    }
+    if let Some(arr) = content.as_array() {
+        for block in arr {
+            if block.get("type").and_then(|t| t.as_str()) == Some("text") {
+                if let Some(t) = block.get("text").and_then(|t| t.as_str()) {
+                    return Some(t.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Une balise de commande/système (`<command-message>`, `<system-reminder>`…) plutôt qu'un
+/// message utilisateur réel : heuristique volontairement générique (un vrai message écrit par un
+/// humain ou un agent ne commence quasiment jamais par `<`) plutôt qu'une énumération de balises
+/// connues, forcément incomplète et vouée à se périmer.
+fn is_service_tag(text: &str) -> bool {
+    text.trim_start().starts_with('<')
+}
+
+/// Réduit un message à un libellé d'une ligne, tronqué à `max_chars` CARACTÈRES (pas octets, un
+/// caractère accentué ne doit jamais couper le compte), avec « … » si tronqué. Les retours à la
+/// ligne internes sont aplatis (une tâche tient sur une ligne de tableau).
+fn truncate_task(text: &str, max_chars: usize) -> String {
+    let one_line: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let char_count = one_line.chars().count();
+    if char_count <= max_chars {
+        one_line
+    } else {
+        let truncated: String = one_line.chars().take(max_chars).collect();
+        format!("{truncated}…")
+    }
+}
+
+/// Cherche, dans les lignes de tête (bornées en octets) d'un transcript, le premier message
+/// UTILISATEUR RÉEL — hors lignes de service (`type` différent de `"user"`, déjà écarté
+/// structurellement) et hors balises de commande/système ([`is_service_tag`]) — et le tronque
+/// (point 11). `None` si rien d'exploitable n'a été trouvé dans la fenêtre lue.
+fn first_user_message_snippet(path: &Path, cap: usize) -> Option<String> {
+    let head = read_head_capped(path, cap)?;
+    for line in head.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if v.get("type").and_then(|t| t.as_str()) != Some("user") {
+            continue;
+        }
+        let Some(text) = extract_user_text(&v) else {
+            continue;
+        };
+        if text.trim().is_empty() || is_service_tag(&text) {
+            continue;
+        }
+        return Some(truncate_task(&text, TASK_SNIPPET_MAX_CHARS));
+    }
+    None
+}
+
+/// Libellé de tâche du coordinateur (point 11) : début du premier message utilisateur réel,
+/// repli `"coordinateur"` si le transcript est absent ou si rien d'exploitable n'y a été trouvé.
+fn coordinator_task_label(coordinator_transcript: Option<&Path>) -> String {
+    coordinator_transcript
+        .and_then(|p| first_user_message_snippet(p, TRANSCRIPT_HEAD_CAP))
+        .unwrap_or_else(|| "coordinateur".to_string())
+}
+
 // ===================== Découverte des fichiers de session =====================
 
 /// Un transcript de sous-agent identifié structurellement : `<sid>/subagents/agent-<id>.jsonl`.
@@ -544,16 +657,20 @@ fn build_session_node(
         .as_deref()
         .map(model_label_for_transcript)
         .unwrap_or_else(|| "—".to_string());
+    // Tâche de la session principale (amendement A3, point 11) : début du premier message
+    // utilisateur réel (hors lignes de service, hors balises de commande/système), repli
+    // "coordinateur" si rien d'exploitable n'a été trouvé dans la fenêtre lue.
+    let coordinator_task = coordinator_task_label(raw.coordinator_transcript.as_deref());
     let coordinator = AgentNode {
         sprite: coordinator_sprite(),
-        persona: "odin".to_string(),
-        task: "coordinateur".to_string(),
+        persona: display_persona("odin"),
+        task: coordinator_task,
         active_ago: format_active_ago(elapsed),
         active_secs: elapsed,
         started_ago: format_started_ago(started_secs),
         started_secs,
         model: coordinator_model,
-        tooltip: format!("odin (coordinateur) — actif il y a {elapsed} s"),
+        tooltip: format!("Odin (coordinateur) — actif il y a {elapsed} s"),
         children: coordinator_children,
         overflow: None,
     };
@@ -599,16 +716,19 @@ fn build_children(
         .map(|s| {
             let sprite = sprite_for(&s.meta.agent_type);
             let elapsed = s.mtime.map(|m| (now - m).max(0)).unwrap_or(0);
-            let persona = if s.meta.agent_type.is_empty() {
+            // Clé brute (minuscule) pour la prose de l'infobulle ; nom capitalisé (amendement A3,
+            // point 7) pour la colonne Agent du tableau — deux usages, deux formes.
+            let persona_key = if s.meta.agent_type.is_empty() {
                 "inconnu".to_string()
             } else {
-                s.meta.agent_type.clone()
+                s.meta.agent_type.to_ascii_lowercase()
             };
+            let persona = display_persona(&s.meta.agent_type);
             let desc = s.meta.description.clone().unwrap_or_default();
             let mut tooltip = if desc.is_empty() {
-                format!("{persona} — actif il y a {elapsed} s")
+                format!("{persona_key} — actif il y a {elapsed} s")
             } else {
-                format!("{persona} — {desc} — actif il y a {elapsed} s")
+                format!("{persona_key} — {desc} — actif il y a {elapsed} s")
             };
             // Parent réel différent du parent d'affichage (remontée) : le mentionner.
             let display_p = display_parent.get(&s.agent_id).cloned().flatten();
@@ -814,15 +934,69 @@ mod tests {
 
     #[test]
     fn sprite_for_rend_les_neuf_personas_du_roster() {
+        // Amendement A3 (contraste AA + lettre distincte pour Gimli, cf. doc du ROSTER).
         assert_eq!(sprite_for("odin"), Sprite { letter: 'O', bg: "#FFD60A", fg: "#0B0D12" });
         assert_eq!(sprite_for("aragorn"), Sprite { letter: 'A', bg: "#FF9F0A", fg: "#0B0D12" });
-        assert_eq!(sprite_for("gandalf"), Sprite { letter: 'G', bg: "#0A84FF", fg: "#FFFFFF" });
-        assert_eq!(sprite_for("gimli"), Sprite { letter: 'G', bg: "#FF3B30", fg: "#FFFFFF" });
-        assert_eq!(sprite_for("legolas"), Sprite { letter: 'L', bg: "#FF3B30", fg: "#FFFFFF" });
-        assert_eq!(sprite_for("helm"), Sprite { letter: 'H', bg: "#BF5AF2", fg: "#FFFFFF" });
+        assert_eq!(sprite_for("gandalf"), Sprite { letter: 'G', bg: "#0A84FF", fg: "#0B0D12" });
+        assert_eq!(sprite_for("gimli"), Sprite { letter: 'I', bg: "#FF3B30", fg: "#0B0D12" });
+        assert_eq!(sprite_for("legolas"), Sprite { letter: 'L', bg: "#FF3B30", fg: "#0B0D12" });
+        assert_eq!(sprite_for("helm"), Sprite { letter: 'H', bg: "#BF5AF2", fg: "#0B0D12" });
         assert_eq!(sprite_for("loki"), Sprite { letter: 'L', bg: "#FF9F0A", fg: "#0B0D12" });
         assert_eq!(sprite_for("nathalie"), Sprite { letter: 'N', bg: "#FF9F0A", fg: "#0B0D12" });
         assert_eq!(sprite_for("feanor"), Sprite { letter: 'F', bg: "#FF9F0A", fg: "#0B0D12" });
+    }
+
+    /// Contraste AA (≥ 4,5:1, WCAG normal-text) de CHAQUE couple (fond, texte) du roster + du
+    /// repli hors-roster — amendement A3, point 10. Calcul WCAG standard (luminance relative
+    /// sRGB), testé ici plutôt que laissé à une vérification manuelle ponctuelle.
+    #[test]
+    fn roster_et_repli_respectent_le_contraste_aa() {
+        fn srgb_to_lin(c: f64) -> f64 {
+            if c <= 0.04045 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        }
+        fn luminance(hex: &str) -> f64 {
+            let hex = hex.trim_start_matches('#');
+            let r = i64::from_str_radix(&hex[0..2], 16).unwrap() as f64 / 255.0;
+            let g = i64::from_str_radix(&hex[2..4], 16).unwrap() as f64 / 255.0;
+            let b = i64::from_str_radix(&hex[4..6], 16).unwrap() as f64 / 255.0;
+            0.2126 * srgb_to_lin(r) + 0.7152 * srgb_to_lin(g) + 0.0722 * srgb_to_lin(b)
+        }
+        fn contrast(c1: &str, c2: &str) -> f64 {
+            let (l1, l2) = (luminance(c1), luminance(c2));
+            let (hi, lo) = if l1 > l2 { (l1, l2) } else { (l2, l1) };
+            (hi + 0.05) / (lo + 0.05)
+        }
+        for &(agent_type, _, bg, fg) in ROSTER {
+            let ratio = contrast(bg, fg);
+            assert!(
+                ratio >= 4.5,
+                "{agent_type} : contraste {ratio:.2}:1 sous le seuil AA (4,5:1) — bg={bg} fg={fg}"
+            );
+        }
+        let ratio = contrast(FALLBACK_BG, FALLBACK_FG);
+        assert!(
+            ratio >= 4.5,
+            "repli hors-roster : contraste {ratio:.2}:1 sous le seuil AA — bg={FALLBACK_BG} fg={FALLBACK_FG}"
+        );
+    }
+
+    #[test]
+    fn gimli_a_une_lettre_distincte_de_gandalf() {
+        // Point 10 de l'amendement A3, exigence explicite de Stéphane.
+        assert_ne!(sprite_for("gimli").letter, sprite_for("gandalf").letter);
+    }
+
+    #[test]
+    fn display_persona_capitalise_le_roster_et_gere_feanor() {
+        assert_eq!(display_persona("odin"), "Odin");
+        assert_eq!(display_persona("GIMLI"), "Gimli");
+        assert_eq!(display_persona("feanor"), "Fëanor");
+        assert_eq!(display_persona(""), "Inconnu");
+        assert_eq!(display_persona("general-purpose"), "General-purpose");
     }
 
     #[test]
@@ -1137,7 +1311,7 @@ mod tests {
         let coord = &snap.sessions[0].coordinator;
         assert_eq!(coord.children.len(), 1, "agent affiche malgre sidecar invalide");
         assert_eq!(coord.children[0].sprite.bg, FALLBACK_BG);
-        assert_eq!(coord.children[0].persona, "inconnu");
+        assert_eq!(coord.children[0].persona, "Inconnu");
     }
 
     #[test]
@@ -1308,6 +1482,94 @@ mod tests {
         let coord = &snap.sessions[0].coordinator;
         assert_eq!(coord.model, "Sonnet 4.5");
         assert_eq!(coord.children[0].model, "Haiku 4.5");
+    }
+
+    // ------------------- Tâche de la session principale (amendement A3, point 11) -------------------
+
+    #[test]
+    fn truncate_task_sous_la_limite_est_inchange() {
+        assert_eq!(truncate_task("corriger le bug d'affichage", 60), "corriger le bug d'affichage");
+    }
+
+    #[test]
+    fn truncate_task_tronque_a_60_caracteres_avec_points_de_suspension() {
+        let long = "a".repeat(80);
+        let got = truncate_task(&long, 60);
+        assert_eq!(got.chars().count(), 61); // 60 caracteres + le glyphe unique "…"
+        assert!(got.ends_with('…'));
+        assert_eq!(got.chars().filter(|&c| c == 'a').count(), 60);
+    }
+
+    #[test]
+    fn truncate_task_compte_les_caracteres_pas_les_octets() {
+        // Caracteres accentues multi-octets (UTF-8) : la troncature ne doit jamais couper au
+        // milieu d'un caractere ni fausser le compte sur un octet.
+        let text = "é".repeat(70);
+        let got = truncate_task(&text, 60);
+        assert_eq!(got.chars().count(), 61);
+    }
+
+    #[test]
+    fn truncate_task_aplatit_les_retours_a_la_ligne() {
+        assert_eq!(truncate_task("ligne un\nligne deux", 60), "ligne un ligne deux");
+    }
+
+    #[test]
+    fn is_service_tag_detecte_les_balises_hors_prose_reelle() {
+        assert!(is_service_tag("<command-message>iakaframe-fabrication</command-message>"));
+        assert!(is_service_tag("  <system-reminder>contexte</system-reminder>"));
+        assert!(!is_service_tag("corrige le bug d'affichage svp"));
+    }
+
+    #[test]
+    fn first_user_message_snippet_saute_le_preambule_et_les_balises_de_commande() {
+        let dir = tmp_projects_dir("tache-preambule");
+        let path = dir.join("sid.jsonl");
+        let content = concat!(
+            r#"{"type":"mode","mode":"interactive"}"#,
+            "\n",
+            r#"{"type":"permission-mode","mode":"default"}"#,
+            "\n",
+            r#"{"type":"user","message":{"content":"<command-message>iakaframe-fabrication</command-message>"}}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"content":[]}}"#,
+            "\n",
+            r#"{"type":"user","message":{"content":[{"type":"text","text":"Corrige le bug d'affichage de la popover, merci"}]}}"#,
+        );
+        fs::write(&path, content).unwrap();
+        assert_eq!(
+            first_user_message_snippet(&path, TRANSCRIPT_HEAD_CAP),
+            Some("Corrige le bug d'affichage de la popover, merci".to_string())
+        );
+    }
+
+    #[test]
+    fn coordinator_task_label_repli_coordinateur_si_rien_d_exploitable() {
+        let dir = tmp_projects_dir("tache-absente");
+        let path = dir.join("sid.jsonl");
+        fs::write(&path, r#"{"type":"mode","mode":"interactive"}"#).unwrap();
+        assert_eq!(coordinator_task_label(Some(&path)), "coordinateur");
+        assert_eq!(coordinator_task_label(None), "coordinateur");
+    }
+
+    #[test]
+    fn snapshot_porte_la_tache_reelle_du_coordinateur_tronquee() {
+        let dir = tmp_projects_dir("tache-snapshot");
+        let escaped = dir.join("-w-proj");
+        let long_task = "d".repeat(90);
+        let content = format!(
+            concat!(
+                r#"{{"type":"file-history-snapshot","files":[]}}"#,
+                "\n",
+                r#"{{"type":"user","cwd":"/w/proj","message":{{"content":[{{"type":"text","text":"{}"}}]}}}}"#,
+            ),
+            long_task
+        );
+        write_with_mtime(&escaped.join("sid.jsonl"), &content, 0);
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let coord = &snap.sessions[0].coordinator;
+        assert_eq!(coord.task.chars().count(), 61);
+        assert!(coord.task.ends_with('…'));
     }
 
     // ---------------------------- Emission-si-changement ----------------------------
