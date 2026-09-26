@@ -37,9 +37,13 @@ const TICK: Duration = Duration::from_secs(5);
 const MAX_SESSIONS: usize = 6;
 const MAX_CHILDREN: usize = 8;
 
-/// Plafond de lecture de la première ligne d'un transcript (uniquement pour les sessions
-/// vivantes).
-const FIRST_LINE_CAP: usize = 1024 * 1024; // 1 MiB
+/// Plafond de lecture en tête d'un transcript (uniquement pour les sessions vivantes) : sert à
+/// la fois à chercher le `cwd` (label de projet) et le `message.model` (colonne Modèle), jamais
+/// à lire le fichier entier. Les transcripts réels commencent souvent par plusieurs lignes de
+/// service (`mode`, `permission-mode`, `atis-latch`, `file-history-snapshot`…) avant la première
+/// ligne utile — d'où un plafond en OCTETS plutôt qu'un nombre de lignes fixe (passe corrective
+/// post-gate Legolas du 26/09 : `project_label_for_session` ne lisait que la 1re ligne physique).
+const TRANSCRIPT_HEAD_CAP: usize = 1024 * 1024; // 1 MiB
 
 /// Variable d'environnement de seuil de liveness (DA-1). Défaut : [`DEFAULT_LIVENESS_SECS`].
 const LIVENESS_ENV: &str = "IAKAAM_LIVENESS_SECS";
@@ -224,6 +228,113 @@ pub fn format_started_ago(secs: Option<i64>) -> String {
     }
 }
 
+// ===================== Lecture bornée en tête de transcript =====================
+
+/// Lit au plus `cap` octets en tête d'un fichier (jamais le fichier entier). `None` si le
+/// fichier est illisible ou vide.
+fn read_head_capped(path: &Path, cap: usize) -> Option<String> {
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut buf = vec![0u8; cap];
+    let n = f.read(&mut buf).ok()?;
+    if n == 0 {
+        return None;
+    }
+    buf.truncate(n);
+    Some(String::from_utf8_lossy(&buf).into_owned())
+}
+
+/// Cherche `cwd` (chaîne) dans les lignes de tête d'un transcript — PAS seulement la première
+/// ligne physique : un transcript réel commence souvent par des lignes de service sans `cwd`
+/// avant la première ligne `user` qui le porte. Bornée en octets (`cap`), jamais tout le fichier.
+/// Ligne finale tronquée par la borne -> JSON invalide -> ignorée (défensif).
+fn first_cwd_in_transcript(path: &Path, cap: usize) -> Option<String> {
+    let head = read_head_capped(path, cap)?;
+    for line in head.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if let Some(cwd) = v.get("cwd").and_then(|c| c.as_str()) {
+            return Some(cwd.to_string());
+        }
+    }
+    None
+}
+
+/// Cherche `message.model` dans le premier enregistrement `"type":"assistant"` des lignes de
+/// tête d'un transcript (bornée en octets). `None` si absent/illisible dans la fenêtre lue.
+fn first_assistant_model_in_transcript(path: &Path, cap: usize) -> Option<String> {
+    let head = read_head_capped(path, cap)?;
+    for line in head.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if v.get("type").and_then(|t| t.as_str()) != Some("assistant") {
+            continue;
+        }
+        if let Some(model) = v
+            .get("message")
+            .and_then(|m| m.get("model"))
+            .and_then(|m| m.as_str())
+        {
+            return Some(model.to_string());
+        }
+    }
+    None
+}
+
+fn titlecase(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
+/// Réduit un identifiant de modèle brut (ex. `claude-opus-5-5-20260115`) à un libellé court
+/// lisible (« Opus 5.5 »). Repli : l'identifiant brut tel quel si la famille (opus/sonnet/haiku)
+/// n'est pas reconnue — jamais un libellé inventé. Le repli « — » (aucun modèle trouvé du tout)
+/// est géré par l'appelant, cf. [`model_label_for_transcript`].
+pub fn format_model_label(raw: &str) -> String {
+    let lower = raw.to_ascii_lowercase();
+    let parts: Vec<&str> = lower.split('-').collect();
+    let Some(family_idx) = parts.iter().position(|p| matches!(*p, "opus" | "sonnet" | "haiku"))
+    else {
+        return raw.to_string();
+    };
+    let family = titlecase(parts[family_idx]);
+    let mut version_parts: Vec<&str> = Vec::new();
+    for p in &parts[family_idx + 1..] {
+        if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
+            break;
+        }
+        // Un identifiant de date (8 chiffres, ex. 20260115) n'est pas un numéro de version.
+        if p.len() == 8 {
+            break;
+        }
+        version_parts.push(p);
+    }
+    if version_parts.is_empty() {
+        family
+    } else {
+        format!("{family} {}", version_parts.join("."))
+    }
+}
+
+/// Libellé de modèle d'UN transcript (coordinateur ou sous-agent, toujours le SIEN, jamais celui
+/// d'un autre agent). `"—"` si aucun modèle n'a été trouvé dans la fenêtre lue (défensif, jamais
+/// inventé).
+fn model_label_for_transcript(path: &Path) -> String {
+    first_assistant_model_in_transcript(path, TRANSCRIPT_HEAD_CAP)
+        .map(|m| format_model_label(&m))
+        .unwrap_or_else(|| "—".to_string())
+}
+
 // ===================== Découverte des fichiers de session =====================
 
 /// Un transcript de sous-agent identifié structurellement : `<sid>/subagents/agent-<id>.jsonl`.
@@ -317,6 +428,10 @@ pub struct AgentNode {
     /// Secondes brutes derrière `started_ago` — sert UNIQUEMENT au tri côté webview. `None` si
     /// la date de création est indisponible (trié en dernier, cf. `render.ts`).
     pub started_secs: Option<i64>,
+    /// Modèle utilisé par cet agent, déjà résolu en libellé lisible (amendement A1, ex.
+    /// « Opus 5.5 ») depuis `message.model` du premier enregistrement assistant de SON PROPRE
+    /// transcript (coordinateur ou sous-agent — jamais celui d'un autre). `"—"` si absent/illisible.
+    pub model: String,
     /// Infobulle complète (persona — tâche — actif il y a — remontée d'ancêtre mort le cas
     /// échéant) : conservée pour le survol, en plus des colonnes structurées.
     pub tooltip: String,
@@ -341,9 +456,11 @@ struct ResolvedSubagent {
     live: bool,
     mtime: Option<i64>,
     created: Option<i64>,
+    /// Modèle de CE sous-agent (amendement A1), déjà résolu en libellé lisible.
+    model: String,
 }
 
-/// Résout un `RawSubagent` (lecture du sidecar + mtime + liveness). Défensif : sidecar
+/// Résout un `RawSubagent` (lecture du sidecar + mtime + liveness + modèle). Défensif : sidecar
 /// absent/illisible/invalide -> `AgentMeta::default()` (type inconnu), jamais ignoré.
 fn resolve_subagent(raw: &RawSubagent, now: i64, liveness_secs: i64) -> ResolvedSubagent {
     let sidecar = raw.transcript_path.with_extension("meta.json");
@@ -351,12 +468,14 @@ fn resolve_subagent(raw: &RawSubagent, now: i64, liveness_secs: i64) -> Resolved
     let mtime = mtime_of(&raw.transcript_path);
     let live = mtime.is_some_and(|m| is_live(now, m, liveness_secs));
     let created = created_of(&raw.transcript_path);
+    let model = model_label_for_transcript(&raw.transcript_path);
     ResolvedSubagent {
         agent_id: raw.agent_id.clone(),
         meta,
         live,
         mtime,
         created,
+        model,
     }
 }
 
@@ -420,6 +539,11 @@ fn build_session_node(
     let coordinator_children = build_children(None, &children_of, &by_id, &display_parent, now);
     let elapsed = coordinator_mtime.map(|m| (now - m).max(0)).unwrap_or(0);
     let started_secs = coordinator_created.map(|c| (now - c).max(0));
+    let coordinator_model = raw
+        .coordinator_transcript
+        .as_deref()
+        .map(model_label_for_transcript)
+        .unwrap_or_else(|| "—".to_string());
     let coordinator = AgentNode {
         sprite: coordinator_sprite(),
         persona: "odin".to_string(),
@@ -428,6 +552,7 @@ fn build_session_node(
         active_secs: elapsed,
         started_ago: format_started_ago(started_secs),
         started_secs,
+        model: coordinator_model,
         tooltip: format!("odin (coordinateur) — actif il y a {elapsed} s"),
         children: coordinator_children,
         overflow: None,
@@ -519,6 +644,7 @@ fn build_children(
                 active_secs: elapsed,
                 started_ago: format_started_ago(started_secs),
                 started_secs,
+                model: s.model.clone(),
                 tooltip,
                 children,
                 overflow: None,
@@ -538,6 +664,7 @@ fn build_children(
             active_secs: 0,
             started_ago: String::new(),
             started_secs: None,
+            model: String::new(),
             tooltip: format!("+{overflow} agent(s) supplémentaire(s)"),
             children: Vec::new(),
             overflow: Some(overflow as u32),
@@ -548,8 +675,10 @@ fn build_children(
 
 // ============================ Label de projet ============================
 
-/// Lit la PREMIÈRE ligne (plafonnée à 1 MiB) d'un transcript et en extrait le `cwd`, projeté via
-/// `project_of` + `bucket_project`. Repli : nom du dossier de projet échappé, tel quel.
+/// Cherche le `cwd` dans les lignes de tête (bornées) d'un transcript — PAS seulement la
+/// première ligne physique (bug corrigé post-gate Legolas du 26/09 : les transcripts réels
+/// commencent souvent par des lignes de service sans `cwd`) — et le projette via `project_of` +
+/// `bucket_project`. Repli : nom du dossier de projet échappé, tel quel.
 fn project_label_for_session(escaped_dir: &Path, coordinator_transcript: Option<&Path>) -> String {
     let fallback = || {
         escaped_dir
@@ -560,37 +689,13 @@ fn project_label_for_session(escaped_dir: &Path, coordinator_transcript: Option<
     let Some(path) = coordinator_transcript else {
         return fallback();
     };
-    let Some(first_line) = read_first_line_capped(path, FIRST_LINE_CAP) else {
+    let Some(cwd) = first_cwd_in_transcript(path, TRANSCRIPT_HEAD_CAP) else {
         return fallback();
     };
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(&first_line) else {
-        return fallback();
-    };
-    let Some(cwd) = v.get("cwd").and_then(|c| c.as_str()) else {
-        return fallback();
-    };
-    match project_of(cwd) {
+    match project_of(&cwd) {
         Some(p) => bucket_project(p),
         None => fallback(),
     }
-}
-
-/// Lit au plus `cap` octets puis s'arrête à la première ligne complète rencontrée. `None` si le
-/// fichier est illisible ou vide.
-fn read_first_line_capped(path: &Path, cap: usize) -> Option<String> {
-    let mut f = std::fs::File::open(path).ok()?;
-    let mut buf = vec![0u8; cap];
-    let n = f.read(&mut buf).ok()?;
-    if n == 0 {
-        return None;
-    }
-    buf.truncate(n);
-    let text = String::from_utf8_lossy(&buf);
-    let line = text.lines().next()?;
-    if line.is_empty() {
-        return None;
-    }
-    Some(line.to_string())
 }
 
 // ================= Instantané + commande + watcher =================
@@ -1105,6 +1210,104 @@ mod tests {
         write_with_mtime(&escaped.join("sid.jsonl"), "pas du json\n", 0);
         let snap = snapshot_at(&dir, now_for_tests(), 90);
         assert_eq!(snap.sessions[0].project, "-w-etrange");
+    }
+
+    /// Angle mort du bug post-gate Legolas (26/09) : `session_line(cwd)` (le helper de test
+    /// ci-dessus) met TOUJOURS `cwd` en toute première ligne, ce qui masquait le défaut. Un
+    /// transcript réel commence par plusieurs lignes de service SANS `cwd` (mode,
+    /// permission-mode, atis-latch, file-history-snapshot…) avant la première ligne `user` qui le
+    /// porte : le nom de projet doit être trouvé malgré ce préambule, pas seulement en ligne 1.
+    #[test]
+    fn projet_lu_au_dela_du_preambule_de_service_reel() {
+        let dir = tmp_projects_dir("label-preambule");
+        let escaped = dir.join("-w-iaka-demo");
+        let content = concat!(
+            r#"{"type":"mode","mode":"interactive"}"#,
+            "\n",
+            r#"{"type":"permission-mode","mode":"default"}"#,
+            "\n",
+            r#"{"type":"atis-latch","latch":false}"#,
+            "\n",
+            r#"{"type":"file-history-snapshot","files":[]}"#,
+            "\n",
+            r#"{"type":"user","cwd":"/w/iaka-demo","message":{"content":"hello"}}"#,
+        );
+        write_with_mtime(&escaped.join("sid.jsonl"), content, 0);
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        assert_eq!(
+            snap.sessions[0].project, "iaka-demo",
+            "le cwd doit etre trouve au-dela des lignes de service, pas seulement en ligne 1"
+        );
+    }
+
+    // ---------------------------- Colonne Modele (amendement A1) ----------------------------
+
+    #[test]
+    fn format_model_label_opus_avec_date_donne_opus_5_5() {
+        assert_eq!(format_model_label("claude-opus-5-5-20260115"), "Opus 5.5");
+    }
+
+    #[test]
+    fn format_model_label_sonnet_sans_date() {
+        assert_eq!(format_model_label("claude-sonnet-4-5"), "Sonnet 4.5");
+    }
+
+    #[test]
+    fn format_model_label_haiku() {
+        assert_eq!(format_model_label("claude-haiku-4-5-20251001"), "Haiku 4.5");
+    }
+
+    #[test]
+    fn format_model_label_famille_inconnue_repli_identifiant_brut() {
+        // Jamais de libellé inventé : famille non reconnue -> l'identifiant brut tel quel.
+        assert_eq!(format_model_label("mystery-model-x1"), "mystery-model-x1");
+    }
+
+    #[test]
+    fn first_assistant_model_in_transcript_au_dela_du_preambule() {
+        let dir = tmp_projects_dir("modele-preambule");
+        let path = dir.join("agent-1.jsonl");
+        let content = concat!(
+            r#"{"type":"mode","mode":"interactive"}"#,
+            "\n",
+            r#"{"type":"user","cwd":"/w/p","message":{"content":"hello"}}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"model":"claude-opus-5-5-20260115","content":[]}}"#,
+        );
+        fs::write(&path, content).unwrap();
+        assert_eq!(
+            first_assistant_model_in_transcript(&path, TRANSCRIPT_HEAD_CAP),
+            Some("claude-opus-5-5-20260115".to_string())
+        );
+        assert_eq!(model_label_for_transcript(&path), "Opus 5.5");
+    }
+
+    #[test]
+    fn model_label_for_transcript_absent_est_un_tiret() {
+        let dir = tmp_projects_dir("modele-absent");
+        let path = dir.join("agent-1.jsonl");
+        fs::write(&path, r#"{"type":"user","cwd":"/w/p","message":{"content":"hi"}}"#).unwrap();
+        assert_eq!(model_label_for_transcript(&path), "—");
+    }
+
+    #[test]
+    fn snapshot_porte_le_modele_du_coordinateur_et_du_sous_agent() {
+        let dir = tmp_projects_dir("modele-snapshot");
+        let escaped = dir.join("-w-proj");
+        let coord_content = concat!(
+            r#"{"type":"user","cwd":"/w/proj","message":{"content":"hello"}}"#,
+            "\n",
+            r#"{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","content":[]}}"#,
+        );
+        write_with_mtime(&escaped.join("sid.jsonl"), coord_content, 0);
+        let sub_content = r#"{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","content":[]}}"#;
+        write_with_mtime(&escaped.join("sid/subagents/agent-1.jsonl"), sub_content, 0);
+        write_meta(&escaped.join("sid/subagents/agent-1.meta.json"), "gimli", None, 1);
+
+        let snap = snapshot_at(&dir, now_for_tests(), 90);
+        let coord = &snap.sessions[0].coordinator;
+        assert_eq!(coord.model, "Sonnet 4.5");
+        assert_eq!(coord.children[0].model, "Haiku 4.5");
     }
 
     // ---------------------------- Emission-si-changement ----------------------------
