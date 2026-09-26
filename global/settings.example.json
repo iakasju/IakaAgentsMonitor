@@ -1,0 +1,54 @@
+{
+  "//": "Exemple iakaframe — cable les 5 hooks source (identite/perimetre/delegation/plan). A FUSIONNER dans ~/.claude/settings.json (ne pas clobber). Deposer les hooks dans ~/.claude/hooks/. Portable (node + chemins ~), sans artefact specifique-machine.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/identity-guard.mjs" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/identity-guard.mjs" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/identity-remind.mjs" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/delegation-guard.mjs" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/perimeter-guard.mjs" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/delegation-guard.mjs" }
+        ]
+      },
+      {
+        "matcher": "TodoWrite|Task",
+        "hooks": [
+          { "type": "command", "command": "node ~/.claude/hooks/plan-courante.mjs" }
+        ]
+      }
+    ]
+  }
+}
