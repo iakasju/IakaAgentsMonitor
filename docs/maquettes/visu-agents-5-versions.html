@@ -190,6 +190,18 @@ ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; wi
 .pv-ic-legend-item{ display:inline-flex; align-items:center; gap:4px; font-family:var(--sc-font-mono); font-size:0.64rem; color:var(--sc-ink-muted); }
 .pv-ic-legend-swatch{ width:10px; height:10px; border-radius:2px; border:1px solid var(--sc-border); display:inline-block; }
 
+/* ---------- Sprites 16×32 (onglet) ---------- */
+.pv-spr-img{ image-rendering:pixelated; image-rendering:crisp-edges; display:block; }
+.pv-spr-grid{ display:flex; flex-wrap:wrap; gap:18px; }
+.pv-spr-card{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:14px 10px; border-radius:8px; border:1px solid var(--sc-border); }
+.pv-spr-pair{ display:flex; align-items:flex-end; gap:10px; }
+.pv-spr-name{ font-family:var(--sc-font-display); font-weight:700; font-size:0.8rem; }
+.pv-spr-sub{ font-family:var(--sc-font-mono); font-size:0.6rem; color:var(--sc-ink-faint); }
+.pv-spr-scalerow{ display:flex; align-items:flex-end; gap:14px; margin-top:4px; }
+.pv-spr-scalerow .lbl{ font-family:var(--sc-font-mono); font-size:0.58rem; color:var(--sc-ink-faint); text-align:center; margin-top:3px; }
+.pv-spr-themes{ display:flex; gap:10px; }
+.pv-spr-theme-box{ padding:10px; border-radius:6px; }
+
 /* ---------- V5 frise ---------- */
 .pv-timeline{ display:flex; flex-direction:column; gap:16px; }
 .pv-axis{ position:relative; height:18px; margin-left:150px; font-family:var(--sc-font-mono); font-size:0.65rem; color:var(--sc-ink-faint); }
@@ -240,10 +252,10 @@ footer.pv-foot{ text-align:center; font-family:var(--sc-font-mono); font-size:0.
       modèle — cinq façons de le montrer, plus un onglet de choix d'icônes. Données fictives mais
       plausibles ; charte <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).
       <b>Amendement A1</b> (26/09) : <b>V4 · Tableau dense</b> devient la vue par défaut du produit —
-      indentation de délégation, tri « arbre ». Onglet <b>Icônes 2×2 · 8 bits</b> (26/09, second
-      amendement) : 2 techniques de pixel art multicolore en 2×2 caractères, chacune en 16 et en
-      256 couleurs ; l'ancien onglet 4×4 (3 styles monochromes) reste consultable, replié, pour
-      comparaison.</p>
+      indentation de délégation, tri « arbre ». Onglet <b>Sprites 16×32</b> (26/09, consigne
+      définitive) : vrai pixel art en pied (16×32, palette 16 couleurs documentée) + buste 16×16
+      pour la ligne du tableau ; les essais précédents (icônes 2×2 · 8 bits, icônes 4×4) restent
+      consultables, repliés, pour mémoire.</p>
     </div>
     <button class="pv-theme-btn" id="themeBtn" type="button">☾ / ☀ thème</button>
   </div>
@@ -914,6 +926,174 @@ function view8Bit(){
   </details>`;
 }
 
+
+/* ============================= Sprites 16×32 — pixel art en pied + buste 16×16 ============================= */
+const PALETTE16 = {"0":"#0d0d0d","1":"#f4e4c1","2":"#c68642","3":"#6b4226","4":"#ffffff","5":"#c9c9c9","6":"#6e6e6e","7":"#d6a916","8":"#d9772e","9":"#3b6ea5","a":"#c0392b","b":"#1f8a4c","c":"#7d4fb5","d":"#8a5a2b","e":"#e8c568","f":"#4a2f6b"};
+const SPRITES16 = {"odin":["................","....0.0000.0..0.","...0607777060060","....07777770.060",".....0014010.060",".....0011110.060","....05555550.060","....00111100.060","..00666666660060",".0ff76666667ff60",".0ff76666667ff60",".0ff76666667ff60",".0ff76666667ff60",".0ff66666666ff60",".0ff77777777ff60",".0ff66666666ff60",".0ff66666666ff60",".0ff06666660ff60",".0ff06666660ff60",".0ff06666660ff60","..0f06666660f060","...0066666600.0.","....06666660....","....06666660....","....06666660....","....06666660....","...0000000000...","...0000000000...","................","................","................","................"],"gandalf":["...0..0440......","..0e0044440.....","..0305555550....","..0301011010....","..0301111110....","..03444444440...","..03444444440...","..0304444440....","..0304444440....","..0300444400....","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03333333330...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..03444455550...","..055555555550..","...0000000000...","......0000......","................","................","................","................"],"gimli_dev":["................",".....000000.....","....06666660....","...0666666660...","....00000000....","....020220200000","...0333333335555","..03333333334444","..03333333336555","...0333333336555","...0000000006555","..0aaaaaaaaa6555","..06aaaaaaaa6555","..0aaaaaaaaadd55","..0aaaaaaaaadd00","..0aaaaaaaaadd0.","..0aaaaaaaaadd0.","..0ddddddddddd0.","...066600666dd0.","...066600666dd0.","...066600666dd0.","...066600666dd0.","...066600666dd0.","...066600666dd0.","...06660066600..","...0000000000...","...0000000000...","................","................","................","................","................"],"legolas_p2":["................","......0000......","..0..0eeee0.....",".0300eeeeee0....",".034110110110...",".03401111110....",".0340011110.....",".0340011110..0..",".0340bbbbbb00a0.",".0346bbbbbb60d0.",".0340bbbbbb00d0.",".0340bbbbbb00d0.",".0346bbbbbb60d0.",".0340bbbbbb00d0.",".0340dddddd00d0.",".0340bbbbbb0.0..",".0340bbbbbb0....",".0340eb00eb0....",".0340bb00bb0....",".0340bb00bb0....",".0300bb00bb0....","..0.0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","...0333333330...","...0333333330...","....00000000....","................","................","................"],"aragorn":["................","......0000......",".....033330.....","....03333330....","....02022020.0..","....02222220050.",".....022220.050.","....00222200050.","...088888888050.","..0688888888650.","...088888888050.","...088888888050.","...088888888050.","..0688888888650.","...0ddd77ddd050.","...088888888050.","...088888888050.","...033300333050.","...033300333050.","...033300333050.","...0333003337770","...033300333070.","...033300333070.","...03330033300..","...0333003330...","...0333003330...","...0000000000...","...0000000000...","................","................","................","................"],"helm":["................",".....000000.....","....0cccccc00...","....0ccc555550..",".....00000000...","....0cccccc0....",".....000000.....","...0055555500...",".00cccccccccc0..","055cccccccccc0..","055cccccccccc0..","055cccccccccc0..","055cccccccccc0..","05ccccccccccc0..","05cc55555555c0..","055cccccccccc0..","055cccccccccc0..","0555cccc0cccc0..","0555cccc0cccc0..","0555cccc0cccc0..",".000cccc0cccc0..","...0cccc0cccc0..","...0cccc0cccc0..","...0cccc0cccc0..","...0cccc0cccc0..","...0cccc0cccc0..","...0000000000...","...0000000000...","................","................","................","................"],"loki":["....00....00....","...0770000770...","..077033330770..","...0011111100...","....01111110....",".....000000.....",".....011110.....","....00111100....","...0b777777b00..","..0fbbbbbbbbfe0.","..0f7bbbbbb7f70.","..0fbbbbbbbbf70.","..0fbbbbbbbbf70.","..0f7bbbbbb7f70.","..0f77777777f70.",".0fffffffffff70.","..0fbbbbbbbbf70.","...007b00b7000..","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","....0bb00bb0....","...0777777770...","...0777777770...","....00000000....","................","................","................"],"nathalie":["................","....00000000....","...0333333330...","...0333333330...","....01011010....","....01111110....",".....011110.....","....00111100....","..00888888880...",".040888888880...",".040888888880...",".040888888880...",".04088888888000.",".040eeeeeeeeddd0",".04088888888ded0",".04088888888ded0",".04088888888ded0",".04088888888ddd0",".04088888888000.","..00888888880...","...0888888880...","...0888888880...","...0888888880...","...0888888880...","...0888888880...","..088888888880..","...0000000000...","......0000......","................","................","................","................"],"feanor":["................","......0000......",".....033330.....","....03333330....","....02022020....","....02222220....",".....022220.....","....00222200....","...0666666660000","...0866666686666","...066666666dddd","...0666ee6666666","...0666ee6666666","...0866666686366","...0dddddddd0300","...066666666030.","...066666666030.","...066600666030.","...066600666030.","...066600666030.","...066600666030.","...066600666030.","...066600666030.","...06660066600..","...0666006660...","...0666006660...","...0000000000...","...0000000000...","................","................","................","................"]};
+const BUSTS16 = {"odin":["...0607777060...","....07777770....","...0777777770...","...0100110110...","...0111111110...","..055555555550..","..055555555550..","...0555555550...",".00000111100000.","0777777777777770","0766666666666670","0666666666666660","0666666666666660","0666666666666660","0666666666666660","0777777777777770"],"gandalf":[".....004400.....","...0044444400...","..055555555550..","...0101111010...","..001111111100..",".04444444444440.",".04444444444440.","..044444444440..","...0444444440...",".00004444440000.","0444555555554440","0555555555555550","0333333333333330","0555555555555550","0555555555555550","0555555555555550"],"gimli_dev":["...0666666660...","..066666666660..","...0202222020...",".00022222222000.","0333333333333330","0333333333333330","0333333333333330",".03333333333330.","..033333333330..","0000333333330000","aaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaaa","aaaaaaaaaaaaaaaa","dddddddddddddddd"],"legolas_p2":["....0eeeeee0....","...0eeeeeeee0...","..011011110110..","...0111111110...","....01111110....","....01111110....",".....011110.....","...0000110000...","..0bbbbbbbbbb0..","..0ebbbbbbbbe0..","..0bbbbbbbbbb0..","..0bbbbbbbbbb0..","..0bbbbbbbbbb0..","..0bbbbbbbbbb0..","..0bbbbbbbbbb0..","..0dddddddddd0.."],"aragorn":["...0333333330...","...0333333330...","...0202222020...","...0222222220...","....02222220....","....02222220....",".....022220.....",".00000022000000.","0888888888888880","0688888888888860","0888888888888880","0888888888888880","0888888888888880","0888888888888880","0888888888888880","0dddddddddddddd0"],"helm":["..0cccccccccc0..","..0cccccccccc0..","..0cccccccccc0..","...0000000000...","..0cccccccccc0..","..0cccccccccc0..","...0000000000...","0005555555555000","5555555555555555","cccccccccccccccc","cccccccccccccccc","cccccccccccccccc","cccccccccccccccc","cccccccccccccccc","cccccccccccccccc","5555555555555555"],"loki":["..000......000..",".07770000007770.","..073333333370..","...0101111010...","....00000000....","....01111110....",".....011110.....",".00000011000000.","0777777777777770","0bbbbbbbbbbbbbb0","0fbbbbbbbbbbbbf0","0bbbbbbbbbbbbbb0","0bbbbbbbbbbbbbb0","0bbbbbbbbbbbbbb0","0bbbbbbbbbbbbbb0","0777777777777770"],"nathalie":["..033333333330..","..033333333330..","...0101111010...","..011111111110..","...0111111110...","...0333333330...","....03333330....",".00000111100000.","0888888888888880","0888888888888880","0888888888888880","0eeeeeeeeeeeeee0","0888888888888880","0888888888888880","0888888888888880","0888888888888880"],"feanor":["...0333333330...","...0333333330...","...0202222020...","...0222222220...","....02222220....","....02222220....",".....022220.....","0000000220000000","6666666666666666","8666666666666668","6666666666666666","6666666ee6666666","6666666666666666","6666666666666666","6666666666666666","dddddddddddddddd"]};
+const ODIN_EXT_PALETTE = {"0":"#0d0d0d","1":"#f4e4c1","2":"#c68642","3":"#6b4226","4":"#ffffff","5":"#c9c9c9","6":"#6e6e6e","7":"#d6a916","8":"#d9772e","9":"#3b6ea5","a":"#c0392b","b":"#1f8a4c","c":"#7d4fb5","d":"#8a5a2b","e":"#e8c568","f":"#4a2f6b","g":"#e8e8e8","h":"#4a4a4a","i":"#6b4a8f","j":"#2f1d47","k":"#f0c94a","l":"#a3800f","m":"#d4b896"};
+const ODIN_EXT_GRID = ["................","....0.0000.0..0.","...060k77l060060","....0l777770.060",".....0014010.060",".....00m11m0.060","....05555550.060","....00111100.060","..00g666666h0060",".0ifg666666hfj60",".0ifg666666hfj60",".0ifg666666hfj60",".0ifg666666hfj60",".0ifg666666hfj60",".0ifk7777777fj60",".0if66666666fj60",".0if66666666fj60",".0if06666660fj60",".0if06666660fj60",".0ff06666660ff60","..0f06666660f060","...0066666600.0.","....06666660....","....06666660....","....06666660....","....06666660....","...0000000000...","...0000000000...","................","................","................","................"];
+
+const PALETTE16_NAMES = {"0":"noir (contour)","1":"peau claire","2":"peau hâlée","3":"brun (cheveux/bois)","4":"blanc","5":"gris clair (métal)","6":"gris foncé (métal)","7":"or (Odin)","8":"orange (Aragorn/Loki/Nathalie/Fëanor)","9":"bleu (Gandalf)","a":"rouge (Gimli)","b":"vert (Legolas)","c":"violet (Helm)","d":"bronze/cuir","e":"or pâle/crème","f":"violet sombre"};
+const SPRITE_TRAITS = {
+  odin:'cape, borgne, casque ailé, lance', gandalf:'robe grise/blanche, chapeau pointu, longue barbe, bâton',
+  gimli_dev:'nain trapu, barbe imposante, hache', legolas_p2:'elfe, oreilles pointues, arc + carquois',
+  aragorn:'rôdeur, cape, épée', helm:'heaume intégral, armure lourde, bouclier',
+  loki:'cornes dorées, tunique vert/or, sceptre', nathalie:'robe de scribe, plume + livre',
+  feanor:'tablier de forgeron, marteau, gemme au poitrail',
+};
+function spriteDataURL(grid, palette){
+  const h = grid.length, w = grid[0].length;
+  const cnv = document.createElement('canvas'); cnv.width=w; cnv.height=h;
+  const ctx = cnv.getContext('2d');
+  for(let y=0;y<h;y++){ for(let x=0;x<w;x++){ const ch=grid[y][x]; if(ch==='.') continue; ctx.fillStyle=palette[ch]; ctx.fillRect(x,y,1,1); } }
+  return cnv.toDataURL();
+}
+function spriteImg(grid, palette, cssW, extraStyle){
+  const w = grid[0].length, h = grid.length;
+  const cssH = Math.round(cssW * h / w);
+  return `<img class="pv-spr-img" src="${spriteDataURL(grid,palette)}" width="${cssW}" height="${cssH}" style="${extraStyle||''}" alt="">`;
+}
+function spriteScaleRow(grid, palette){
+  return `<div class="pv-spr-scalerow">
+    <div>${spriteImg(grid,palette,16)}<div class="lbl">×1</div></div>
+    <div>${spriteImg(grid,palette,32)}<div class="lbl">×2</div></div>
+    <div>${spriteImg(grid,palette,64)}<div class="lbl">×4</div></div>
+  </div>`;
+}
+function spritePersonaCard(key, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const p = PERSONAS[key];
+  return `<div class="pv-spr-card" style="background:${bg};border-color:${border}">
+    <span class="pv-spr-name" style="color:${ink}">${p.name}</span>
+    <div class="pv-spr-sub" style="color:${ink}">en pied — 16×32</div>
+    ${spriteScaleRow(SPRITES16[key], PALETTE16)}
+    <div class="pv-spr-sub" style="color:${ink}">buste — 16×16</div>
+    ${spriteScaleRow(BUSTS16[key], PALETTE16)}
+  </div>`;
+}
+function spriteSituationRows(mode, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const faint = theme==='dark' ? '#63666c' : '#a3a199';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const sampleIds = ['o1','a1','d1'];
+  const rows = buildTreeRows().filter(r => sampleIds.includes(r.a.id));
+  const trs = rows.map(r => {
+    const a = r.a, p = PERSONAS[a.persona];
+    const guide = r.guide ? `<span style="color:${faint}">${r.guide}</span>` : '';
+    const grid = mode==='bust' ? BUSTS16[a.persona] : SPRITES16[a.persona];
+    const img = mode==='bust' ? spriteImg(grid, PALETTE16, 20) : spriteImg(grid, PALETTE16, 10, 'margin:0 3px;');
+    return `<tr style="border-bottom:1px solid ${border}">
+      <td style="padding:6px 8px;white-space:nowrap;"><span style="display:inline-flex;align-items:center;gap:6px;">${guide}${img}<span style="color:${ink};font-family:var(--sc-font-body);font-size:0.78rem;">${p.name}</span></span></td>
+      <td style="padding:6px 8px;color:${ink};font-family:var(--sc-font-mono);font-size:0.72rem;">${a.project}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;background:${bg};">${trs}</table>`;
+}
+function paletteLegend16HTML(){
+  return `<div class="pv-ic-legend">${Object.entries(PALETTE16).map(([i,hex]) =>
+    `<span class="pv-ic-legend-item" title="${PALETTE16_NAMES[i]}"><span class="pv-ic-legend-swatch" style="background:${hex}"></span>${i} · ${PALETTE16_NAMES[i]}</span>`
+  ).join('')}</div>`;
+}
+function viewSprites16(){
+  const traitList = Object.keys(SPRITE_TRAITS).map(k => `<b>${PERSONAS[k].name}</b> — ${SPRITE_TRAITS[k]}`).join(' · ');
+  const cardsLight = Object.keys(PERSONAS).map(k => spritePersonaCard(k,'light')).join('');
+  const cardsDark = Object.keys(PERSONAS).map(k => spritePersonaCard(k,'dark')).join('');
+  return `
+  <div class="pv-partipris sc-note tip" style="margin-top:0;">
+    <span class="k">Contrainte</span> — vrai pixel art : grille <b>16 pixels de large × 32 de haut</b>
+    par persona, portrait en pied, style 8 bits / sprite rétro (NES-SNES), palette limitée à
+    <b>16 couleurs</b> documentée ci-dessous. <span class="k">Silhouette &amp; attributs</span> —
+    ${traitList}.
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Palette 16 couleurs (documentée)</h3>
+    <p class="pv-ic-style-desc">Palette maison plutôt que PICO-8 telle quelle : tons neutres
+    peau/métal/bois partagés entre personas + une teinte par pastille (or Odin, bleu Gandalf,
+    rouge Gimli, vert Legolas, orange Aragorn/Loki/Nathalie/Fëanor, violet Helm), plus 2 accents
+    (crème, violet sombre) pour les capes/gemmes. 16 index au total, transparence gérée hors
+    palette (canal alpha).</p>
+    ${paletteLegend16HTML()}
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Les 9 personas — en pied (16×32) et buste (16×16), ×1 / ×2 / ×4</h3>
+    <p class="pv-ic-style-desc">Le buste n'est pas un simple recadrage du haut du sprite : il est
+    redessiné pour rester lisible à 16×16 (tête agrandie, épaules pleine largeur). Rendu net
+    (<code>image-rendering: pixelated</code>), aucun flou à l'agrandissement.</p>
+    <div class="pv-ic-sub">Clair</div>
+    <div class="pv-spr-grid">${cardsLight}</div>
+    <div class="pv-ic-sub">Sombre</div>
+    <div class="pv-spr-grid" style="background:#0d0f12;padding:14px;border-radius:10px;">${cardsDark}</div>
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">En pied ou buste dans la ligne du tableau V4 ?</h3>
+    <p class="pv-ic-style-desc">Les deux, en situation, clair &amp; sombre, pour trancher.</p>
+    <div class="pv-ic-sub">Option A — sprite en pied réduit à la hauteur de ligne (~20 px, donc ~10 px de large)</div>
+    <div class="pv-ic-context-row">
+      <div class="pv-ic-context">${spriteSituationRows('body','light')}</div>
+      <div class="pv-ic-context">${spriteSituationRows('body','dark')}</div>
+    </div>
+    <div class="pv-ic-sub">Option B — vignette buste 16×16 (~20 px)</div>
+    <div class="pv-ic-context-row">
+      <div class="pv-ic-context">${spriteSituationRows('bust','light')}</div>
+      <div class="pv-ic-context">${spriteSituationRows('bust','dark')}</div>
+    </div>
+    <div class="pv-partipris sc-note tip">
+      <span class="k">Proposition Loki</span> — le <b>buste</b> pour la colonne du tableau V4 :
+      réduit à la hauteur d'une ligne, le sprite en pied entier ne fait plus que ~10 px de large et
+      perd tout (couleurs illisibles, silhouette écrasée) — voir option A ci-dessus. Le buste, carré,
+      reste net et reconnaissable à cette taille, et s'aligne avec la convention déjà en usage dans
+      le tableau (icône carrée devant le nom). Le sprite en pied entier trouve sa place ailleurs :
+      roster, fiche d'un agent, écran « à propos ».
+    </div>
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">16 couleurs, ou 256 ? — cas d'étude sur Odin</h3>
+    <p class="pv-ic-style-desc">Même sprite, à gauche la palette 16 couleurs livrée, à droite une
+    variante enrichie de dégradés (surbrillance/ombre sur le métal, l'or et la cape — l'esprit
+    d'une palette 256 couleurs, sans prétendre peupler les 256 index).</p>
+    <div class="pv-ic-enlarge-row">
+      <div class="pv-ic-swatch" style="background:#ffffff;border-color:#e2e0d9;">
+        <div class="pv-ic-cell">${spriteImg(SPRITES16.odin, PALETTE16, 96)}<span class="pv-ic-name">16 couleurs</span></div>
+      </div>
+      <div class="pv-ic-swatch" style="background:#ffffff;border-color:#e2e0d9;">
+        <div class="pv-ic-cell">${spriteImg(ODIN_EXT_GRID, ODIN_EXT_PALETTE, 96)}<span class="pv-ic-name">palette étendue</span></div>
+      </div>
+    </div>
+    <div class="pv-partipris sc-note tip">
+      <span class="k">Verdict</span> — <b>256 couleurs n'apporte rien de lisible à 16×32 px</b> :
+      la différence, déjà ténue en zoom ×6 ci-dessus, disparaît complètement aux tailles réelles
+      (×1/×2) montrées plus haut. Un dégradé n'a de sens que si la résolution est assez grande pour
+      le montrer ; à 16×32, seule la teinte plate compte. La contrainte 16 couleurs n'est donc pas
+      un sacrifice ici — c'est la palette 256 qui serait un gaspillage. Elle vaudrait le coup à une
+      résolution plus grande (32×64 et au-delà), hors périmètre de cette demande.
+    </div>
+  </div>
+
+  <div class="sc-card pv-ic-style">
+    <h3 class="pv-ic-style-h">Définitions source (copiables)</h3>
+    <p class="pv-ic-style-desc">Palette (index → hex) au-dessus ; grilles 16×32 (en pied) et 16×16
+    (buste) ci-dessous, une chaîne de 16 caractères hexadécimaux par ligne, <code>.</code> = transparent.</p>
+    <div class="pv-ic-sub">Grilles en pied (16×32)</div>
+    <pre class="pv-ic-code" style="max-height:380px;overflow-y:auto;">${JSON.stringify(SPRITES16, null, 1)}</pre>
+    <div class="pv-ic-sub">Grilles buste (16×16)</div>
+    <pre class="pv-ic-code" style="max-height:280px;overflow-y:auto;">${JSON.stringify(BUSTS16, null, 1)}</pre>
+  </div>
+
+  <details class="sc-card" style="padding:14px 18px;">
+    <summary style="cursor:pointer;font-family:var(--sc-font-mono);font-size:0.72rem;color:var(--sc-ink-muted);text-transform:uppercase;letter-spacing:.05em;">Comparaison — anciennes propositions (Icônes 2×2 · 8 bits, puis Icônes 4×4)</summary>
+    <div style="margin-top:14px;">${view8Bit()}</div>
+  </details>`;
+}
+
+
 /* ============================= tabs & boot ============================= */
 const VIEWS = [
   { id:'popover',  label:'V1 · Popover',        render:viewPopover },
@@ -921,7 +1101,7 @@ const VIEWS = [
   { id:'room',     label:'V3 · Salle des équipes',render:viewRoom },
   { id:'table',    label:'V4 · Tableau dense — défaut',render:viewTable },
   { id:'timeline', label:'V5 · Frise temporelle',render:viewTimeline },
-  { id:'icons8',   label:'Icônes 2×2 · 8 bits',  render:view8Bit },
+  { id:'sprites16',label:'Sprites 16×32',        render:viewSprites16 },
 ];
 const tabsEl = document.getElementById('tabs');
 const viewsEl = document.getElementById('views');
