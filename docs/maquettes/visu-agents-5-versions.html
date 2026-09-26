@@ -179,6 +179,17 @@ ul.pv-tree ul li::before{ content:""; position:absolute; left:-1px; top:14px; wi
 .pv-ic-name{ font-family:var(--sc-font-body); font-size:0.66rem; text-align:center; }
 .pv-ic-code{ margin:0; background:var(--sc-well); border:1px solid var(--sc-border); border-radius:8px; padding:12px; font-family:var(--sc-font-mono); font-size:0.68rem; line-height:1.5; overflow-x:auto; color:var(--sc-ink); }
 
+/* ---------- Icônes 2×2 · 8 bits (onglet) ---------- */
+.ic8-icon{ display:inline-flex; flex-direction:column; font-family:var(--sc-font-mono); line-height:1; vertical-align:middle; border:1px solid #767676; }
+.ic8-row{ display:flex; }
+.ic8-cell{ display:inline-block; }
+.pv-ic-palette-row{ display:flex; flex-wrap:wrap; gap:20px; margin-top:8px; }
+.pv-ic-palette-col{ flex:1 1 420px; min-width:0; border-left:2px solid var(--sc-border); padding-left:16px; }
+.pv-ic-palette-h{ font-family:var(--sc-font-display); font-weight:700; font-size:0.92rem; margin-bottom:8px; }
+.pv-ic-legend{ display:flex; flex-wrap:wrap; gap:6px 10px; margin-bottom:12px; }
+.pv-ic-legend-item{ display:inline-flex; align-items:center; gap:4px; font-family:var(--sc-font-mono); font-size:0.64rem; color:var(--sc-ink-muted); }
+.pv-ic-legend-swatch{ width:10px; height:10px; border-radius:2px; border:1px solid var(--sc-border); display:inline-block; }
+
 /* ---------- V5 frise ---------- */
 .pv-timeline{ display:flex; flex-direction:column; gap:16px; }
 .pv-axis{ position:relative; height:18px; margin-left:150px; font-family:var(--sc-font-mono); font-size:0.65rem; color:var(--sc-ink-faint); }
@@ -229,8 +240,10 @@ footer.pv-foot{ text-align:center; font-family:var(--sc-font-mono); font-size:0.
       modèle — cinq façons de le montrer, plus un onglet de choix d'icônes. Données fictives mais
       plausibles ; charte <b>Studio clair</b> (défaut « dev logiciel », <code>design-studio-clair/</code>).
       <b>Amendement A1</b> (26/09) : <b>V4 · Tableau dense</b> devient la vue par défaut du produit —
-      indentation de délégation, tri « arbre » — et un nouvel onglet <b>Icônes 4×4</b> propose trois
-      partis pris de pixel art pour les 9 personas.</p>
+      indentation de délégation, tri « arbre ». Onglet <b>Icônes 2×2 · 8 bits</b> (26/09, second
+      amendement) : 2 techniques de pixel art multicolore en 2×2 caractères, chacune en 16 et en
+      256 couleurs ; l'ancien onglet 4×4 (3 styles monochromes) reste consultable, replié, pour
+      comparaison.</p>
     </div>
     <button class="pv-theme-btn" id="themeBtn" type="button">☾ / ☀ thème</button>
   </div>
@@ -727,6 +740,180 @@ function viewIcons(){
   </div>`;
 }
 
+/* ============================= Icônes 2×2 · 8 bits — 2 techniques × 2 palettes ============================= */
+// Contrainte : 2 caractères de large × 2 lignes, multicolore (fg+bg par cellule), esprit 8 bits.
+// Même "pattern" (forme) par persona dans les 2 palettes — seules les couleurs changent — pour
+// comparer à forme égale. Patterns en cellules row-major [ (0,0), (0,1), (1,0), (1,1) ].
+const PATTERNS_T1 = { // demi-blocs ▀ : fg = pixel du haut, bg = pixel du bas (2×4 px réels)
+  corner: (D,A) => [ {ch:'▀',fg:A,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D} ],
+  cross:  (D,A) => [ {ch:'▀',fg:D,bg:A}, {ch:'▀',fg:D,bg:A}, {ch:'▀',fg:A,bg:D}, {ch:'▀',fg:A,bg:D} ],
+  top:    (D,A) => [ {ch:'█',fg:A,bg:A}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D} ],
+  bottom: (D,A) => [ {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:A,bg:A} ],
+  diagA:  (D,A) => [ {ch:'█',fg:A,bg:A}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A} ],
+  diagB:  (D,A) => [ {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:D,bg:D} ],
+  splitV: (D,A) => [ {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A} ],
+};
+const PATTERNS_T2 = { // quadrants ▘▝▖▗▚▞▙▛▜▟█ : 2 couleurs par cellule (4×4 px réels)
+  corner: (D,A) => [ {ch:'▘',fg:A,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D} ],
+  cross:  (D,A) => [ {ch:'▗',fg:A,bg:D}, {ch:'▖',fg:A,bg:D}, {ch:'▝',fg:A,bg:D}, {ch:'▘',fg:A,bg:D} ],
+  top:    (D,A) => [ {ch:'▟',fg:A,bg:D}, {ch:'▙',fg:A,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D} ],
+  bottom: (D,A) => [ {ch:'█',fg:D,bg:D}, {ch:'█',fg:D,bg:D}, {ch:'▜',fg:A,bg:D}, {ch:'▛',fg:A,bg:D} ],
+  diagA:  (D,A) => [ {ch:'▚',fg:A,bg:D}, {ch:'▚',fg:A,bg:D}, {ch:'▚',fg:A,bg:D}, {ch:'▚',fg:A,bg:D} ],
+  diagB:  (D,A) => [ {ch:'▞',fg:A,bg:D}, {ch:'▞',fg:A,bg:D}, {ch:'▞',fg:A,bg:D}, {ch:'▞',fg:A,bg:D} ],
+  splitV: (D,A) => [ {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A}, {ch:'█',fg:D,bg:D}, {ch:'█',fg:A,bg:A} ],
+};
+// D = couleur dominante (= pastille du persona) · A = accent (le trait : or/blanc Odin, blanc/gris
+// « Gandalf le Blanc », acier Gimli/Helm, argent Aragorn/Legolas, vert vif Loki, encre Nathalie,
+// cyan Fëanor). Même pattern dans les 2 palettes ; seul le rendu chromatique change.
+const PERSONA_8BIT = {
+  ansi16: { // 16 couleurs ANSI standard (0-15, esprit vga16 iakaOS) — pas d'orange dans ce jeu :
+            // Aragorn/Loki/Nathalie/Fëanor redistribués sur rouge/olive/argent/cyan.
+    odin:      { D:{i:11,hex:'#ffff00'}, A:{i:15,hex:'#ffffff'}, pattern:'corner' },
+    aragorn:   { D:{i:9, hex:'#ff0000'}, A:{i:15,hex:'#ffffff'}, pattern:'cross'  },
+    gandalf:   { D:{i:4, hex:'#000080'}, A:{i:15,hex:'#ffffff'}, pattern:'top'    },
+    gimli_dev: { D:{i:1, hex:'#800000'}, A:{i:8, hex:'#808080'}, pattern:'diagA'  },
+    legolas_p2:{ D:{i:10,hex:'#00ff00'}, A:{i:15,hex:'#ffffff'}, pattern:'splitV' },
+    helm:      { D:{i:5, hex:'#800080'}, A:{i:8, hex:'#808080'}, pattern:'cross'  },
+    loki:      { D:{i:3, hex:'#808000'}, A:{i:10,hex:'#00ff00'}, pattern:'diagB'  },
+    nathalie:  { D:{i:7, hex:'#c0c0c0'}, A:{i:0, hex:'#000000'}, pattern:'bottom' },
+    feanor:    { D:{i:14,hex:'#00ffff'}, A:{i:13,hex:'#ff00ff'}, pattern:'top'    },
+  },
+  x256: { // 256 couleurs xterm-256 — la palette chaude (vrais oranges) que l'ANSI 16 n'a pas.
+    odin:      { D:{i:220,hex:'#ffd700'}, A:{i:15, hex:'#ffffff'}, pattern:'corner' },
+    aragorn:   { D:{i:208,hex:'#ff8700'}, A:{i:15, hex:'#ffffff'}, pattern:'cross'  },
+    gandalf:   { D:{i:25, hex:'#005faf'}, A:{i:254,hex:'#e4e4e4'}, pattern:'top'    },
+    gimli_dev: { D:{i:160,hex:'#d70000'}, A:{i:245,hex:'#8a8a8a'}, pattern:'diagA'  },
+    legolas_p2:{ D:{i:34, hex:'#00af00'}, A:{i:15, hex:'#ffffff'}, pattern:'splitV' },
+    helm:      { D:{i:135,hex:'#af5fff'}, A:{i:245,hex:'#8a8a8a'}, pattern:'cross'  },
+    loki:      { D:{i:166,hex:'#d75f00'}, A:{i:46, hex:'#00ff00'}, pattern:'diagB'  },
+    nathalie:  { D:{i:214,hex:'#ffaf00'}, A:{i:230,hex:'#ffffd7'}, pattern:'bottom' },
+    feanor:    { D:{i:202,hex:'#ff5f00'}, A:{i:51, hex:'#00ffff'}, pattern:'top'    },
+  },
+};
+const PALETTE_LABEL = { ansi16:'16 couleurs · ANSI (vga16)', x256:'256 couleurs · xterm-256' };
+const TECH_LABEL = {
+  t1:'Technique 1 — demi-blocs ▀ (fg + bg par cellule, 2×4 px réels)',
+  t2:'Technique 2 — quadrants ▘▚▟ (2 couleurs par cellule, 4×4 px réels)',
+};
+const TECH_DESC = {
+  t1:'Chaque caractère est un demi-bloc <code>▀</code> : la couleur de premier plan peint le pixel du haut, la couleur de fond peint le pixel du bas. 2 caractères × 2 lignes → 2 pixels de large sur 4 de haut, chaque pixel indépendamment coloré. Le bloc Unicode le plus ancien et le plus universellement supporté.',
+  t2:'Chaque caractère est un quadrant (<code>▘▝▖▗▚▞▙▛▜▟█</code>) : 2 couleurs par cellule (premier plan = quadrants « allumés », fond = quadrants « éteints »). 2 caractères × 2 lignes → 4×4 pixels réels, deux fois plus de résolution que la technique 1 pour le même encombrement texte — au prix d’une couverture de police plus récente (Unicode 13, « Symbols for Legacy Computing »).',
+};
+function buildCells8(tech, paletteKey, personaKey){
+  const p = PERSONA_8BIT[paletteKey][personaKey];
+  const fn = (tech==='t1' ? PATTERNS_T1 : PATTERNS_T2)[p.pattern];
+  return fn(p.D, p.A);
+}
+function icon8HTML(cells, px){
+  const cell = c => `<span class="ic8-cell" style="color:${c.fg.hex};background:${c.bg.hex}">${c.ch}</span>`;
+  const row = (a,b) => `<span class="ic8-row">${cell(a)}${cell(b)}</span>`;
+  return `<span class="ic8-icon" style="font-size:${px}px">${row(cells[0],cells[1])}${row(cells[2],cells[3])}</span>`;
+}
+function icon8SwatchRow(tech, paletteKey, sizePx, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const cells = Object.keys(PERSONAS).map(key => {
+    const p = PERSONAS[key];
+    const c = buildCells8(tech, paletteKey, key);
+    return `<div class="pv-ic-cell">${icon8HTML(c, sizePx)}<span class="pv-ic-name" style="color:${ink}">${p.name}</span></div>`;
+  }).join('');
+  return `<div class="pv-ic-swatch" style="background:${bg};border-color:${border}">${cells}</div>`;
+}
+function icon8MiniRows(tech, paletteKey, theme){
+  const bg = theme==='dark' ? '#14161a' : '#ffffff';
+  const ink = theme==='dark' ? '#e9e8e4' : '#1c1c1a';
+  const faint = theme==='dark' ? '#63666c' : '#a3a199';
+  const border = theme==='dark' ? '#2d3138' : '#e2e0d9';
+  const sampleIds = ['o1','a1','d1'];
+  const rows = buildTreeRows().filter(r => sampleIds.includes(r.a.id));
+  const trs = rows.map(r => {
+    const a = r.a, p = PERSONAS[a.persona];
+    const guide = r.guide ? `<span style="color:${faint}">${r.guide}</span>` : '';
+    const c = buildCells8(tech, paletteKey, a.persona);
+    return `<tr style="border-bottom:1px solid ${border}">
+      <td style="padding:6px 8px;white-space:nowrap;"><span style="display:inline-flex;align-items:center;gap:6px;">${guide}${icon8HTML(c,9)}<span style="color:${ink};font-family:var(--sc-font-body);font-size:0.78rem;">${p.name}</span></span></td>
+      <td style="padding:6px 8px;color:${ink};font-family:var(--sc-font-mono);font-size:0.72rem;">${a.project}</td>
+    </tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;background:${bg};">${trs}</table>`;
+}
+function icon8SourceJSON(tech, paletteKey){
+  const out = {};
+  Object.keys(PERSONAS).forEach(key => {
+    out[key] = buildCells8(tech, paletteKey, key).map(c => ({ ch:c.ch, fg:c.fg.i, bg:c.bg.i }));
+  });
+  return JSON.stringify(out, null, 2);
+}
+function paletteLegendHTML(paletteKey){
+  const table = PERSONA_8BIT[paletteKey];
+  const seen = new Map();
+  Object.values(table).forEach(p => { seen.set(p.D.i, p.D.hex); seen.set(p.A.i, p.A.hex); });
+  return `<div class="pv-ic-legend">${[...seen.entries()].sort((a,b)=>a[0]-b[0]).map(([i,hex]) =>
+    `<span class="pv-ic-legend-item"><span class="pv-ic-legend-swatch" style="background:${hex}"></span>${i}</span>`
+  ).join('')}</div>`;
+}
+function paletteBlockHTML(tech, paletteKey){
+  const maxIdx = paletteKey==='ansi16' ? '15' : '255';
+  return `<div class="pv-ic-palette-col">
+    <div class="pv-ic-palette-h">${PALETTE_LABEL[paletteKey]}</div>
+    ${paletteLegendHTML(paletteKey)}
+    <div class="pv-ic-sub">En situation — taille réelle (≈ 20 px), clair &amp; sombre</div>
+    <div class="pv-ic-context-row">
+      <div class="pv-ic-context">${icon8MiniRows(tech,paletteKey,'light')}</div>
+      <div class="pv-ic-context">${icon8MiniRows(tech,paletteKey,'dark')}</div>
+    </div>
+    <div class="pv-ic-sub">Agrandi — les 9 personas, clair &amp; sombre</div>
+    <div class="pv-ic-enlarge-row">
+      ${icon8SwatchRow(tech,paletteKey,42,'light')}
+      ${icon8SwatchRow(tech,paletteKey,42,'dark')}
+    </div>
+    <div class="pv-ic-sub">Grille texte source (caractère + index couleur 0-${maxIdx} fg/bg par cellule)</div>
+    <pre class="pv-ic-code">${icon8SourceJSON(tech,paletteKey)}</pre>
+  </div>`;
+}
+function view8Bit(){
+  const traitList = Object.keys(ICON_TRAIT).map(k => `<b>${PERSONAS[k].name}</b> — ${ICON_TRAIT[k]}`).join(' · ');
+  const techBlocks = ['t1','t2'].map(tech => `
+    <div class="sc-card pv-ic-style">
+      <h3 class="pv-ic-style-h">${TECH_LABEL[tech]}</h3>
+      <p class="pv-ic-style-desc">${TECH_DESC[tech]}</p>
+      <div class="pv-ic-palette-row">
+        ${paletteBlockHTML(tech,'ansi16')}
+        ${paletteBlockHTML(tech,'x256')}
+      </div>
+    </div>`).join('');
+  return `
+  <div class="pv-partipris sc-note tip" style="margin-top:0;">
+    <span class="k">Contrainte</span> — 2 caractères de large × 2 lignes, esprit 8 bits (plusieurs
+    couleurs par icône, pas une seule teinte) ; 2 techniques, chacune montrée en <b>16 couleurs
+    ANSI</b> (index 0-15, esprit vga16 d'iakaOS) et en <b>256 couleurs xterm-256</b> (index 0-255),
+    côte à côte, même forme dans les deux palettes. <span class="k">Trait distinctif</span> par
+    persona (forme + dominante + accent) — ${traitList}. <span class="k">Attention</span> — la
+    palette ANSI 16 couleurs <b>n'a pas d'orange</b> : Aragorn, Loki, Nathalie et Fëanor (tous
+    orange en 256 couleurs) sont redistribués sur des teintes distinctes (rouge, olive,
+    argent/parchemin, cyan) plutôt que rapprochés d'un orange qui n'existe pas dans cette palette —
+    la distinction entre les 9 reste garantie par la couleur dominante, jamais par la seule forme.
+  </div>
+  ${techBlocks}
+  <div class="pv-partipris sc-note tip">
+    <span class="k">Recommandation Loki</span> — <b>Technique 1 (demi-blocs ▀), palette 256
+    couleurs</b> par défaut : <code>▀▄█</code> sont les blocs Unicode les plus anciens et les plus
+    universellement supportés (n'importe quelle police mono, même ancienne), donc le pari le plus
+    sûr pour une icône de menu système ; la palette 256 restitue le camaïeu chaud voulu (vrais
+    oranges) que l'ANSI 16 ne peut pas rendre. La <b>technique 2 (quadrants)</b> double la
+    résolution réelle (4×4 px) pour le même encombrement texte et vaut le coup si la police cible
+    couvre bien les « Symbols for Legacy Computing » Unicode (c'est le cas de Fira Code, utilisée
+    ici) — à garder en réserve si la forme seule doit porter plus d'information qu'une simple
+    dominante + accent. La palette <b>16 couleurs</b> reste le choix le plus « rétro / iakaOS » si
+    l'uniformité avec vga16 prime sur la fidélité chromatique — au prix de l'absence d'orange.
+  </div>
+  <details class="sc-card" style="padding:14px 18px;">
+    <summary style="cursor:pointer;font-family:var(--sc-font-mono);font-size:0.72rem;color:var(--sc-ink-muted);text-transform:uppercase;letter-spacing:.05em;">Comparaison — Icônes 4×4 (proposition précédente, 3 styles, monochromes)</summary>
+    <div style="margin-top:14px;">${viewIcons()}</div>
+  </details>`;
+}
+
 /* ============================= tabs & boot ============================= */
 const VIEWS = [
   { id:'popover',  label:'V1 · Popover',        render:viewPopover },
@@ -734,7 +921,7 @@ const VIEWS = [
   { id:'room',     label:'V3 · Salle des équipes',render:viewRoom },
   { id:'table',    label:'V4 · Tableau dense — défaut',render:viewTable },
   { id:'timeline', label:'V5 · Frise temporelle',render:viewTimeline },
-  { id:'icons',    label:'Icônes 4×4',           render:viewIcons },
+  { id:'icons8',   label:'Icônes 2×2 · 8 bits',  render:view8Bit },
 ];
 const tabsEl = document.getElementById('tabs');
 const viewsEl = document.getElementById('views');
