@@ -1,10 +1,74 @@
+/* IakaAgentsMonitor — charte Studio clair (amendement A3, 26/09/2026).
+   Source de vérité : ~/work/iakaframe/design-studio-clair/studio-clair.css — jetons repris à
+   l'identique (voir studio-clair-charte.md § 2). Polices EMBARQUÉES LOCALEMENT (aucun CDN au
+   runtime, cf. point 8 de l'amendement) : voir ./fonts/LICENSE-OFL.md pour la licence et la
+   provenance. */
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url("./fonts/manrope-variable-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Public Sans";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("./fonts/public-sans-variable-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Fira Code";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("./fonts/fira-code-variable-latin.woff2") format("woff2");
+}
+
 :root {
-  --bg: #1b1e24;
-  --panel: #242832;
-  --text: #e6e9ef;
-  --muted: #9aa3b2;
-  --border: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --sc-bg: #f7f7f4;
+  --sc-surface: #ffffff;
+  --sc-well: #f0efeb;
+  --sc-border: #e2e0d9;
+  --sc-ink: #1c1c1a;
+  --sc-ink-muted: #6f6d64;
+  --sc-ink-faint: #a3a199;
+  --sc-accent: #3454d1;
+  --sc-accent-2: #0e8a82;
+  --sc-font-display: "Manrope", system-ui, sans-serif;
+  --sc-font-body: "Public Sans", system-ui, sans-serif;
+  --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
+  color-scheme: light;
+}
+/* Thème sombre : suit macOS (prefers-color-scheme) SAUF bascule manuelle vers le clair
+   (data-theme="light"), et bascule manuelle vers le sombre (data-theme="dark") même si l'OS est
+   clair — amendement A3, point 1. Mémorisation : voir main.ts (localStorage). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sc-bg: #14161a;
+    --sc-surface: #1c1f24;
+    --sc-well: #22252b;
+    --sc-border: #2d3138;
+    --sc-ink: #e9e8e4;
+    --sc-ink-muted: #9a9a92;
+    --sc-ink-faint: #63666c;
+    --sc-accent: #7c93f0;
+    --sc-accent-2: #3fd6c8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sc-bg: #14161a;
+  --sc-surface: #1c1f24;
+  --sc-well: #22252b;
+  --sc-border: #2d3138;
+  --sc-ink: #e9e8e4;
+  --sc-ink-muted: #9a9a92;
+  --sc-ink-faint: #63666c;
+  --sc-accent: #7c93f0;
+  --sc-accent-2: #3fd6c8;
+  color-scheme: dark;
 }
 
 * {
@@ -13,9 +77,11 @@
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--sc-bg);
+  color: var(--sc-ink);
+  font-family: var(--sc-font-body);
   font-size: 12px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .topbar {
@@ -23,44 +89,71 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sc-border);
+  background: var(--sc-surface);
 }
 
 .brand {
-  font-weight: 600;
+  font-family: var(--sc-font-display);
+  font-weight: 700;
+  color: var(--sc-ink);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .count {
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--sc-ink-muted);
+  font-family: var(--sc-font-mono);
+  font-size: 11px;
+}
+
+.theme-btn {
+  font-family: var(--sc-font-mono);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--sc-border);
+  background: var(--sc-surface);
+  color: var(--sc-ink-muted);
+  cursor: pointer;
+}
+.theme-btn:hover {
+  color: var(--sc-accent);
+  border-color: var(--sc-accent);
 }
 
 .footbar {
   display: flex;
   justify-content: space-between;
-  padding: 6px 12px;
-  color: var(--muted);
+  padding: 5px 12px;
+  color: var(--sc-ink-faint);
+  font-family: var(--sc-font-mono);
   font-size: 10px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--sc-border);
+  background: var(--sc-surface);
 }
 
 .agents {
-  padding: 4px 8px;
-  overflow-y: auto;
-  overflow-x: auto;
-  max-height: calc(100vh - 64px);
+  padding: 0;
+  overflow: auto;
+  max-height: calc(100vh - 62px);
 }
 
 .empty {
-  color: var(--muted);
+  color: var(--sc-ink-faint);
+  font-family: var(--sc-font-mono);
   font-size: 12px;
   padding: 16px 8px;
   text-align: center;
 }
 
-/* Tableau des agents en cours (amendement A1 du 26/09) : une ligne par agent, INDENTEE par
-   profondeur de delegation (chaque enfant sous son parent, decale d'un niveau), colonnes
-   triables (clic sur l'en-tete). */
+/* Tableau des agents en cours (amendement A1 + A3) : une ligne par agent, INDENTEE par
+   profondeur de délégation avec des guides ASCII (├─ └─ │, amendement A3 point 4), colonnes
+   triables (clic sur l'en-tête, indicateur ▲/▼). */
 .agents-table {
   width: 100%;
   border-collapse: collapse;
@@ -71,29 +164,32 @@ body {
 .agents-table td {
   text-align: left;
   padding: 4px 8px;
-  border-bottom: 1px solid #2a2e37;
+  border-bottom: 1px solid var(--sc-border);
   white-space: nowrap;
 }
 
 .agents-table th {
-  color: var(--muted);
+  font-family: var(--sc-font-mono);
+  color: var(--sc-ink-muted);
   font-weight: 600;
   text-transform: uppercase;
   font-size: 10px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   user-select: none;
+  cursor: pointer;
 }
-
 .agents-table th:hover {
-  color: var(--text);
+  color: var(--sc-accent);
+}
+.agents-table th.not-sortable {
+  cursor: default;
+}
+.agents-table th.not-sortable:hover {
+  color: var(--sc-ink-muted);
 }
 
 .agents-table tr:hover td {
-  background: var(--panel);
-}
-
-.agents-cell-agent {
-  display: table-cell;
+  background: var(--sc-well);
 }
 
 .agents-cell-task {
@@ -103,19 +199,31 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Guides de délégation (amendement A3, point 4) : même police mono que le reste des données
+   denses, ton discret — l'information porteuse est l'indentation, le guide ne fait que la
+   souligner visuellement (repère iakaframe § « Restitution en relais »). */
+.tree-guide {
+  font-family: var(--sc-font-mono);
+  color: var(--sc-ink-faint);
+  white-space: pre;
+}
+
 .agents-persona {
   margin-left: 6px;
   vertical-align: middle;
+  font-family: var(--sc-font-body);
+  font-weight: 500;
 }
 
 .agents-overflow-row td {
-  color: var(--muted);
+  color: var(--sc-ink-faint);
   font-style: italic;
 }
 
-/* Sprite (point d'extension UNIQUE pour une future icone pixel art 4x4, amendement A1) : la
-   lettre du persona dans un carre arrondi a la couleur de sa pastille iakaframe. Couleurs deja
-   resolues par le backend (D9) ; ce style ne fait que peindre. */
+/* Sprite (point d'extension UNIQUE pour une future icône pixel art 4×4, amendement A1) : la
+   lettre du persona dans un carré arrondi à la couleur de sa pastille iakaframe. Couleurs et
+   contraste AA déjà résolus par le backend (D9, amendement A3 point 10) ; ce style ne fait que
+   peindre. */
 .sprite {
   display: inline-flex;
   align-items: center;
@@ -123,14 +231,55 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 4px;
+  font-family: var(--sc-font-display);
   font-weight: 700;
   font-size: 10px;
   flex: 0 0 auto;
   vertical-align: middle;
 }
 
+/* Étiquettes encadrées (chips, amendement A3 point 2) : Runner et Modèle, police mono, fond
+   discret — reprend .sc-chip de la charte. */
+.chip {
+  font-family: var(--sc-font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--sc-well);
+  color: var(--sc-ink-muted);
+  border: 1px solid var(--sc-border);
+  white-space: nowrap;
+}
+
+/* Badge de statut (amendement A3, point 3) : pastille + libellé, même famille que .sc-badge. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--sc-font-mono);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--sc-border);
+  background: var(--sc-well);
+  color: var(--sc-ink-muted);
+  white-space: nowrap;
+}
+.badge.b-live {
+  color: var(--sc-accent-2);
+  border-color: var(--sc-accent-2);
+}
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sc-accent-2);
+  flex: none;
+}
+
 .agents-more {
   font-size: 10px;
-  color: var(--muted);
+  font-family: var(--sc-font-mono);
+  color: var(--sc-ink-faint);
   padding: 6px 8px;
 }

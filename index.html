@@ -5,11 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IakaAgentsMonitor</title>
     <link rel="stylesheet" href="/src/styles.css" />
+    <!-- Applique la bascule manuelle mémorisée AVANT le premier rendu (pas de flash de thème,
+         amendement A3 point 1). Sans préférence mémorisée -> suit macOS (media query CSS). -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("iakaam-theme");
+          if (saved === "light" || saved === "dark") {
+            document.documentElement.setAttribute("data-theme", saved);
+          }
+        } catch (e) {
+          /* localStorage indisponible : on suit simplement macOS. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <header class="topbar">
       <span class="brand">IakaAgentsMonitor</span>
-      <span id="count" class="count"></span>
+      <span class="topbar-right">
+        <span id="count" class="count"></span>
+        <button id="themeBtn" class="theme-btn" type="button" title="Basculer le thème">☾/☀</button>
+      </span>
     </header>
     <section id="agents" class="agents"></section>
     <footer class="footbar">
