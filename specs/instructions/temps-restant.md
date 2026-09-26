@@ -3,8 +3,6 @@
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Loki (maquette, étape 0) puis
 > Gimli (P2).
 > **VALIDÉE par Stéphane le 26/09/2026** (« A partout ») : Q1 à Q7 = A. Étape 0 franchie : maquette de Loki (colonne « Reste ») validée par Stéphane le 26/09/2026 (« go »). Suite décidée le même jour : lot « agnostique via MQTT » (la couche source par outil deviendra l'adaptateur Claude Code publiant sur le bus local).
-> Statut : **PROPOSÉE — en attente d'arbitrage de Stéphane** (Q1 à Q7 ci-dessous). Rien n'est à
-> coder avant le « go » **et** la validation de la maquette de Loki (étape 0).
 > Besoin du décideur (26/09) : afficher, dans le tableau V4, un **temps restant** sous forme de
 > **barre qui se colore peu à peu** selon le temps prévu. Source choisie par Stéphane :
 > **option 3 — une estimation annoncée au lancement par l'agent qui délègue** (pas d'historique,
