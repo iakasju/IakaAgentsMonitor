@@ -309,8 +309,14 @@ pub struct AgentNode {
     pub task: String,
     /// « Actif il y a », déjà formaté (D9).
     pub active_ago: String,
+    /// Secondes brutes derrière `active_ago` — sert UNIQUEMENT au tri côté webview (aucune
+    /// décision de présentation, la mise en forme reste entièrement en Rust, D9).
+    pub active_secs: i64,
     /// « Démarré il y a », déjà formaté (D9) ; vide si la date de création est indisponible.
     pub started_ago: String,
+    /// Secondes brutes derrière `started_ago` — sert UNIQUEMENT au tri côté webview. `None` si
+    /// la date de création est indisponible (trié en dernier, cf. `render.ts`).
+    pub started_secs: Option<i64>,
     /// Infobulle complète (persona — tâche — actif il y a — remontée d'ancêtre mort le cas
     /// échéant) : conservée pour le survol, en plus des colonnes structurées.
     pub tooltip: String,
@@ -419,7 +425,9 @@ fn build_session_node(
         persona: "odin".to_string(),
         task: "coordinateur".to_string(),
         active_ago: format_active_ago(elapsed),
+        active_secs: elapsed,
         started_ago: format_started_ago(started_secs),
+        started_secs,
         tooltip: format!("odin (coordinateur) — actif il y a {elapsed} s"),
         children: coordinator_children,
         overflow: None,
@@ -508,7 +516,9 @@ fn build_children(
                 persona,
                 task: desc,
                 active_ago: format_active_ago(elapsed),
+                active_secs: elapsed,
                 started_ago: format_started_ago(started_secs),
+                started_secs,
                 tooltip,
                 children,
                 overflow: None,
@@ -525,7 +535,9 @@ fn build_children(
             persona: "+".to_string(),
             task: String::new(),
             active_ago: String::new(),
+            active_secs: 0,
             started_ago: String::new(),
+            started_secs: None,
             tooltip: format!("+{overflow} agent(s) supplémentaire(s)"),
             children: Vec::new(),
             overflow: Some(overflow as u32),
