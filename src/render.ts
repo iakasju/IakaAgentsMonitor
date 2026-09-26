@@ -206,7 +206,17 @@ function flatten(sessions: SessionNode[]): Row[] {
  * l'ordre fixé par l'amendement A3 de liste-des-agents.md). `compact: true` = colonne conservée
  * dans la fenêtre 520×360 (amendement A4, point 1) : leur ordre relatif dans ce tableau, une fois
  * filtré, donne déjà Agent · Projet · Runner · Actif · Reste, sans réordonnancement nécessaire. */
-type ColumnDef = { id: SortCol | "runner"; label: string; sortable: boolean; compact: boolean };
+type ColumnDef = {
+  id: SortCol | "runner";
+  label: string;
+  /** Intitulé plus court réservé au mode compact (amendement A4, point 1), quand l'intitulé
+   * complet ne laisserait plus de place au contenu de la colonne dans les 520 px de la fenêtre —
+   * ex. « Actif » au lieu de « Actif il y a », comme l'aperçu produit de la maquette V4. Absent
+   * -> `label` sert dans les deux modes. */
+  compactLabel?: string;
+  sortable: boolean;
+  compact: boolean;
+};
 const COLUMNS: ColumnDef[] = [
   { id: "agent", label: "Agent", sortable: true, compact: true },
   { id: "project", label: "Projet", sortable: true, compact: true },
@@ -214,7 +224,7 @@ const COLUMNS: ColumnDef[] = [
   { id: "model", label: "Modèle", sortable: true, compact: false },
   { id: "task", label: "Tâche", sortable: true, compact: false },
   { id: "started", label: "Démarré il y a", sortable: true, compact: false },
-  { id: "active", label: "Actif il y a", sortable: true, compact: true },
+  { id: "active", label: "Actif il y a", compactLabel: "Actif", sortable: true, compact: true },
   { id: "remaining", label: "Reste", sortable: true, compact: true },
 ];
 
@@ -225,9 +235,9 @@ function visibleColumns(): ColumnDef[] {
 
 function headerRow(): HTMLElement {
   const tr = document.createElement("tr");
-  for (const { id, label, sortable } of visibleColumns()) {
+  for (const { id, label, compactLabel, sortable } of visibleColumns()) {
     const th = document.createElement("th");
-    th.textContent = label;
+    th.textContent = compact && compactLabel ? compactLabel : label;
     if (sortable) {
       th.dataset.col = id;
       // Indicateur ▲/▼ sur la colonne active (amendement A3, point 5).

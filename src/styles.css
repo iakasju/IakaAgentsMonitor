@@ -221,23 +221,23 @@ body {
 }
 .agents-table.compact th:nth-child(1),
 .agents-table.compact td:nth-child(1) {
-  width: 34%;
+  width: 30%;
 }
 .agents-table.compact th:nth-child(2),
 .agents-table.compact td:nth-child(2) {
-  width: 16%;
+  width: 15%;
 }
 .agents-table.compact th:nth-child(3),
 .agents-table.compact td:nth-child(3) {
-  width: 16%;
+  width: 20%;
 }
 .agents-table.compact th:nth-child(4),
 .agents-table.compact td:nth-child(4) {
-  width: 10%;
+  width: 12%;
 }
 .agents-table.compact th:nth-child(5),
 .agents-table.compact td:nth-child(5) {
-  width: 24%;
+  width: 23%;
 }
 
 .agents-cell-task {
