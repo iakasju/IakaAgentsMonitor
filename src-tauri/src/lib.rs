@@ -10,6 +10,7 @@ mod labels;
 mod roster;
 mod state;
 mod tray;
+mod tree;
 
 use state::AppState;
 

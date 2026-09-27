@@ -149,9 +149,12 @@ pub fn resolve_uncached(cwd: Option<&Path>, root: &Path) -> HashMap<String, Pers
 /// Roster mis en cache par racine de réservoir (Q7-A : au plus une lecture toutes les 60 s).
 /// La clé de cache est le `cwd` demandé (deux projets sur deux frames différentes ont chacun leur
 /// entrée) — un cache PARTAGÉ suffit pour un usage mono-processus comme cette app.
+/// Entrée de cache : instant de dernière lecture + roster résolu à ce moment-là.
+type CacheEntry = (Instant, HashMap<String, PersonaInfo>);
+
 #[derive(Default)]
 pub struct Roster {
-    cache: Mutex<HashMap<String, (Instant, HashMap<String, PersonaInfo>)>>,
+    cache: Mutex<HashMap<String, CacheEntry>>,
 }
 
 impl Roster {
@@ -230,7 +233,7 @@ mod tests {
         assert_eq!(roster.len(), 2);
         assert_eq!(roster.get("odin").unwrap().name, "Odin");
         assert_eq!(roster.get("gimli").unwrap().pastille, Some("🔴".to_string()));
-        assert!(roster.get("hors-equipe-absent").is_none(), "fichier persona absent -> ignore");
+        assert!(!roster.contains_key("hors-equipe-absent"), "fichier persona absent -> ignore");
     }
 
     #[test]
