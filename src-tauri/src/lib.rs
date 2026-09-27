@@ -3,6 +3,7 @@
 //! Aucun service, aucun bus, aucun port. Cf. specs/instructions/liste-des-agents.md.
 
 mod agents;
+mod card;
 mod claude_paths;
 mod estimate;
 mod state;
