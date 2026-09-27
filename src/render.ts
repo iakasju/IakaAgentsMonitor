@@ -16,9 +16,12 @@
 
 import type { AgentNode, AgentsSnapshot, SessionNode } from "./types";
 
-/** Colonnes triables du tableau. "runner" et "status" n'en font PAS partie : "runner" est une
- * constante pour ce lot (Q6-A : macOS + Claude Code seul) ; "status" (colonne « État ») n'a
- * aujourd'hui qu'un seul état réel possible (running, amendement A6 point 3) — rien à trier.
+/** Colonnes triables du tableau. "runner" et "status" n'en font PAS partie : "runner" est
+ * désormais un libellé résolu côté Rust (agnostique-mqtt.md, étape 8), mais un seul lot MQTT de
+ * base ne fait cohabiter qu'un runner à la fois en pratique — pas de tri jugé utile ici pour
+ * l'instant ; "status" (colonne « État ») n'a aujourd'hui qu'un seul état réel possible (running,
+ * amendement A6 point 3, boutons désactivés tant que l'amendement A1 de controle n'est pas livré)
+ * — rien à trier.
  * "remaining" (colonne « Reste ») a un comparateur dédié (cf. `compareNodes`) : les tirets (sans
  * estimation) restent TOUJOURS en dernier, quel que soit le sens du tri
  * (specs/instructions/temps-restant.md, Q6-A). */
@@ -385,7 +388,8 @@ function agentRow(row: AgentRow): HTMLElement {
         break;
       }
       case "runner":
-        if (!isOverflow) td.appendChild(renderChip("Claude Code"));
+        // Libellé déjà résolu côté Rust (agnostique-mqtt.md, étape 8) : plus de constante figée.
+        if (!isOverflow) td.appendChild(renderChip(row.node.runner || "—"));
         break;
       case "model":
         if (!isOverflow) td.appendChild(renderChip(row.node.model || "—"));

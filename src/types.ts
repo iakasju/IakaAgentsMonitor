@@ -40,6 +40,10 @@ export interface AgentNode {
   /** Modèle de CET agent, déjà résolu en libellé lisible côté Rust (ex. « Opus 5.5 »),
    * `"—"` si indisponible (amendement A1, passe corrective post-gate Legolas du 26/09). */
   model: string;
+  /** Libellé du runner de CET agent, déjà résolu côté Rust (`labels::Labels::runner_label`,
+   * specs/instructions/agnostique-mqtt.md, étape 8) — plus une constante `"Claude Code"` figée
+   * ici : toute la neutralité vis-à-vis du runner tient dans ce champ. */
+  runner: string;
   /** Temps restant estimé (colonne « Reste »), `null` pour le coordinateur, le marqueur de
    * débordement, ou tout agent sans estimation annoncée — cellule à tiret, jamais de barre
    * inventée. */
