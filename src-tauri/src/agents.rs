@@ -147,6 +147,36 @@ pub fn coordinator_sprite() -> Sprite {
     sprite_for("odin")
 }
 
+// ============================ Palette de dépôt (amendement A7, point 3) ============================
+
+/// Nombre de teintes de la palette de dépôt (amendement A7, point 3 : « palette de 6-8 teintes de
+/// la charte »). Les VALEURS hexadécimales (fond teinté léger + texte en couleur, clair et
+/// sombre) vivent dans `styles.css` — Rust ne décide que de l'INDEX (D9 : la présentation reste
+/// côté webview), `render.ts` traduit l'index en classe CSS `agents-group-row--c<index>`.
+pub const GROUP_COLOR_COUNT: u8 = 6;
+
+/// Hash FNV-1a 32 bits — déterministe et stable d'une exécution à l'autre, contrairement au
+/// hasher par défaut de `HashMap` (randomisé à chaque lancement du programme) : condition
+/// nécessaire pour qu'un même nom de dépôt retombe TOUJOURS sur la même couleur.
+fn fnv1a(s: &str) -> u32 {
+    const OFFSET_BASIS: u32 = 0x811c_9dc5;
+    const PRIME: u32 = 0x0100_0193;
+    let mut hash = OFFSET_BASIS;
+    for byte in s.as_bytes() {
+        hash ^= u32::from(*byte);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    hash
+}
+
+/// Index de couleur stable pour un nom de dépôt (amendement A7, point 3) : même nom -> même
+/// index, toujours. Deux dépôts différents peuvent retomber sur le même index (seulement
+/// `GROUP_COLOR_COUNT` teintes) — accepté, ce n'est pas un identifiant unique, juste un repère
+/// visuel qui aide à repérer "le même dépôt" d'un instantané à l'autre.
+pub fn group_color_index(project: &str) -> u8 {
+    (fnv1a(project) % u32::from(GROUP_COLOR_COUNT)) as u8
+}
+
 // ========================= Lecture du sidecar meta.json =========================
 
 /// Identité + parenté d'un sous-agent, lue depuis son sidecar `agent-<id>.meta.json`.
@@ -591,6 +621,8 @@ pub struct AgentNode {
 pub struct SessionNode {
     pub project: String,
     pub coordinator: AgentNode,
+    /// Index de couleur stable du dépôt (amendement A7, point 3), cf. `group_color_index`.
+    pub group_color: u8,
 }
 
 /// Sous-agent résolu (meta + liveness + horodatages), prêt pour la construction de l'arbre.
@@ -738,13 +770,14 @@ fn build_session_node(
     };
 
     let project = project_label_for_session(escaped_dir, raw.coordinator_transcript.as_deref());
+    let group_color = group_color_index(&project);
 
     let activity = std::iter::once(coordinator_mtime.unwrap_or(i64::MIN))
         .chain(resolved.iter().filter_map(|s| s.mtime))
         .max()
         .unwrap_or(i64::MIN);
 
-    Some((SessionNode { project, coordinator }, activity))
+    Some((SessionNode { project, coordinator, group_color }, activity))
 }
 
 /// Combine une estimation résolue (grammaire) et une date de début en une vue affichable
@@ -1077,6 +1110,99 @@ mod tests {
             ratio >= 4.5,
             "repli hors-roster : contraste {ratio:.2}:1 sous le seuil AA — bg={FALLBACK_BG} fg={FALLBACK_FG}"
         );
+    }
+
+    // ------------------------- Amendement A7, point 3 : palette de dépôt -------------------
+
+    #[test]
+    fn group_color_index_est_deterministe() {
+        assert_eq!(group_color_index("iakaos"), group_color_index("iakaos"));
+        assert_eq!(group_color_index("IakaAgentsMonitor"), group_color_index("IakaAgentsMonitor"));
+    }
+
+    #[test]
+    fn group_color_index_reste_dans_la_palette() {
+        for name in ["iakaos", "IakaAgentsMonitor", "robotimmo", "a", "zzzzzzzzzz", "работа"] {
+            assert!(
+                group_color_index(name) < GROUP_COLOR_COUNT,
+                "index hors palette pour {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn group_color_index_ne_panique_pas_sur_nom_vide() {
+        let _ = group_color_index("");
+    }
+
+    #[test]
+    fn group_color_index_distingue_generalement_des_noms_differents() {
+        // Pas une garantie absolue (6 teintes seulement, collisions acceptées) mais un jeu de
+        // noms de projets réels ne doit pas TOUS s'écraser sur le même index.
+        let indices: std::collections::HashSet<u8> = ["iakaos", "IakaAgentsMonitor", "robotimmo"]
+            .iter()
+            .map(|n| group_color_index(n))
+            .collect();
+        assert!(indices.len() > 1, "les trois noms retombent tous sur le même index");
+    }
+
+    /// Contraste AA (≥ 4,5:1, WCAG normal-text) des 6 teintes de la palette de dépôt, en clair ET
+    /// en sombre (amendement A7, point 3 — la ligne de groupe était à 4,51:1 en clair : ne pas
+    /// descendre en dessous). MIROIR des valeurs de `styles.css` (`--grp-N-bg` / `--grp-N-fg`) :
+    /// si la palette CSS change, mettre à jour ces valeurs ET revérifier ce test. Même méthode de
+    /// calcul que `roster_et_repli_respectent_le_contraste_aa` (dupliquée : ce module de test
+    /// n'importe rien du binaire final).
+    #[test]
+    fn palette_de_depot_respecte_le_contraste_aa_clair_et_sombre() {
+        fn srgb_to_lin(c: f64) -> f64 {
+            if c <= 0.04045 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        }
+        fn luminance(hex: &str) -> f64 {
+            let hex = hex.trim_start_matches('#');
+            let r = i64::from_str_radix(&hex[0..2], 16).unwrap() as f64 / 255.0;
+            let g = i64::from_str_radix(&hex[2..4], 16).unwrap() as f64 / 255.0;
+            let b = i64::from_str_radix(&hex[4..6], 16).unwrap() as f64 / 255.0;
+            0.2126 * srgb_to_lin(r) + 0.7152 * srgb_to_lin(g) + 0.0722 * srgb_to_lin(b)
+        }
+        fn contrast(c1: &str, c2: &str) -> f64 {
+            let (l1, l2) = (luminance(c1), luminance(c2));
+            let (hi, lo) = if l1 > l2 { (l1, l2) } else { (l2, l1) };
+            (hi + 0.05) / (lo + 0.05)
+        }
+        const LIGHT: [(&str, &str); 6] = [
+            ("#eff1fb", "#3454d1"),
+            ("#ecf6f5", "#0b716b"),
+            ("#edf5f2", "#187553"),
+            ("#f6f2eb", "#8f6108"),
+            ("#faefee", "#c1372c"),
+            ("#eef3f9", "#2e6db1"),
+        ];
+        const DARK: [(&str, &str); 6] = [
+            ("#262933", "#7c93f0"),
+            ("#232c31", "#3fd6c8"),
+            ("#242c2f", "#4ad393"),
+            ("#2a2a2c", "#e0a83f"),
+            ("#2a282d", "#ef6b5e"),
+            ("#262b33", "#7fb2ec"),
+        ];
+        for (i, (bg, fg)) in LIGHT.iter().enumerate() {
+            let ratio = contrast(bg, fg);
+            assert!(
+                ratio >= 4.5,
+                "palette dépôt #{i} (clair) : contraste {ratio:.2}:1 sous le seuil AA — bg={bg} fg={fg}"
+            );
+        }
+        for (i, (bg, fg)) in DARK.iter().enumerate() {
+            let ratio = contrast(bg, fg);
+            assert!(
+                ratio >= 4.5,
+                "palette dépôt #{i} (sombre) : contraste {ratio:.2}:1 sous le seuil AA — bg={bg} fg={fg}"
+            );
+        }
     }
 
     #[test]

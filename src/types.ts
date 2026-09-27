@@ -53,6 +53,10 @@ export interface AgentNode {
 export interface SessionNode {
   project: string;
   coordinator: AgentNode;
+  /** Index de couleur stable du dépôt (amendement A7, point 3), déjà résolu côté Rust
+   * (`group_color_index`, hash du nom de projet) : `render.ts` ne fait que traduire cet index en
+   * classe CSS (`agents-group-row--c<index>`), les valeurs de couleur vivent dans `styles.css`. */
+  groupColor: number;
 }
 
 /** Instantané complet des agents en cours (miroir Rust `agents::AgentsSnapshot`). `count` =

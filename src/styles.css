@@ -46,6 +46,27 @@
      accent au repos, contraste texte/fond mesuré 5,59:1 en clair (cf. A7 point 3 pour le détail
      de calcul, même méthode). */
   --sc-accent-bg: #eff1fb;
+  /* Palette de dépôt (amendement A7, point 3) : 6 teintes de la charte (accent, accent-2, ok,
+     warn, danger, info — les 6 hues distinctes déjà en usage dans ce fichier), chacune en fond
+     teinté léger + texte assombri si besoin pour tenir le seuil AA (≥ 4,5:1, calcul WCAG
+     luminance relative, testé côté Rust — `agents.rs`, `palette_de_depot_respecte_le_contraste
+     _aa_clair_et_sombre` — CES VALEURS EN SONT LE MIROIR : les deux doivent rester synchronisées).
+     L'index (0-5) vient de Rust (`group_color_index`, hash du nom de dépôt) ; ce fichier ne fait
+     que peindre. Ratios mesurés en clair : #0 5,59:1 · #1 5,31:1 · #2 5,11:1 · #3 4,85:1 ·
+     #4 4,84:1 · #5 4,78:1 — tous au-dessus de la ligne de groupe précédente (4,51:1, à ne pas
+     redescendre). */
+  --grp-0-bg: #eff1fb;
+  --grp-0-fg: #3454d1;
+  --grp-1-bg: #ecf6f5;
+  --grp-1-fg: #0b716b;
+  --grp-2-bg: #edf5f2;
+  --grp-2-fg: #187553;
+  --grp-3-bg: #f6f2eb;
+  --grp-3-fg: #8f6108;
+  --grp-4-bg: #faefee;
+  --grp-4-fg: #c1372c;
+  --grp-5-bg: #eef3f9;
+  --grp-5-fg: #2e6db1;
   --sc-font-display: "Manrope", system-ui, sans-serif;
   --sc-font-body: "Public Sans", system-ui, sans-serif;
   --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
@@ -69,6 +90,21 @@
     --sc-warn: #e0a83f;
     --sc-danger: #ef6b5e;
     --sc-accent-bg: #262933;
+    /* Palette de dépôt en sombre (amendement A7, point 3) : ratios mesurés #0 5,04:1 · #1
+       7,90:1 · #2 7,47:1 · #3 6,71:1 · #4 4,82:1 · #5 6,43:1 — miroir du test Rust, cf. commentaire
+       du bloc clair ci-dessus. */
+    --grp-0-bg: #262933;
+    --grp-0-fg: #7c93f0;
+    --grp-1-bg: #232c31;
+    --grp-1-fg: #3fd6c8;
+    --grp-2-bg: #242c2f;
+    --grp-2-fg: #4ad393;
+    --grp-3-bg: #2a2a2c;
+    --grp-3-fg: #e0a83f;
+    --grp-4-bg: #2a282d;
+    --grp-4-fg: #ef6b5e;
+    --grp-5-bg: #262b33;
+    --grp-5-fg: #7fb2ec;
     color-scheme: dark;
   }
 }
@@ -86,6 +122,18 @@
   --sc-warn: #e0a83f;
   --sc-danger: #ef6b5e;
   --sc-accent-bg: #262933;
+  --grp-0-bg: #262933;
+  --grp-0-fg: #7c93f0;
+  --grp-1-bg: #232c31;
+  --grp-1-fg: #3fd6c8;
+  --grp-2-bg: #242c2f;
+  --grp-2-fg: #4ad393;
+  --grp-3-bg: #2a2a2c;
+  --grp-3-fg: #e0a83f;
+  --grp-4-bg: #2a282d;
+  --grp-4-fg: #ef6b5e;
+  --grp-5-bg: #262b33;
+  --grp-5-fg: #7fb2ec;
   color-scheme: dark;
 }
 
@@ -222,7 +270,9 @@ button:focus-visible {
   color: var(--sc-ink-muted);
 }
 
-.agents-table tr:hover td {
+/* Exclut les lignes de groupe (amendement A6 point 2, couleur A7 point 3) : sinon le survol
+   écraserait le fond teinté du dépôt avec le gris neutre générique. */
+.agents-table tr:not(.agents-group-row):hover td {
   background: var(--sc-well);
 }
 
@@ -296,17 +346,49 @@ button:focus-visible {
 
 /* Ligne de séparation pleine largeur au nom du dépôt (amendement A6, point 2), même rôle que
    `.pv-group-row` de la maquette V4 : porte le nom du projet, l'arbre de délégation de ce dépôt
-   apparaît juste dessous, inchangé. Remplace la colonne « Projet », devenue redondante. */
+   apparaît juste dessous, inchangé. Remplace la colonne « Projet », devenue redondante. Couleur
+   STABLE par dépôt (amendement A7, point 3) : liseré gauche épais + fond teinté léger + nom en
+   couleur, posés par la classe `.agents-group-row--c<index>` (index venu de Rust, valeurs de
+   couleur ci-dessous — cf. commentaire de la palette `--grp-*` dans `:root`). */
 .agents-group-row td {
-  background: var(--sc-well);
   border-top: 1px solid var(--sc-border);
   border-bottom: 1px solid var(--sc-border);
+  border-left: 4px solid transparent;
   font-family: var(--sc-font-mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--sc-ink-muted);
   white-space: nowrap;
+}
+.agents-group-row--c0 td {
+  background: var(--grp-0-bg);
+  color: var(--grp-0-fg);
+  border-left-color: var(--grp-0-fg);
+}
+.agents-group-row--c1 td {
+  background: var(--grp-1-bg);
+  color: var(--grp-1-fg);
+  border-left-color: var(--grp-1-fg);
+}
+.agents-group-row--c2 td {
+  background: var(--grp-2-bg);
+  color: var(--grp-2-fg);
+  border-left-color: var(--grp-2-fg);
+}
+.agents-group-row--c3 td {
+  background: var(--grp-3-bg);
+  color: var(--grp-3-fg);
+  border-left-color: var(--grp-3-fg);
+}
+.agents-group-row--c4 td {
+  background: var(--grp-4-bg);
+  color: var(--grp-4-fg);
+  border-left-color: var(--grp-4-fg);
+}
+.agents-group-row--c5 td {
+  background: var(--grp-5-bg);
+  color: var(--grp-5-fg);
+  border-left-color: var(--grp-5-fg);
 }
 
 /* Colonne « État » (amendement A6, point 3 ; couleur amendement A7, point 2) : pastille

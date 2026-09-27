@@ -210,6 +210,9 @@ function sortChildrenRecursively(node: AgentNode, col: SortCol, dir: 1 | -1): vo
 interface Group {
   project: string;
   roots: AgentNode[];
+  /** Index de couleur stable du dépôt (amendement A7, point 3), déjà résolu côté Rust — même
+   * valeur pour toutes les sessions d'un même projet (fonction pure du nom, cf. `agents.rs`). */
+  color: number;
 }
 
 /** Regroupe les sessions par nom de projet, en conservant l'ordre de PREMIÈRE apparition (déjà
@@ -219,14 +222,16 @@ interface Group {
 function groupByProject(sessions: SessionNode[]): Group[] {
   const order: string[] = [];
   const roots = new Map<string, AgentNode[]>();
+  const colors = new Map<string, number>();
   for (const s of sessions) {
     if (!roots.has(s.project)) {
       roots.set(s.project, []);
+      colors.set(s.project, s.groupColor);
       order.push(s.project);
     }
     roots.get(s.project)!.push(structuredClone(s.coordinator));
   }
-  return order.map((project) => ({ project, roots: roots.get(project)! }));
+  return order.map((project) => ({ project, roots: roots.get(project)!, color: colors.get(project)! }));
 }
 
 /** Trie chaque groupe indépendamment : ses racines (coordinateurs) entre elles, puis
@@ -252,10 +257,12 @@ interface AgentRow {
   guide: string;
 }
 
-/** Ligne de séparation pleine largeur portant le nom du dépôt (amendement A6, point 2). */
+/** Ligne de séparation pleine largeur portant le nom du dépôt (amendement A6, point 2 ; couleur
+ * stable par dépôt, amendement A7 point 3). */
 interface GroupRow {
   kind: "group";
   project: string;
+  color: number;
 }
 
 type TableRow = AgentRow | GroupRow;
@@ -280,7 +287,7 @@ function flattenGrouped(groups: Group[]): TableRow[] {
     });
   }
   for (const g of groups) {
-    rows.push({ kind: "group", project: g.project });
+    rows.push({ kind: "group", project: g.project, color: g.color });
     walk(g.roots, 0, "");
   }
   return rows;
@@ -340,10 +347,12 @@ function headerRow(): HTMLElement {
 
 /** Ligne de séparation pleine largeur portant le nom du dépôt (amendement A6, point 2), même
  * rôle que `.pv-group-row` de la maquette V4 : `colspan` couvre toutes les colonnes visibles du
- * mode courant. */
-function groupRowElement(project: string, columnCount: number): HTMLElement {
+ * mode courant. Couleur stable par dépôt (amendement A7, point 3) : la classe
+ * `agents-group-row--c<index>` porte le fond teinté, le liseré gauche et le texte en couleur —
+ * toutes les valeurs de couleur vivent dans `styles.css`, l'index seul vient de Rust. */
+function groupRowElement(project: string, color: number, columnCount: number): HTMLElement {
   const tr = document.createElement("tr");
-  tr.className = "agents-group-row";
+  tr.className = `agents-group-row agents-group-row--c${color}`;
   const td = document.createElement("td");
   td.colSpan = columnCount;
   td.textContent = project;
@@ -420,7 +429,9 @@ function renderTable(groups: Group[]): HTMLElement {
   const tbody = document.createElement("tbody");
   const columnCount = visibleColumns().length;
   for (const row of flattenGrouped(groups)) {
-    tbody.appendChild(row.kind === "group" ? groupRowElement(row.project, columnCount) : agentRow(row));
+    tbody.appendChild(
+      row.kind === "group" ? groupRowElement(row.project, row.color, columnCount) : agentRow(row),
+    );
   }
   table.appendChild(tbody);
   return table;
