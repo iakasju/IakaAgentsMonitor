@@ -17,15 +17,23 @@
 
 ## Ce qu'est ce projet
 
-Moniteur de barre de menus macOS : d'un coup d'œil, qui travaille en ce moment (agents Claude
-Code en cours), sur quel projet, quelle tâche leur a été confiée, qui a délégué à qui, et depuis
-quand. App autonome, en lecture seule sur les transcripts que Claude Code écrit déjà localement
-(`~/.claude/projects/`) — aucun service, aucun bus, aucun port. Complète iakaTokenCounter (qui
-mesure la conso) sans le recouvrir. Cf. `specs/instructions/liste-des-agents.md`.
+Moniteur de barre de menus macOS : d'un coup d'œil, qui travaille en ce moment (agents en cours,
+tout runner), sur quel projet, quelle tâche leur a été confiée, qui a délégué à qui, et depuis
+quand. Agnostique du runner (`specs/instructions/agnostique-mqtt.md`) : les fiches d'agent
+arrivent soit par le **bus MQTT local** (`iaka/agents/out/<runner>/<sessionId>/<agentId>`,
+retenues, QoS 1 — tout runner qui publie sur ce topic apparaît), soit, **en repli strict** quand
+le broker est absent, par l'**adaptateur Claude Code** (lecture des transcripts déjà écrits
+localement dans `~/.claude/projects/`). L'app **s'abonne seulement** : aucun service, aucun port
+en écoute côté app, sa seule connexion sortante va vers `127.0.0.1:1883` (broker **iakahub**
+d'iakaTokenCounter, réutilisé sans le modifier). Complète iakaTokenCounter (qui mesure la conso)
+sans le recouvrir. Cf. `specs/instructions/liste-des-agents.md`.
 
-Stack : Tauri 2 (Rust) + TypeScript/Vite, sans dépendance externe (aucune lib MQTT, aucun
-sidecar). Icône de barre de menus fixe (mode template macOS) + titre = effectif d'agents ;
-fenêtre = tableau des agents, indenté par délégation, colonnes triables.
+Stack : Tauri 2 (Rust) + TypeScript/Vite. Client MQTT (`rumqttc`) et parseur TOML (`toml`) sont les
+deux seules dépendances Rust non-Tauri ; aucun nom de runner ni de fournisseur de modèle hors de
+`src-tauri/config/labels.default.toml`, `src-tauri/src/sources/claude_code_files.rs` et
+`publishers/claude-code/` (vérifiable par grep, cf. instruction). Icône de barre de menus fixe
+(mode template macOS) + titre = effectif d'agents ; fenêtre = tableau des agents, indenté par
+délégation, colonnes triables.
 
 ---
 
@@ -38,11 +46,15 @@ npm run tauri dev       # app complète (tray + fenêtre), rechargement à chaud
 npm run build           # build front de prod
 npm run tauri build     # bundle .app macOS
 npm run typecheck       # tsc --noEmit
+npm run test:publisher  # tests du publieur Claude Code (node --test, faux broker node:net)
 
 cd src-tauri
-cargo test               # 41+ tests (roster, sidecar, liveness, arbre, tri, projet)
+cargo test               # ~100 tests (fiche, config, roster, arbre, sources, integration bus)
 cargo clippy --all-targets -- -D warnings
 ```
+
+Variables d'environnement : `IAKAAM_MQTT_PORT` (port du broker, défaut 1883),
+`IAKAAM_LIVENESS_SECS` (seuil de péremption, défaut 90).
 
 Aucun Makefile/script séparé : les commandes npm/cargo ci-dessus suffisent (app native de
 bureau, pas de Docker — cf. `specs/instructions/liste-des-agents.md` § Périmètre).
