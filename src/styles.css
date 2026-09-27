@@ -138,6 +138,18 @@ body {
   border-color: var(--sc-accent);
 }
 
+/* Amendement A5, point 3 : aucun cadre de focus visible à l'ouverture de la fenêtre (le premier
+   bouton focusable ne doit pas s'afficher "actif" au clic droit -> Afficher) ; le cadre ne
+   revient qu'au clavier (Tab), via :focus-visible. Règle générique "button" : couvre tous les
+   boutons présents (⤢, thème) et futurs. */
+button:focus {
+  outline: none;
+}
+button:focus-visible {
+  outline: 2px solid var(--sc-accent);
+  outline-offset: 2px;
+}
+
 .footbar {
   display: flex;
   justify-content: space-between;
