@@ -4,15 +4,15 @@
 //! en repli quand le broker est absent, par l'adaptateur Claude Code (lecture des transcripts
 //! déjà écrits localement). Aucun autre service, aucun port en écoute côté app.
 
-mod card;
+pub mod card;
 mod claude_paths;
-mod estimate;
-mod labels;
-mod roster;
-mod sources;
+pub mod estimate;
+pub mod labels;
+pub mod roster;
+pub mod sources;
 mod state;
 mod tray;
-mod tree;
+pub mod tree;
 mod watcher;
 
 use state::AppState;
