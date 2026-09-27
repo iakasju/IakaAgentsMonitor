@@ -4,19 +4,15 @@
 //! │ PROVENANCE : recopié depuis iakaTokenCounter, `iakatc-core/src/measure/claude.rs`,      │
 //! │ branche `worktree-agent-a73ae73650ed5e328`, commit `1c9fd0e` (cf.                       │
 //! │ specs/instructions/liste-des-agents.md, Q3-A). Fonctions génériques, aucun calcul de    │
-//! │ jetons : `claude_projects_dir`, `claude_transcript_files`, `project_of`,                │
-//! │ `bucket_project`, `PORTFOLIO_ROOTS`, `OUT_OF_PROJECT_BUCKET`. Comportement et tests      │
-//! │ repris à l'identique.                                                                    │
+//! │ jetons : `claude_projects_dir`, `claude_transcript_files`, `project_of`. Comportement et │
+//! │ tests repris à l'identique, SAUF `bucket_project`/`PORTFOLIO_ROOTS`/                     │
+//! │ `OUT_OF_PROJECT_BUCKET` (bucket « hors projet ») : retirés ici par l'amendement A5,       │
+//! │ point 2 — une session dont le cwd est une racine de portefeuille affiche désormais le    │
+//! │ nom brut du dossier (ex. « work »), plus jamais le générique « hors projet ». Ce retrait  │
+//! │ est local à IakaAgentsMonitor, aucune modification d'iakaTokenCounter.                    │
 //! └────────────────────────────────────────────────────────────────────────────────────────┘
 
 use std::path::{Path, PathBuf};
-
-/// Racines de portefeuille connues : quand Claude Code tourne à la racine d'un de ces dossiers
-/// plutôt que dans un sous-projet, `project_of` renvoie ce nom de racine — pas un vrai projet.
-pub const PORTFOLIO_ROOTS: &[&str] = &["work", "Desktop"];
-
-/// Seau où tombent les projets issus d'une racine de portefeuille.
-pub const OUT_OF_PROJECT_BUCKET: &str = "hors projet";
 
 /// Dernier segment d'un cwd = nom de projet. Coupe sur `/` ET `\` pour gérer les vieux
 /// transcripts Windows. Défensif : chaîne vide -> `None`, séparateurs de fin ignorés.
@@ -25,17 +21,6 @@ pub fn project_of(cwd: &str) -> Option<String> {
         .rsplit(['/', '\\'])
         .find(|s| !s.is_empty())
         .map(str::to_string)
-}
-
-/// Réduit un nom de projet BRUT (sortie de [`project_of`]) à sa forme affichée : identique, sauf
-/// s'il s'agit d'une racine de portefeuille connue, auquel cas il tombe dans
-/// [`OUT_OF_PROJECT_BUCKET`].
-pub fn bucket_project(raw: String) -> String {
-    if PORTFOLIO_ROOTS.contains(&raw.as_str()) {
-        OUT_OF_PROJECT_BUCKET.to_string()
-    } else {
-        raw
-    }
 }
 
 /// Liste RÉCURSIVEMENT tous les `*.jsonl` sous `projects_dir` : transcripts de session
@@ -94,13 +79,6 @@ mod tests {
         assert_eq!(project_of(r"/c/work\iaka-demo"), Some("iaka-demo".into()));
         assert_eq!(project_of(r"C:\iakaVODdash\"), Some("iakaVODdash".into()));
         assert_eq!(project_of(r"\a\b\"), Some("b".into()));
-    }
-
-    #[test]
-    fn bucket_project_regroupe_les_racines_de_portefeuille() {
-        assert_eq!(bucket_project("work".into()), OUT_OF_PROJECT_BUCKET);
-        assert_eq!(bucket_project("Desktop".into()), OUT_OF_PROJECT_BUCKET);
-        assert_eq!(bucket_project("iaka-demo".into()), "iaka-demo");
     }
 
     fn tmp_dir(name: &str) -> PathBuf {

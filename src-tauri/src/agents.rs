@@ -22,9 +22,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::claude_paths::{
-    bucket_project, claude_projects_dir, claude_transcript_files, project_of,
-};
+use crate::claude_paths::{claude_projects_dir, claude_transcript_files, project_of};
 use crate::estimate;
 use crate::state::AppState;
 
@@ -893,8 +891,11 @@ fn build_children(
 
 /// Cherche le `cwd` dans les lignes de tête (bornées) d'un transcript — PAS seulement la
 /// première ligne physique (bug corrigé post-gate Legolas du 26/09 : les transcripts réels
-/// commencent souvent par des lignes de service sans `cwd`) — et le projette via `project_of` +
-/// `bucket_project`. Repli : nom du dossier de projet échappé, tel quel.
+/// commencent souvent par des lignes de service sans `cwd`) — et le projette via `project_of`.
+/// Repli : nom du dossier de projet échappé, tel quel. Amendement A5, point 2 : une session dont
+/// le dossier de travail n'est pas un projet iakaframe (racine de portefeuille type `work` ou
+/// `Desktop`) affiche ce nom de dossier tel quel (ex. « work »), plus jamais le générique
+/// « hors projet » — `project_of` seul, sans passer par `bucket_project`.
 fn project_label_for_session(escaped_dir: &Path, coordinator_transcript: Option<&Path>) -> String {
     let fallback = || {
         escaped_dir
@@ -908,10 +909,7 @@ fn project_label_for_session(escaped_dir: &Path, coordinator_transcript: Option<
     let Some(cwd) = first_cwd_in_transcript(path, TRANSCRIPT_HEAD_CAP) else {
         return fallback();
     };
-    match project_of(&cwd) {
-        Some(p) => bucket_project(p),
-        None => fallback(),
-    }
+    project_of(&cwd).unwrap_or_else(fallback)
 }
 
 // ================= Instantané + commande + watcher =================
@@ -1466,13 +1464,16 @@ mod tests {
         assert_eq!(snap.sessions[0].project, "iaka-demo");
     }
 
+    /// Amendement A5, point 2 : plus de bucket générique « hors projet » — le nom du dossier de
+    /// travail (dernier segment du cwd) est affiché tel quel, même pour une racine de
+    /// portefeuille (`work`, `Desktop`).
     #[test]
-    fn projet_racine_de_portefeuille_tombe_hors_projet() {
+    fn projet_racine_de_portefeuille_affiche_le_nom_du_dossier() {
         let dir = tmp_projects_dir("label-portefeuille");
         let escaped = dir.join("-w-work");
         write_with_mtime(&escaped.join("sid.jsonl"), &session_line("/w/work"), 0);
         let snap = snapshot_at(&dir, now_for_tests(), 90);
-        assert_eq!(snap.sessions[0].project, "hors projet");
+        assert_eq!(snap.sessions[0].project, "work");
     }
 
     #[test]
