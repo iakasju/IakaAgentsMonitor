@@ -2,9 +2,9 @@
 //! (specs/instructions/agnostique-mqtt.md § « Contrat sur le fil »).
 //!
 //! Module NEUTRE : aucun nom de runner ni de fournisseur de modèle. Une fiche est reçue soit
-//! depuis le bus (source `sources::bus`), soit produite par la source fichiers
-//! (`sources::claude_code_files`) qui joue le rôle de l'adaptateur Claude Code. Les deux sources
-//! rendent le MÊME type ; le cœur (`tree`) ne connaît qu'elles.
+//! depuis le bus (source `sources::bus`), soit produite par la source fichiers, qui joue le rôle
+//! de l'adaptateur d'un runner historique (voir `sources/`). Les deux sources rendent le MÊME
+//! type ; le cœur (`tree`) ne connaît qu'elles.
 
 use serde::{Deserialize, Serialize};
 
@@ -138,12 +138,12 @@ pub fn parse_card(topic: &str, payload: &[u8]) -> Result<Option<AgentCard>, Card
 mod tests {
     use super::*;
 
-    const TOPIC: &str = "iaka/agents/out/claude-code/sess-1/main";
+    const TOPIC: &str = "iaka/agents/out/essai/sess-1/main";
 
     fn valid_payload() -> String {
         serde_json::json!({
             "v": 1,
-            "runner": "claude-code",
+            "runner": "essai",
             "agentId": "main",
             "parentId": null,
             "sessionId": "sess-1",
@@ -163,7 +163,7 @@ mod tests {
     fn fiche_valide_est_acceptee() {
         let payload = valid_payload();
         let card = parse_card(TOPIC, payload.as_bytes()).unwrap().unwrap();
-        assert_eq!(card.runner, "claude-code");
+        assert_eq!(card.runner, "essai");
         assert_eq!(card.agent_id, "main");
         assert_eq!(card.session_id, "sess-1");
         assert_eq!(card.state_or_default(), "running");
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn topic_incoherent_avec_la_fiche_est_rejete() {
         let payload = valid_payload(); // sessionId = "sess-1"
-        let other_topic = "iaka/agents/out/claude-code/sess-2/main";
+        let other_topic = "iaka/agents/out/essai/sess-2/main";
         assert_eq!(
             parse_card(other_topic, payload.as_bytes()),
             Err(CardError::TopicMismatch)
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn topic_mal_forme_est_rejete() {
         assert_eq!(
-            parse_card("iaka/agents/out/claude-code/sess-1", valid_payload().as_bytes()),
+            parse_card("iaka/agents/out/essai/sess-1", valid_payload().as_bytes()),
             Err(CardError::InvalidTopic)
         );
         assert_eq!(
@@ -228,7 +228,7 @@ mod tests {
         let mut v: serde_json::Value = serde_json::from_str(&valid_payload()).unwrap();
         v["champInconnu"] = serde_json::json!("valeur");
         let card = parse_card(TOPIC, v.to_string().as_bytes()).unwrap().unwrap();
-        assert_eq!(card.runner, "claude-code");
+        assert_eq!(card.runner, "essai");
     }
 
     #[test]
@@ -244,7 +244,7 @@ mod tests {
         let mut v: serde_json::Value = serde_json::from_str(&valid_payload()).unwrap();
         v["parentId"] = serde_json::json!("main");
         v["agentId"] = serde_json::json!("child-1");
-        let topic = "iaka/agents/out/claude-code/sess-1/child-1";
+        let topic = "iaka/agents/out/essai/sess-1/child-1";
         let card = parse_card(topic, v.to_string().as_bytes()).unwrap().unwrap();
         assert_eq!(card.parent_id, Some("main".to_string()));
     }

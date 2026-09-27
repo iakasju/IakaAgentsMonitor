@@ -348,6 +348,18 @@ mod tests {
         dir
     }
 
+    /// Vérifie la correspondance RÉELLE du fichier de configuration embarqué pour ce runner —
+    /// `labels.rs` reste neutre (ses propres tests n'utilisent que des identifiants d'exemple) ;
+    /// cette vérification vit ici, seul endroit avec `publishers/claude-code/` où le nom d'un
+    /// runner a le droit d'être écrit en dur (grille de neutralité de l'étape 12).
+    #[test]
+    fn le_fichier_de_labels_par_defaut_connait_ce_runner_et_ses_modeles() {
+        let labels = crate::labels::Labels::default();
+        assert_eq!(labels.runner_label(RUNNER_ID), "Claude Code");
+        assert_eq!(labels.model_label("claude-opus-5-5-20260115"), "Opus");
+        assert_eq!(labels.model_label("claude-sonnet-5"), "Sonnet");
+    }
+
     fn write_transcript_line(path: &Path, cwd: &str, model: &str, user_text: &str) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         let lines = format!(

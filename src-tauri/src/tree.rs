@@ -129,9 +129,9 @@ pub fn group_color_index(project: &str) -> u8 {
 }
 
 /// Dernier segment non vide d'un `cwd` (déduction du projet quand la fiche ne le porte pas,
-/// contrat § « Fiche », champ `project`). Duplication volontaire d'une fonction déjà écrite
-/// (`claude_paths::project_of`) : ce module ne doit importer AUCUN symbole d'un module propre à
-/// un runner (grille de neutralité de l'étape 12).
+/// contrat § « Fiche », champ `project`). Duplication volontaire d'une fonction équivalente déjà
+/// écrite pour un adaptateur runner-spécifique : ce module ne doit importer AUCUN symbole d'un
+/// module réservé à un runner (grille de neutralité de l'étape 12).
 fn project_from_cwd(cwd: &str) -> Option<String> {
     cwd.trim_end_matches(['/', '\\'])
         .rsplit(['/', '\\'])
@@ -574,10 +574,10 @@ mod tests {
 main_persona = "odin"
 iakaframe_root = "{}"
 [runners]
-"claude-code" = "Claude Code"
+"essai" = "Essai"
 [[models]]
-prefix = "claude-opus"
-label = "Opus"
+prefix = "acme-x"
+label = "X"
 [pastilles."🔴"]
 bg = "#FF3B30"
 fg = "#000000"
@@ -595,9 +595,9 @@ gimli = "I"
     fn card(agent_id: &str, parent_id: Option<&str>, persona: Option<&str>, last_seen: i64) -> AgentCard {
         AgentCard {
             v: 1,
-            runner: "claude-code".to_string(),
+            runner: "essai".to_string(),
             runner_version: None,
-            model: Some("claude-opus-5-5".to_string()),
+            model: Some("acme-x-5-5".to_string()),
             persona: persona.map(str::to_string),
             agent_id: agent_id.to_string(),
             parent_id: parent_id.map(str::to_string),

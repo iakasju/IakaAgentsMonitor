@@ -1,11 +1,14 @@
 //! labels — fichier de configuration des libellés et couleurs (Q9-A de
-//! specs/instructions/agnostique-mqtt.md, DA-M8). Reprend ce qui était codé en dur dans l'ancien
-//! `agents.rs` (`format_model_label`, `ROSTER`, `display_persona`, la constante `"Claude Code"`
-//! de `render.ts`) : plus aucune de ces correspondances n'est figée dans le code, tout vit ici.
+//! specs/instructions/agnostique-mqtt.md, DA-M8). Reprend ce qui était codé en dur avant ce lot
+//! (table de libellés de modèle par famille, roster figé, constante de runner à l'affichage) :
+//! plus aucune de ces correspondances n'est figée dans le code, tout vit dans le fichier de
+//! configuration.
 //!
-//! Module NEUTRE : ce fichier ne connaît lui-même aucun runner ni fournisseur — les valeurs
-//! `claude-code` / `claude-opus`… ne sont que des DONNÉES du fichier par défaut embarqué
-//! (`config/labels.default.toml`), pas du code.
+//! Module NEUTRE : ce fichier ne connaît lui-même aucun runner ni fournisseur — les identifiants
+//! réels ne sont que des DONNÉES du fichier par défaut embarqué (`config/labels.default.toml`),
+//! jamais du code. Les tests ci-dessous vérifient le MÉCANISME (préfixe le plus long, repli,
+//! surcharge) avec des identifiants d'exemple neutres ; la correspondance réelle du fichier
+//! embarqué est vérifiée là où le nom d'un runner a le droit d'être écrit (voir `sources/`).
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -120,35 +123,38 @@ mod tests {
     fn le_defaut_embarque_est_valide() {
         let labels = Labels::default();
         assert_eq!(labels.main_persona, "odin");
-        assert_eq!(labels.runner_label("claude-code"), "Claude Code");
+        // Le libellé réel d'un runner concret n'est pas vérifié ICI (module neutre) : voir
+        // l'adaptateur fichiers, sous `sources/`, pour la vérification contre le fichier
+        // embarqué réel (seul endroit où le nom d'un runner a le droit d'être écrit en dur).
+        assert!(!labels.runners.is_empty(), "le fichier par defaut doit porter au moins un runner");
     }
 
     #[test]
     fn runner_label_repli_sur_identifiant_brut() {
         let labels = Labels::default();
-        assert_eq!(labels.runner_label("codex"), "codex");
+        assert_eq!(labels.runner_label("runner-inconnu-du-fichier"), "runner-inconnu-du-fichier");
     }
 
     #[test]
     fn model_label_prefixe_le_plus_long_gagne() {
         let toml = r#"
 [[models]]
-prefix = "claude-opus"
-label = "Opus"
+prefix = "acme-x"
+label = "X"
 
 [[models]]
-prefix = "claude-opus-5-5"
-label = "Opus 5.5"
+prefix = "acme-x-5-5"
+label = "X 5.5"
 "#;
         let labels = parse_labels_toml(toml).unwrap();
-        assert_eq!(labels.model_label("claude-opus-5-5-20260115"), "Opus 5.5");
-        assert_eq!(labels.model_label("claude-opus-4"), "Opus");
+        assert_eq!(labels.model_label("acme-x-5-5-20260115"), "X 5.5");
+        assert_eq!(labels.model_label("acme-x-4"), "X");
     }
 
     #[test]
     fn model_label_repli_sur_identifiant_brut_si_aucun_prefixe() {
         let labels = Labels::default();
-        assert_eq!(labels.model_label("mistral-large"), "mistral-large");
+        assert_eq!(labels.model_label("modele-inconnu-du-fichier"), "modele-inconnu-du-fichier");
     }
 
     #[test]
