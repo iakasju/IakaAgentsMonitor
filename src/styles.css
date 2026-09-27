@@ -216,45 +216,18 @@ button:focus-visible {
   background: var(--sc-well);
 }
 
-/* Mode compact (amendement A4, point 1) : fenêtre 520×360, 5 colonnes seulement — Agent · Projet
-   · Runner · Actif · Reste (render.ts ne peint que celles-ci, dans cet ordre). `table-layout:
-   fixed` + largeurs en pourcentage (somme 100 %) + ellipse sur chaque cellule : garantit qu'AUCUNE
-   colonne ne sort de la fenêtre sans défilement (constat corrigé : avant cet amendement, les
-   colonnes Démarré/Actif/Reste du tableau complet à 8 colonnes sortaient de la fenêtre 520 px). Le
-   tableau complet (8 colonnes, fenêtre élargie ~1000×420) garde son comportement d'origine, sans
-   layout fixe : il a toujours eu la place. */
-.agents-table.compact {
-  table-layout: fixed;
-}
-.agents-table.compact th,
-.agents-table.compact td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.agents-table.compact th:nth-child(1),
-.agents-table.compact td:nth-child(1) {
-  width: 30%;
-}
-.agents-table.compact th:nth-child(2),
-.agents-table.compact td:nth-child(2) {
-  width: 15%;
-}
-.agents-table.compact th:nth-child(3),
-.agents-table.compact td:nth-child(3) {
-  width: 20%;
-}
-.agents-table.compact th:nth-child(4),
-.agents-table.compact td:nth-child(4) {
-  width: 12%;
-}
-.agents-table.compact th:nth-child(5),
-.agents-table.compact td:nth-child(5) {
-  width: 23%;
-}
-
+/* Amendement A6, point 1 : plus de `table-layout: fixed` ni de largeurs en pourcentage — c'est la
+   FENÊTRE qui s'ajuste au contenu (largeur naturelle mesurée côté webview,
+   `measureContentWidth` dans render.ts + `fit_window_width` côté Rust), jamais l'inverse. Le
+   mode compact n'a donc plus besoin d'un style de table dédié : `table-layout: auto` (défaut)
+   laisse chaque colonne prendre sa largeur naturelle, bornée uniquement par la colonne Tâche
+   (`.agents-cell-task` ci-dessous), la SEULE autorisée à ellipser (amendement A6, point 1 :
+   « seule la Tâche peut être en ellipse »). Toutes les autres cellules restent sur une seule
+   ligne, sans troncature (déjà garanti par `.agents-table th, .agents-table td`, `white-space:
+   nowrap`, plus haut). */
 .agents-cell-task {
-  white-space: normal;
-  max-width: 220px;
+  max-width: 280px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -309,6 +282,67 @@ button:focus-visible {
   color: var(--sc-ink-muted);
   border: 1px solid var(--sc-border);
   white-space: nowrap;
+}
+
+/* Ligne de séparation pleine largeur au nom du dépôt (amendement A6, point 2), même rôle que
+   `.pv-group-row` de la maquette V4 : porte le nom du projet, l'arbre de délégation de ce dépôt
+   apparaît juste dessous, inchangé. Remplace la colonne « Projet », devenue redondante. */
+.agents-group-row td {
+  background: var(--sc-well);
+  border-top: 1px solid var(--sc-border);
+  border-bottom: 1px solid var(--sc-border);
+  font-family: var(--sc-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sc-ink-muted);
+  white-space: nowrap;
+}
+
+/* Colonne « État » (amendement A6, point 3) : pastille « running » — seul état réel aujourd'hui —
+   accompagnée d'un bouton bascule et d'un bouton ■ (arrêt), tous deux TOUJOURS DÉSACTIVÉS tant
+   que le bus MQTT (et son amendement A1 d'agnosticisme) n'est pas livré : rien n'est cliquable,
+   jamais de bascule purement visuelle qui ferait croire à une action. Le texte d'un contrôle
+   désactivé est hors du champ d'application du contraste AA (WCAG 1.4.3 : les composants
+   inactifs n'ont pas d'exigence de contraste) ; l'infobulle et `aria-label` portent l'explication
+   ("commande disponible avec le bus MQTT"). */
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--sc-font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--sc-border);
+  color: var(--sc-ink-faint);
+  cursor: not-allowed;
+  white-space: nowrap;
+}
+.status-btn .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--sc-ok);
+}
+.status-stop-btn {
+  all: unset;
+  font-family: var(--sc-font-mono);
+  font-size: 9px;
+  line-height: 1;
+  padding: 1px 4px;
+  border: 1px solid var(--sc-border);
+  border-radius: 4px;
+  color: var(--sc-ink-faint);
+  cursor: not-allowed;
+  flex: none;
 }
 
 /* Colonne « Reste » (specs/instructions/temps-restant.md) : barre qui se colore par palier

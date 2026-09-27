@@ -5,12 +5,25 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { renderAgents, setCompactMode } from "./render";
+import { measureContentWidth, renderAgents, setCompactMode } from "./render";
 import type { AgentsSnapshot } from "./types";
+
+// ---- Largeur de fenetre ajustee au contenu (amendement A6, point 1) --------------------------
+// Mesuree ici (webview = seule couche qui connait le rendu reel des polices), appliquee cote Rust
+// (`fit_window_width`) qui borne 480-1200px et applique l'hysteresis documentee dans tray.rs :
+// cette fonction se contente d'envoyer la mesure a chaque peinture, jamais de decider seule.
+function fitWindowToContent(): void {
+  const width = measureContentWidth();
+  if (width === null) return;
+  invoke("fit_window_width", { naturalWidth: width }).catch((e) =>
+    console.error("fit_window_width a echoue", e),
+  );
+}
 
 async function refreshAgents(): Promise<void> {
   try {
     renderAgents(await invoke<AgentsSnapshot>("get_running_agents"));
+    fitWindowToContent();
   } catch (e) {
     console.error("get_running_agents a echoue", e);
   }
@@ -18,6 +31,7 @@ async function refreshAgents(): Promise<void> {
 
 listen<AgentsSnapshot>("tray://agents", (event) => {
   renderAgents(event.payload);
+  fitWindowToContent();
 }).catch((e) => console.error("listen tray://agents a echoue", e));
 
 void refreshAgents();
@@ -63,10 +77,11 @@ setWindowMode(compactMode);
 
 document.getElementById("expandBtn")?.addEventListener("click", () => {
   compactMode = !compactMode;
-  setCompactMode(compactMode);
+  setCompactMode(compactMode); // repeint avec le nouveau jeu de colonnes
   applyExpandButtonLabel(compactMode);
   saveCompactPref(compactMode);
-  setWindowMode(compactMode);
+  setWindowMode(compactMode); // bascule la largeur/hauteur cote Rust vers le mode vise
+  fitWindowToContent(); // puis affine la largeur sur le contenu reellement repeint (A6)
 });
 
 // ---- Theme clair/sombre (amendement A3, point 1) ----
