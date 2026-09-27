@@ -42,6 +42,10 @@
   --sc-ok: #1a7f5a;
   --sc-warn: #8f6108;
   --sc-danger: #c1372c;
+  /* Fond léger d'accent (amendement A7, point 2) : boutons ⤢/⤡ et ☾/☀, fond + bordure/texte
+     accent au repos, contraste texte/fond mesuré 5,59:1 en clair (cf. A7 point 3 pour le détail
+     de calcul, même méthode). */
+  --sc-accent-bg: #eff1fb;
   --sc-font-display: "Manrope", system-ui, sans-serif;
   --sc-font-body: "Public Sans", system-ui, sans-serif;
   --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
@@ -64,6 +68,7 @@
     --sc-ok: #4ad393;
     --sc-warn: #e0a83f;
     --sc-danger: #ef6b5e;
+    --sc-accent-bg: #262933;
     color-scheme: dark;
   }
 }
@@ -80,6 +85,7 @@
   --sc-ok: #4ad393;
   --sc-warn: #e0a83f;
   --sc-danger: #ef6b5e;
+  --sc-accent-bg: #262933;
   color-scheme: dark;
 }
 
@@ -123,18 +129,22 @@ body {
   font-size: 11px;
 }
 
+/* Amendement A7, point 2 : couleur d'accent au repos (fond léger + bordure/texte accent, au lieu
+   du gris neutre), survol plus marqué (fond plein accent, texte inversé — contrastes vérifiés
+   6,30:1 en clair et 5,74:1 en sombre). */
 .theme-btn {
   font-family: var(--sc-font-mono);
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 6px;
-  border: 1px solid var(--sc-border);
-  background: var(--sc-surface);
-  color: var(--sc-ink-muted);
+  border: 1px solid var(--sc-accent);
+  background: var(--sc-accent-bg);
+  color: var(--sc-accent);
   cursor: pointer;
 }
 .theme-btn:hover {
-  color: var(--sc-accent);
+  background: var(--sc-accent);
+  color: var(--sc-surface);
   border-color: var(--sc-accent);
 }
 
@@ -299,13 +309,16 @@ button:focus-visible {
   white-space: nowrap;
 }
 
-/* Colonne « État » (amendement A6, point 3) : pastille « running » — seul état réel aujourd'hui —
-   accompagnée d'un bouton bascule et d'un bouton ■ (arrêt), tous deux TOUJOURS DÉSACTIVÉS tant
-   que le bus MQTT (et son amendement A1 d'agnosticisme) n'est pas livré : rien n'est cliquable,
-   jamais de bascule purement visuelle qui ferait croire à une action. Le texte d'un contrôle
-   désactivé est hors du champ d'application du contraste AA (WCAG 1.4.3 : les composants
-   inactifs n'ont pas d'exigence de contraste) ; l'infobulle et `aria-label` portent l'explication
-   ("commande disponible avec le bus MQTT"). */
+/* Colonne « État » (amendement A6, point 3 ; couleur amendement A7, point 2) : pastille
+   « running » — seul état réel aujourd'hui — accompagnée d'un bouton bascule et d'un bouton ■
+   (arrêt), tous deux TOUJOURS DÉSACTIVÉS tant que le bus MQTT (et son amendement A1
+   d'agnosticisme) n'est pas livré : rien n'est cliquable, jamais de bascule purement visuelle qui
+   ferait croire à une action. Chacun est teinté selon son sens (running = vert, ■ = rouge,
+   amendement A7 point 2) tout en restant VISIBLEMENT désactivé : `opacity` réduite en plus du
+   curseur `not-allowed`, pour ne jamais se confondre avec un contrôle actif. Le texte d'un
+   contrôle désactivé est hors du champ d'application du contraste AA (WCAG 1.4.3 : les
+   composants inactifs n'ont pas d'exigence de contraste) ; l'infobulle et `aria-label` portent
+   l'explication ("commande disponible avec le bus MQTT"). */
 .status-cell {
   display: inline-flex;
   align-items: center;
@@ -320,8 +333,9 @@ button:focus-visible {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 999px;
-  border: 1px solid var(--sc-border);
-  color: var(--sc-ink-faint);
+  border: 1px solid var(--sc-ok);
+  color: var(--sc-ok);
+  opacity: 0.6;
   cursor: not-allowed;
   white-space: nowrap;
 }
@@ -338,9 +352,10 @@ button:focus-visible {
   font-size: 9px;
   line-height: 1;
   padding: 1px 4px;
-  border: 1px solid var(--sc-border);
+  border: 1px solid var(--sc-danger);
   border-radius: 4px;
-  color: var(--sc-ink-faint);
+  color: var(--sc-danger);
+  opacity: 0.6;
   cursor: not-allowed;
   flex: none;
 }
