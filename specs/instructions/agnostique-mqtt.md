@@ -595,6 +595,8 @@ Champs inconnus ignorés.
   `timeout: 3600`, **ajoutée** à côté des hooks existants) ; le retirer = supprimer l'entrée.
 - Accepter la dette résiduelle RC5.
 
+> **Arbitrage de l'amendement A1 (Stéphane, 27/09/2026, question par question)** : QC1 = A (après le lot MQTT de base) · QC2 = A (état lu sur le bus) · QC3 = A **renforcé** : signature HMAC avec anti-rejeu (horodatage + nonce à usage unique) et identifiant de clé `kid` dans le message signé, pour préparer un MQTT central sur le VPS pilotant plusieurs machines (ce jour-là s'ajouteront TLS, authentification broker et ACL par topic — Mosquitto ; clés partagées via Vaultwarden) · QC4 = A (arrêt sous-agents et session, avec confirmation) · **QC5 = B : délai maximal de pause 10 min**, puis reprise automatique ; **exigence ajoutée** : retour visuel dans l'app de l'attente d'effet — état « pause demandée » (animé) tant que le hook n'a pas pris effet au prochain appel d'outil, puis « paused » avec le temps restant avant reprise automatique · QC6 = A (running/paused) · QC7 = A (capture au gate) · **QC8 = B : le choix du modèle des prochaines délégations d'un persona est inclus dans ce lot** (+~1 j-h) · QC9 = A (script de contrôle séparé, client MQTT partagé).
+
 ## Sources
 
 - Code lu le 2026-09-26 (lecture seule) : `IakaAgentsMonitor/src-tauri/src/agents.rs`,
