@@ -6,6 +6,7 @@ mod agents;
 mod card;
 mod claude_paths;
 mod estimate;
+mod labels;
 mod state;
 mod tray;
 

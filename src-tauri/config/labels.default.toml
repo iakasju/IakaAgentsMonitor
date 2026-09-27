@@ -1,0 +1,64 @@
+# Fichier de configuration des libellés (Q9-A de agnostique-mqtt.md, DA-M8).
+#
+# Ce fichier est EMBARQUÉ dans le binaire (include_str!) et sert de valeurs par défaut.
+# Un fichier utilisateur au même format, s'il existe, le SURCHARGE ENTIÈREMENT :
+#   macOS : ~/Library/Application Support/com.iakaframe.iakaagentsmonitor/labels.toml
+#
+# Aucun nom de runner ni de fournisseur de modèle n'est codé en dur ailleurs que dans ce fichier
+# et dans les modules propres à un runner (sources/claude_code_files.rs, publishers/claude-code/).
+
+# Persona affiché pour le coordinateur de session (agentId = "main").
+main_persona = "odin"
+
+# Racine du réservoir iakaframe (Q7-A), relue au plus toutes les 60 s. "~" est développé.
+iakaframe_root = "~/work/iakaframe"
+
+# Libellé d'un runner par son identifiant (contrat, champ "runner"). Identifiant brut si absent.
+[runners]
+"claude-code" = "Claude Code"
+
+# Libellé d'un modèle par préfixe de son identifiant brut (champ "model"). Le préfixe LE PLUS
+# LONG qui correspond gagne ; identifiant brut si aucun préfixe ne correspond.
+[[models]]
+prefix = "claude-opus"
+label = "Opus"
+
+[[models]]
+prefix = "claude-sonnet"
+label = "Sonnet"
+
+[[models]]
+prefix = "claude-haiku"
+label = "Haiku"
+
+# Couleurs de pastille (fond/texte) par émoji de pastille (frontmatter `pastille` des personas de
+# l'équipe active). Contraste AA (>= 4,5:1) déjà mesuré pour ces couples.
+[pastilles."🔴"]
+bg = "#FF3B30"
+fg = "#0B0D12"
+
+[pastilles."🔵"]
+bg = "#0A84FF"
+fg = "#0B0D12"
+
+[pastilles."🟡"]
+bg = "#FFD60A"
+fg = "#0B0D12"
+
+[pastilles."🟠"]
+bg = "#FF9F0A"
+fg = "#0B0D12"
+
+[pastilles."🟣"]
+bg = "#BF5AF2"
+fg = "#0B0D12"
+
+[pastilles."⚪"]
+bg = "#6F6F78"
+fg = "#FFFFFF"
+
+# Lettres imposées par persona (identifiant), pour lever une collision visuelle entre deux
+# personas dont la première lettre du nom coïnciderait (ex. Gimli/Gandalf -> "I").
+[letters]
+gimli = "I"
+legolas = "E"
