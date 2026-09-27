@@ -1,9 +1,10 @@
 # Instruction : IakaAgentsMonitor agnostique du runner, par le bus MQTT local
 
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Gimli (P2).
-> Statut : **PROPOSÉE, en attente d'arbitrage de Stéphane** (Q1 à Q9 ci-dessous). Rien n'est à
+> Statut : **VALIDÉE** (Q1 à Q9 = A), pas encore réalisée. L'amendement **A1** (27/09, commande
+> pause / reprise / arrêt) est **PROPOSÉ, en attente d'arbitrage** (QC1 à QC9 de
+> `controle-agents-etude.md`) : rien de A1 n'est à coder avant son « go ».
 > **Arbitrage (26/09/2026)** : « go » de Stéphane sur les recommandations d'Odin — Q1 à Q9 = A (Q1 : réutiliser le broker iakahub d'iakaTokenCounter, repli fichiers quand il est absent ; passage à un Mosquitto permanent à reconsidérer quand le bus servira à plusieurs apps). Révisable en une phrase. Lancement après livraison de `temps-restant` (Q8).
-> coder avant le « go ».
 > Décision du décideur (26/09, « go MQTT ») : rendre l'app **agnostique du runner** en passant par
 > le **MQTT local**. Chaque runner publie une **fiche d'agent normalisée** ; l'app ne fait que
 > **s'abonner** ; côté Claude Code, la publication se fait par **hooks** ; la lecture actuelle de
@@ -435,6 +436,164 @@ Champs inconnus ignorés.
   `specs/PROJET.md`.
 - L'essai réel, et plus tard : adaptateur Codex, journal Ollama/iakaframe, migration du publieur
   dans le kit iakaframe.
+
+---
+
+## Amendement A1 (27/09/2026) — commande pause / reprise / arrêt par le bus
+
+> **PROPOSÉ, en attente d'arbitrage** : QC1 à QC9 de `specs/instructions/controle-agents-etude.md`
+> (faits vérifiés, limites, sécurité et sources y sont détaillés). Rédigé aux valeurs recommandées
+> (toutes A). Sous-lot **séparé**, lancé seulement après le gate du lot de base (étapes 1 à 12).
+> Le changement de modèle d'un agent en cours est **impossible** (étude, § a) et **n'est pas** dans
+> A1.
+
+### Ce que A1 change dans le lot de base
+
+- **Topic `iaka/agents/in/…`** : n'est plus réservé (tableau « Topics » et ligne « Exclu : commandes
+  vers les agents » levés **pour A1 seulement**).
+- **Q4-A amendée** : l'app n'est plus un pur abonné ; elle **publie**, mais **uniquement** sous
+  `iaka/agents/in/`, **jamais** sous `iaka/agents/out/`.
+- **`state`** gagne `paused` et `stopping` (compatible : valeur inconnue ⇒ `running` pour une app
+  plus ancienne ; `v` reste 1).
+- Critère « l'app n'ouvre aucun port en écoute » : **inchangé**.
+
+### Contrat de commande — v1
+
+| Topic | Contenu | Retenu | QoS |
+|---|---|---|---|
+| `iaka/agents/in/<runner>/<sessionId>/<agentId>` | commande signée (JSON ci-dessous) = **état désiré** | **oui** | 1 |
+| même topic, **payload vide** | plus de commande = **reprise** (`running`) | oui | 1 |
+
+```json
+{ "v": 1, "cmd": "pause", "issuedAt": 1790499000, "nonce": "9f1c2a7e5b3d4c61", "sig": "<hex>" }
+```
+
+- `cmd` ∈ `pause`, `stop`. La reprise n'est **pas** une commande : c'est l'effacement du retenu.
+  Valeur inconnue ⇒ ignorée.
+- `sig` = HMAC-SHA256, en hexadécimal minuscule, de
+  `topic + "\n" + cmd + "\n" + issuedAt + "\n" + nonce`, avec la clé de 32 octets lue dans
+  `~/.config/iaka-agents/control.key` (dossier `0700`, fichier `0600`, **créé par l'app** au
+  premier lancement s'il n'existe pas, jamais écrasé).
+- Payload ≤ 512 octets ; segments soumis aux mêmes règles que `out`.
+
+### Décisions arbitraires (mineures, révisables en une phrase)
+
+- **DA-C1** Contrôleur : `publishers/claude-code/iaka-agents-control.mjs` (QC9-A), Node ≥ 18 sans
+  dépendance ; client MQTT minimal **partagé** avec le publieur (`publishers/claude-code/mqtt-lite.mjs`,
+  CONNECT, PUBLISH, SUBSCRIBE, réception PUBLISH, PINGREQ). Hook `PreToolUse`, **tous outils**,
+  **synchrone**, `timeout: 3600`.
+- **DA-C2** Chemin normal : clé absente ⇒ sortie immédiate sans décision (contrôleur inactif, **sans
+  connexion**). Sinon connexion, abonnement QoS 1 au **topic exact** de l'agent, attente du retenu
+  jusqu'à **30 ms après le SUBACK** ; **budget total 250 ms** ; toute erreur ou dépassement ⇒ sortie
+  code 0 **sans décision** (l'outil s'exécute). Jamais de sortie sur stdout hors décision JSON.
+- **DA-C3** Vérification : signature fausse ou absente, JSON invalide, `cmd` inconnue ⇒ **ignorée**
+  (journal `~/.cache/iaka-agents/control.log`, une ligne, sans le payload). Anti-rejeu : le
+  contrôleur note dans `~/.cache/iaka-agents/<sessionId>/<agentId>.json` la date de la dernière
+  reprise observée ; une commande dont `issuedAt` est antérieur ou égal ⇒ ignorée.
+- **DA-C4** Pause : fiche publiée avec `state: "paused"` ; connexion **gardée ouverte** ; fiche
+  republiée (`lastSeenAt`) toutes les **20 s** ; payload vide reçu ⇒ fiche `running`, sortie sans
+  décision ; `stop` reçu ⇒ DA-C5 ; broker perdu ⇒ sortie sans décision (reprise) ; à **3 540 s**
+  ⇒ `permissionDecision: "deny"`, motif « Pause prolongée par l'opérateur : refais exactement le
+  même appel. » (QC5-A).
+- **DA-C5** Arrêt : fiche `state: "stopping"`, puis
+  `{"continue": false, "stopReason": "Arrêté par l'opérateur depuis IakaAgentsMonitor. Ne pas relancer sans consigne de l'utilisateur."}`.
+  Sous-agents et coordinateur (QC4-A).
+- **DA-C6** App, publication : même connexion que l'abonné (DA-M2) ; commande QoS 1 retenue ;
+  reprise = payload vide retenu. Quand une fiche disparaît (payload vide ou péremption), l'app
+  **efface** la commande retenue de cet agent si elle en avait publié une.
+- **DA-C7** App, colonne **« État »** : première colonne, non triable, visible en compact, étroite ;
+  bouton `running` / `paused` (clic = bascule), `idle` cliquable (pause au tour suivant),
+  `stopping` inactif ; libellés tels quels (QC6-A). États intermédiaires « pause demandée » /
+  « reprise demandée » tant que la fiche ne reflète pas l'état ; sans effet après **30 s** ⇒ retour
+  à l'état réel + infobulle « non pris en compte (contrôleur absent ?) ». Arrêt : petit bouton
+  secondaire, **confirmation dans la ligne** (« Arrêter <agent> ? Arrêter / Annuler »), sans
+  nouveau plugin. Source fichiers active (bus absent) ⇒ boutons **désactivés**, infobulle « bus
+  absent : commande indisponible ». Pas de maquette (QC7-A), jetons V4 existants.
+- **DA-C8** Crates Rust : `hmac`, `sha2`, `getrandom` (clé et `nonce`) — versions stables du jour
+  à fixer par Gimli (non vérifiées au cadrage).
+
+### Étapes d'implémentation (A1)
+
+13. **Contrat.** Mettre à jour la section « Contrat sur le fil » (topic `in`, valeurs `paused`,
+    `stopping`) ; nouveau `src-tauri/src/control.rs` : clé (création `0600`, lecture), signature,
+    construction du payload, **aucun nom de runner**. Tests (vecteurs de signature partagés avec
+    le contrôleur Node). Commit.
+14. **Client MQTT partagé.** `publishers/claude-code/mqtt-lite.mjs` (abonnement + réception) ; le
+    publieur l'utilise à la place de son code de connexion. Tests existants du publieur verts.
+    Commit.
+15. **Contrôleur.** `iaka-agents-control.mjs` selon DA-C1 à DA-C5. Tests `node --test` avec le faux
+    serveur MQTT (étendu à SUBSCRIBE) : pas de commande ⇒ sortie sans décision ; `pause` puis
+    effacement ⇒ fiche `paused` puis `running`, sortie ; `pause` puis `stop` ⇒ `continue:false` ;
+    signature fausse ⇒ ignorée ; rejeu ⇒ ignoré ; broker absent ⇒ code 0 < 300 ms ; clé absente ⇒
+    aucune connexion ; broker coupé en pause ⇒ sortie sans décision ; relâche à 3 540 s (horloge
+    injectée) ⇒ `deny`. Commit.
+16. **App, publication.** Commande Tauri `set_agent_control(runner, sessionId, agentId, cmd)`
+    (`pause`, `resume`, `stop`) ⇒ publication DA-C6 ; effacement à la disparition de la fiche.
+    Commit.
+17. **App, colonne « État ».** `src/render.ts`, `src/types.ts` : DA-C7. Commit.
+18. **Intégration.** Broker éphémère : commande signée publiée par l'app ⇒ reçue et validée par le
+    contrôleur lancé en processus ; fiche `paused` ⇒ bouton `paused`. **Mesure de latence** du
+    chemin normal (50 appels) consignée dans le rapport. Commit.
+19. **Vérification.** Mêmes contrôles qu'à l'étape 12 ; gate Legolas ; installation par Stéphane
+    (extrait `PreToolUse` ajouté au `README.md` du publieur, **non appliqué**) ; essai réel.
+
+### Fichiers concernés (A1)
+
+- `src-tauri/src/control.rs` — **nouveau** ; `sources/bus.rs` — publication ; `lib.rs` — commande
+  Tauri ; `Cargo.toml` — `hmac`, `sha2`, `getrandom`.
+- `src/render.ts`, `src/types.ts` — colonne « État », confirmation, états intermédiaires.
+- `publishers/claude-code/iaka-agents-control.mjs`, `mqtt-lite.mjs` — **nouveaux** ;
+  `iaka-agents-publish.mjs` — utilise `mqtt-lite.mjs` ; `README.md` — extrait `PreToolUse` ;
+  `test/` — tests du contrôleur.
+- `specs/PROJET.md` — dette de sécurité résiduelle (écrite par Gimli sur consigne de ce lot).
+
+### Risques (A1)
+
+- **RC1 — La pause n'agit qu'au prochain appel d'outil** (aucune interruption en pleine
+  génération) : états intermédiaires et retour à 30 s.
+- **RC2 — Ralentissement de toutes les sessions** : budget 250 ms, mesure étape 18 ; au-delà d'une
+  médiane de 150 ms ajoutés, arrêt et re-cadrage vers QC2-B (fichier local).
+- **RC3 — Le parent relance un sous-agent arrêté** : motif explicite ; observé en recette.
+- **RC4 — Relâche de la pause** au délai du hook : refus motivé à 3 540 s ; réessai non garanti.
+- **RC5 — Sécurité résiduelle** : un processus du même compte peut lire la clé ; rejeu limité à la
+  même cible et bloqué après reprise. À consigner.
+- **RC6 — Champs de hook récents** (`agent_id` dans `PreToolUse`, `continue:false` dans un
+  sous-agent) : premiers points de la recette ; si `agent_id` manque, contrôleur limité à `main`.
+
+### Critères d'acceptation (A1)
+
+- [ ] `cargo test`, `cargo clippy --all-targets -- -D warnings`, `npm run typecheck`,
+      `npm run build`, `npm run test:publisher` verts (tests du contrôleur compris).
+- [ ] **Neutralité** : `control.rs` passe le même `grep` que les autres modules du cœur.
+- [ ] Clé créée par l'app : `stat` donne `0600` (fichier) et `0700` (dossier) ; relancer l'app ne
+      la change pas.
+- [ ] Commande non signée publiée à la main sur `iaka/agents/in/…` ⇒ **aucun effet**, une ligne dans
+      `control.log`.
+- [ ] Contrôleur, broker absent ⇒ code 0 en < 300 ms, aucune décision ; clé absente ⇒ aucune
+      connexion (faux serveur : zéro CONNECT).
+- [ ] Mesure étape 18 : médiane ajoutée par appel d'outil ≤ 150 ms, consignée.
+- [ ] Bus absent ⇒ boutons désactivés avec infobulle ; aucune commande publiée.
+- [ ] **Essai réel (Stéphane, après installation)** : un sous-agent qui enchaîne des lectures ⇒ clic
+      `running` ⇒ au plus un appel d'outil plus tard, bouton `paused` et plus aucun appel ; clic ⇒
+      reprise, l'agent termine normalement ; pendant une pause de 2 min, la ligne **reste affichée** ;
+      arrêt confirmé ⇒ la ligne passe `stopping` puis disparaît, le coordinateur reçoit le motif ;
+      tray iakaTokenCounter fermée pendant une pause ⇒ l'agent repart.
+- [ ] Aucun fichier de `~/.claude/`, d'iakaTokenCounter ni d'iakahub modifié par A1 ; aucune clé
+      dans le dépôt.
+
+### Estimation (A1)
+
+- **~2,25 jours-homme** (fourchette 1,75 à 3,25) ; complexité / risque **moyen à élevé** (hook
+  bloquant sur toutes les sessions). Inconnues : latence réelle (+0,5 j si QC2-B), ordre
+  retenu/SUBACK dans rumqttd, `continue:false` dans un sous-agent, outil `Workflow`, cohabitation
+  avec perimeter-guard et delegation-guard.
+
+### Ce qui appartient à Stéphane (A1)
+
+- Trancher QC1 à QC9.
+- **Installer** le contrôleur (copie dans `~/.claude/` + entrée `PreToolUse` tous outils,
+  `timeout: 3600`, **ajoutée** à côté des hooks existants) ; le retirer = supprimer l'entrée.
+- Accepter la dette résiduelle RC5.
 
 ## Sources
 
