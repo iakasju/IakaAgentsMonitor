@@ -195,26 +195,51 @@ function compareNodes(col: SortCol, dir: 1 | -1, a: AgentNode, b: AgentNode): nu
 /** Trie RÉCURSIVEMENT les enfants d'un nœud par la colonne choisie, sans jamais casser
  * l'adjacence parent → enfant (l'indentation reste toujours vraie, même après un clic de tri) :
  * on ne fait que réordonner les FRÈRES à chaque niveau, jamais les niveaux entre eux. Amendement
- * A6 : le tri ne porte plus QUE sur cette fratrie (à l'intérieur d'un groupe de dépôt) — les
- * groupes eux-mêmes ne se réordonnent plus entre eux (cf. `sortedSnapshot`). */
+ * A6 : le tri ne porte plus QUE sur la fratrie À L'INTÉRIEUR d'un groupe de dépôt — les groupes
+ * eux-mêmes ne se réordonnent plus entre eux (cf. `sortedGroups`). */
 function sortChildrenRecursively(node: AgentNode, col: SortCol, dir: 1 | -1): void {
   node.children.sort((a, b) => compareNodes(col, dir, a, b));
   for (const child of node.children) sortChildrenRecursively(child, col, dir);
 }
 
-/** Amendement A6, point 2 : l'ordre des GROUPES (un par dépôt) reste celui, déjà déterministe,
- * renvoyé par le backend (activité décroissante, `snapshot_at`) — cliquer un en-tête ne trie plus
- * que l'arbre de délégation À L'INTÉRIEUR de chaque groupe (cf. doc de
- * `sortChildrenRecursively`). */
-function sortedSnapshot(snap: AgentsSnapshot): SessionNode[] {
-  const sessions = snap.sessions.map((s) => ({
-    project: s.project,
-    coordinator: structuredClone(s.coordinator),
-  }));
-  if (!sort) return sessions;
+/** Un groupe = un dépôt (amendement A6, point 2). PLUSIEURS sessions peuvent partager le même
+ * projet (ex. deux terminaux ouverts sur le même dépôt) : elles rejoignent alors le MÊME groupe
+ * — un seul en-tête par nom de projet, jamais deux lignes de séparation consécutives pour le
+ * même dépôt — et leurs coordinateurs deviennent des racines FRÈRES de ce groupe (`roots`),
+ * triables entre elles comme n'importe quelle fratrie. */
+interface Group {
+  project: string;
+  roots: AgentNode[];
+}
+
+/** Regroupe les sessions par nom de projet, en conservant l'ordre de PREMIÈRE apparition (déjà
+ * déterministe côté backend, activité décroissante) — c'est cet ordre de GROUPES qui reste
+ * stable au clic sur un en-tête (amendement A6, point 2 : le tri ne porte que sur l'intérieur
+ * d'un groupe, jamais sur l'ordre des groupes entre eux). */
+function groupByProject(sessions: SessionNode[]): Group[] {
+  const order: string[] = [];
+  const roots = new Map<string, AgentNode[]>();
+  for (const s of sessions) {
+    if (!roots.has(s.project)) {
+      roots.set(s.project, []);
+      order.push(s.project);
+    }
+    roots.get(s.project)!.push(structuredClone(s.coordinator));
+  }
+  return order.map((project) => ({ project, roots: roots.get(project)! }));
+}
+
+/** Trie chaque groupe indépendamment : ses racines (coordinateurs) entre elles, puis
+ * récursivement leurs descendants — jamais les groupes entre eux (amendement A6, point 2). */
+function sortedGroups(snap: AgentsSnapshot): Group[] {
+  const groups = groupByProject(snap.sessions);
+  if (!sort) return groups;
   const { col, dir } = sort;
-  for (const s of sessions) sortChildrenRecursively(s.coordinator, col, dir);
-  return sessions;
+  for (const g of groups) {
+    g.roots.sort((a, b) => compareNodes(col, dir, a, b));
+    for (const root of g.roots) sortChildrenRecursively(root, col, dir);
+  }
+  return groups;
 }
 
 interface AgentRow {
@@ -222,7 +247,8 @@ interface AgentRow {
   node: AgentNode;
   depth: number;
   /** Guide ASCII de délégation (├─ / └─ / │, amendement A3 point 4) : vide à la racine (depth
-   * 0, un coordinateur par session — pas de fratrie à représenter). */
+   * 0 — les racines d'un même groupe ne portent pas de guide entre elles, seuls leurs
+   * descendants en affichent). */
   guide: string;
 }
 
@@ -234,13 +260,13 @@ interface GroupRow {
 
 type TableRow = AgentRow | GroupRow;
 
-/** Aplatit l'arbre en lignes GROUPÉES PAR DÉPÔT (amendement A6, point 2) : une `GroupRow` par
- * session, suivie de l'arbre de délégation de cette session, tout en calculant, pour chaque
- * nœud, son guide de délégation — même algorithme que la maquette V4 de Loki (`buildTreeRows` /
- * `buildGroupedLiveRows`) : un parcours en profondeur où chaque fratrie connaît sa propre
- * longueur (pour distinguer le dernier enfant, `└─`, des autres, `├─`) et transmet un préfixe
- * cumulé (`│  ` sous un frère non-dernier, `   ` sous le dernier) à ses propres enfants. */
-function flattenGrouped(sessions: SessionNode[]): TableRow[] {
+/** Aplatit les groupes en lignes (amendement A6, point 2) : une `GroupRow` par dépôt, suivie de
+ * TOUTES les racines (coordinateurs) de ce dépôt et de leurs arbres de délégation — même
+ * algorithme que la maquette V4 de Loki (`buildTreeRows` / `buildGroupedLiveRows`) : un parcours
+ * en profondeur où chaque fratrie connaît sa propre longueur (pour distinguer le dernier enfant,
+ * `└─`, des autres, `├─`) et transmet un préfixe cumulé (`│  ` sous un frère non-dernier, `   `
+ * sous le dernier) à ses propres enfants. */
+function flattenGrouped(groups: Group[]): TableRow[] {
   const rows: TableRow[] = [];
   function walk(nodes: AgentNode[], depth: number, prefix: string): void {
     nodes.forEach((node, i) => {
@@ -253,9 +279,9 @@ function flattenGrouped(sessions: SessionNode[]): TableRow[] {
       }
     });
   }
-  for (const s of sessions) {
-    rows.push({ kind: "group", project: s.project });
-    walk([s.coordinator], 0, "");
+  for (const g of groups) {
+    rows.push({ kind: "group", project: g.project });
+    walk(g.roots, 0, "");
   }
   return rows;
 }
@@ -382,7 +408,7 @@ function agentRow(row: AgentRow): HTMLElement {
   return tr;
 }
 
-function renderTable(sessions: SessionNode[]): HTMLElement {
+function renderTable(groups: Group[]): HTMLElement {
   const table = document.createElement("table");
   // Amendement A4, point 1 : classe "compact" pour le mode 5 colonnes ; amendement A6, point 1 :
   // plus de `table-layout: fixed` ni de largeurs en pourcentage — la largeur de la FENÊTRE
@@ -393,7 +419,7 @@ function renderTable(sessions: SessionNode[]): HTMLElement {
   table.appendChild(thead);
   const tbody = document.createElement("tbody");
   const columnCount = visibleColumns().length;
-  for (const row of flattenGrouped(sessions)) {
+  for (const row of flattenGrouped(groups)) {
     tbody.appendChild(row.kind === "group" ? groupRowElement(row.project, columnCount) : agentRow(row));
   }
   table.appendChild(tbody);
@@ -430,8 +456,8 @@ export function renderAgents(snap: AgentsSnapshot): void {
     return;
   }
 
-  const sessions = sortedSnapshot(snap);
-  const table = renderTable(sessions);
+  const groups = sortedGroups(snap);
+  const table = renderTable(groups);
   section.appendChild(table);
   bindHeaderSort(table, () => {
     if (lastSnapshot) renderAgents(lastSnapshot);
