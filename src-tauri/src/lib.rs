@@ -7,6 +7,7 @@ mod card;
 mod claude_paths;
 mod estimate;
 mod labels;
+mod roster;
 mod state;
 mod tray;
 
