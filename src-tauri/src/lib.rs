@@ -19,7 +19,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             agents::get_running_agents,
             tray::set_window_mode,
-            tray::fit_window_width
+            tray::fit_window_width,
+            tray::fit_window_height
         ])
         .setup(move |app| {
             // macOS : app tray-only. Politique d'activation `Accessory` (equiv. LSUIElement) =>

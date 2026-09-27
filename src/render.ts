@@ -489,3 +489,26 @@ export function measureContentWidth(): number | null {
   table.style.width = previous;
   return width;
 }
+
+/** Mesure la hauteur NATURELLE du contenu peint (amendement A7, point 1) : même principe que
+ * `measureContentWidth`, appliqué à la hauteur — la section `#agents` a un `max-height` CSS
+ * (`.agents`, défilement au-delà) qui empêcherait de mesurer le contenu réel ; on la lève
+ * temporairement, on mesure, on restaure. Additionne la hauteur de la barre du haut et du bas
+ * (topbar/footbar, hors de `#agents`) : c'est la hauteur TOTALE de fenêtre qui doit s'ajuster, pas
+ * seulement celle du tableau. Toujours mesuré, même à l'état vide (DA-4, message « Aucun agent en
+ * cours ») — contrairement à `measureContentWidth`, qui renvoie `null` faute de tableau : une
+ * fenêtre vide doit aussi se réduire à sa hauteur minimale, pas garder la dernière hauteur pleine.
+ * `null` uniquement si la structure de page attendue est absente (défensif). */
+export function measureContentHeight(): number | null {
+  const section = document.getElementById("agents");
+  if (!section) return null;
+  const topbar = document.querySelector<HTMLElement>(".topbar");
+  const footbar = document.querySelector<HTMLElement>(".footbar");
+  const previous = section.style.maxHeight;
+  section.style.maxHeight = "none";
+  const contentHeight = section.scrollHeight;
+  section.style.maxHeight = previous;
+  const chromeHeight =
+    (topbar?.getBoundingClientRect().height ?? 0) + (footbar?.getBoundingClientRect().height ?? 0);
+  return Math.ceil(contentHeight + chromeHeight);
+}

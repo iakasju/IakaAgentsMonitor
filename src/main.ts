@@ -5,19 +5,27 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { measureContentWidth, renderAgents, setCompactMode } from "./render";
+import { measureContentHeight, measureContentWidth, renderAgents, setCompactMode } from "./render";
 import type { AgentsSnapshot } from "./types";
 
-// ---- Largeur de fenetre ajustee au contenu (amendement A6, point 1) --------------------------
-// Mesuree ici (webview = seule couche qui connait le rendu reel des polices), appliquee cote Rust
-// (`fit_window_width`) qui borne 480-1200px et applique l'hysteresis documentee dans tray.rs :
-// cette fonction se contente d'envoyer la mesure a chaque peinture, jamais de decider seule.
+// ---- Largeur et hauteur de fenetre ajustees au contenu (amendements A6 point 1 et A7 point 1) --
+// Mesurees ici (webview = seule couche qui connait le rendu reel des polices), appliquees cote
+// Rust (`fit_window_width` / `fit_window_height`) qui bornent (largeur 480-1200px, hauteur
+// 200px-80% de l'ecran) et appliquent l'hysteresis documentee dans tray.rs : ces fonctions se
+// contentent d'envoyer la mesure a chaque peinture, jamais de decider seules.
 function fitWindowToContent(): void {
   const width = measureContentWidth();
-  if (width === null) return;
-  invoke("fit_window_width", { naturalWidth: width }).catch((e) =>
-    console.error("fit_window_width a echoue", e),
-  );
+  if (width !== null) {
+    invoke("fit_window_width", { naturalWidth: width }).catch((e) =>
+      console.error("fit_window_width a echoue", e),
+    );
+  }
+  const height = measureContentHeight();
+  if (height !== null) {
+    invoke("fit_window_height", { naturalHeight: height }).catch((e) =>
+      console.error("fit_window_height a echoue", e),
+    );
+  }
 }
 
 async function refreshAgents(): Promise<void> {

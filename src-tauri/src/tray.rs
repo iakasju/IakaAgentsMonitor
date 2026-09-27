@@ -13,6 +13,12 @@
 //! Provenance : patron repris d'iakaTokenCounter (`src-tauri/src/tray.rs`, branche
 //! `worktree-agent-a73ae73650ed5e328`, commit `1c9fd0e`), simplifié : plus de composition
 //! d'icône (logo + reservoirs), plus de tooltip de quota — juste le compteur en titre.
+//!
+//! Amendement A7 (point 1) : la HAUTEUR suit désormais la même mécanique que la largeur (A6,
+//! point 1) — ajustée au contenu réellement affiché, bornée 200 px–80 % de la hauteur d'écran du
+//! moniteur courant, même hystérésis, défilement vertical (CSS) au-delà du maximum. Les deux
+//! dimensions sont donc adaptatives par mode (compact/complet), mémorisées séparément dans
+//! `AppState`.
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -20,26 +26,28 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, Position, Rect, W
 
 use crate::state::AppState;
 
-/// Hauteur de la fenêtre en mode compact (amendement A4, point 1) : 5 colonnes
-/// (Agent · Runner · Actif · État · Reste). Fixe : l'amendement A6 ne porte que sur la largeur.
-const COMPACT_HEIGHT: f64 = 360.0;
-/// Hauteur de la fenêtre en mode complet (amendement A4, point 1) : 8 colonnes
-/// (Agent · Runner · Modèle · Tâche · Démarré · Actif · État · Reste).
-const EXPANDED_HEIGHT: f64 = 420.0;
-
 /// Bornes de la largeur adaptative de la fenêtre (amendement A6, point 1), dans les DEUX modes.
 const WIN_WIDTH_MIN: f64 = 480.0;
 const WIN_WIDTH_MAX: f64 = 1200.0;
 
-/// Écart minimal (px logiques) entre la largeur actuellement appliquée et la largeur mesurée du
-/// contenu pour déclencher un VRAI redimensionnement (amendement A6, point 1 : « sans
-/// clignotement ni saut à chaque tick »). Hystérésis documentée : `agents.rs` n'émet
+/// Bornes de la hauteur adaptative de la fenêtre (amendement A7, point 1). Le maximum n'est pas
+/// une constante fixe : il dépend de l'écran (`WIN_HEIGHT_MAX_PCT` de sa hauteur), cf.
+/// `max_height_from_screen`.
+const WIN_HEIGHT_MIN: f64 = 200.0;
+const WIN_HEIGHT_MAX_PCT: f64 = 0.8;
+/// Hauteur d'écran de repli (px logiques) quand le moniteur n'est pas détectable (rare, best
+/// effort) — évite un plafond de hauteur absent plutôt qu'une valeur exacte.
+const FALLBACK_SCREEN_HEIGHT: f64 = 900.0;
+
+/// Écart minimal (px logiques) entre la dimension actuellement appliquée et la dimension mesurée
+/// du contenu pour déclencher un VRAI redimensionnement (amendement A6, point 1 pour la largeur ;
+/// A7, point 1 : MÊME hystérésis pour la hauteur). Hystérésis documentée : `agents.rs` n'émet
 /// `tray://agents` que si l'instantané change réellement, mais la colonne « Actif il y a » change
 /// pourtant à quasi chaque tick (5 s) tant qu'un agent écrit — sans ce seuil, la mesure du
 /// contenu (qui varie de quelques px d'un tick à l'autre, arrondi de police/sous-pixel)
 /// redimensionnerait la fenêtre en continu. Sous ce seuil, on garde la taille en place ; au-delà,
 /// c'est un vrai changement de contenu (agent apparu/disparu, tâche plus longue…) qu'on suit.
-const WIDTH_RESIZE_THRESHOLD_PX: f64 = 12.0;
+const RESIZE_THRESHOLD_PX: f64 = 12.0;
 
 /// Borne la largeur mesurée du contenu dans la fourchette de l'amendement A6 (point 1).
 fn clamp_window_width(natural: f64) -> f64 {
@@ -48,9 +56,29 @@ fn clamp_window_width(natural: f64) -> f64 {
 
 /// Décide si l'écart entre la largeur actuellement appliquée et la largeur cible (déjà bornée)
 /// justifie un redimensionnement réel — hystérésis de l'amendement A6, point 1 (cf. doc de
-/// `WIDTH_RESIZE_THRESHOLD_PX`). Symétrique : un rétrécissement suffisant redimensionne aussi.
+/// `RESIZE_THRESHOLD_PX`). Symétrique : un rétrécissement suffisant redimensionne aussi.
 fn should_resize_width(current: f64, target: f64) -> bool {
-    (target - current).abs() > WIDTH_RESIZE_THRESHOLD_PX
+    (target - current).abs() > RESIZE_THRESHOLD_PX
+}
+
+/// Hauteur maximale (px logiques) pour une hauteur d'écran donnée (amendement A7, point 1) :
+/// 80 % de la hauteur d'écran, jamais moins que le minimum de la fourchette. Fonction PURE
+/// (aucun type Tauri), donc testable indépendamment d'un moniteur réel.
+fn max_height_from_screen(screen_height: f64) -> f64 {
+    (screen_height * WIN_HEIGHT_MAX_PCT).max(WIN_HEIGHT_MIN)
+}
+
+/// Borne la hauteur mesurée du contenu dans la fourchette de l'amendement A7 (point 1) : minimum
+/// fixe (200 px), maximum dépendant de l'écran (déjà calculé par `max_height_from_screen`).
+fn clamp_window_height(natural: f64, max_height: f64) -> f64 {
+    natural.clamp(WIN_HEIGHT_MIN, max_height.max(WIN_HEIGHT_MIN))
+}
+
+/// Décide si l'écart entre la hauteur actuellement appliquée et la hauteur cible (déjà bornée)
+/// justifie un redimensionnement réel — même hystérésis que la largeur (amendement A7, point 1,
+/// cf. doc de `RESIZE_THRESHOLD_PX`).
+fn should_resize_height(current: f64, target: f64) -> bool {
+    (target - current).abs() > RESIZE_THRESHOLD_PX
 }
 
 /// Identifiant du tray, pour le retrouver via `app.tray_by_id`.
@@ -176,6 +204,33 @@ fn current_width(app: &AppHandle) -> f64 {
     }
 }
 
+/// Hauteur logique courante de la fenêtre (amendement A7, point 1, même mécanique que
+/// `current_width`) — jamais relue via `WebviewWindow::outer_size()` (cf. doc de
+/// `position_window_under_tray`), toujours déduite d'`AppState`.
+fn current_height(app: &AppHandle) -> f64 {
+    let state = app.state::<AppState>();
+    let compact = *state.compact.lock().unwrap();
+    if compact {
+        *state.compact_height.lock().unwrap()
+    } else {
+        *state.expanded_height.lock().unwrap()
+    }
+}
+
+/// Hauteur maximale (px logiques) pour la fenêtre `popover`, déduite du moniteur qui la porte
+/// actuellement (amendement A7, point 1). Best-effort : moniteur introuvable ou facteur d'échelle
+/// indisponible -> repli sur `FALLBACK_SCREEN_HEIGHT` plutôt qu'un plafond absent.
+fn max_window_height(window: &WebviewWindow) -> f64 {
+    let screen_height_logical = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten())
+        .map(|m| m.size().height as f64 / m.scale_factor())
+        .unwrap_or(FALLBACK_SCREEN_HEIGHT);
+    max_height_from_screen(screen_height_logical)
+}
+
 /// Clic gauche sur l'icône : ouvre DIRECTEMENT la fenêtre (amendement A3, point 9 — plus de
 /// popover intermédiaire), ancrée sous l'icône ; un second clic la masque (bascule). Mémorise
 /// aussi le rect de l'icône (amendement A4, point 1) : `set_window_mode` le réutilise pour
@@ -210,12 +265,8 @@ pub fn set_window_mode(app: AppHandle, compact: bool) {
     };
     let state = app.state::<AppState>();
     *state.compact.lock().unwrap() = compact;
-    let width = if compact {
-        *state.compact_width.lock().unwrap()
-    } else {
-        *state.expanded_width.lock().unwrap()
-    };
-    let height = if compact { COMPACT_HEIGHT } else { EXPANDED_HEIGHT };
+    let width = current_width(&app);
+    let height = current_height(&app);
     let _ = window.set_size(LogicalSize::new(width, height));
 
     let rect = *state.last_tray_rect.lock().unwrap();
@@ -254,12 +305,51 @@ pub fn fit_window_width(app: AppHandle, natural_width: f64) {
         target
     };
 
-    let height = if compact { COMPACT_HEIGHT } else { EXPANDED_HEIGHT };
+    let height = current_height(&app);
     let _ = window.set_size(LogicalSize::new(applied, height));
 
     let rect = *state.last_tray_rect.lock().unwrap();
     if let Some(rect) = rect {
         position_window_under_tray(&window, rect, applied);
+    }
+}
+
+/// Ajuste la HAUTEUR de la fenêtre au contenu réellement affiché (amendement A7, point 1) — même
+/// mécanique que `fit_window_width` (A6, point 1) : mesure envoyée par le frontend à chaque
+/// peinture, bornée (200 px–80 % de la hauteur d'écran du moniteur courant, `max_window_height`),
+/// hystérésis identique avant tout vrai redimensionnement. Au-delà du maximum, le contenu déborde
+/// et défile verticalement (CSS `.agents`, `overflow: auto` — géré côté webview, pas ici). Agit
+/// sur le mode COURANT uniquement, comme `fit_window_width`.
+#[tauri::command]
+pub fn fit_window_height(app: AppHandle, natural_height: f64) {
+    let Some(window) = app.get_webview_window("popover") else {
+        return;
+    };
+    let max_height = max_window_height(&window);
+    let state = app.state::<AppState>();
+    let compact = *state.compact.lock().unwrap();
+    let target = clamp_window_height(natural_height, max_height);
+
+    let applied = {
+        let height_lock = if compact {
+            &state.compact_height
+        } else {
+            &state.expanded_height
+        };
+        let mut current = height_lock.lock().unwrap();
+        if !should_resize_height(*current, target) {
+            return;
+        }
+        *current = target;
+        target
+    };
+
+    let width = current_width(&app);
+    let _ = window.set_size(LogicalSize::new(width, applied));
+
+    let rect = *state.last_tray_rect.lock().unwrap();
+    if let Some(rect) = rect {
+        position_window_under_tray(&window, rect, width);
     }
 }
 
@@ -345,5 +435,61 @@ mod tests {
     fn should_resize_width_declenche_symetriquement_en_retrecissement() {
         // Un contenu qui rétrécit nettement (agent parti) doit aussi faire rétrécir la fenêtre.
         assert!(should_resize_width(1000.0, 700.0));
+    }
+
+    // ------------------------- Amendement A7, point 1 : hauteur adaptative -------------------
+
+    #[test]
+    fn max_height_from_screen_calcule_80_pourcent_de_l_ecran() {
+        assert_eq!(max_height_from_screen(1000.0), 800.0);
+    }
+
+    #[test]
+    fn max_height_from_screen_ne_descend_jamais_sous_le_minimum() {
+        // Écran minuscule (improbable) : le plafond ne descend jamais sous WIN_HEIGHT_MIN, sinon
+        // clamp_window_height recevrait un maximum inférieur au minimum.
+        assert_eq!(max_height_from_screen(100.0), WIN_HEIGHT_MIN);
+    }
+
+    #[test]
+    fn clamp_window_height_laisse_passer_une_valeur_dans_la_fourchette() {
+        assert_eq!(clamp_window_height(300.0, 800.0), 300.0);
+    }
+
+    #[test]
+    fn clamp_window_height_borne_au_minimum_200() {
+        assert_eq!(clamp_window_height(50.0, 800.0), 200.0);
+    }
+
+    #[test]
+    fn clamp_window_height_borne_au_maximum_donne() {
+        assert_eq!(clamp_window_height(1500.0, 800.0), 800.0);
+    }
+
+    #[test]
+    fn clamp_window_height_accepte_exactement_les_bornes() {
+        assert_eq!(clamp_window_height(200.0, 800.0), 200.0);
+        assert_eq!(clamp_window_height(800.0, 800.0), 800.0);
+    }
+
+    #[test]
+    fn should_resize_height_ignore_un_ecart_sous_le_seuil_hysteresis() {
+        assert!(!should_resize_height(360.0, 365.0));
+        assert!(!should_resize_height(360.0, 355.0));
+    }
+
+    #[test]
+    fn should_resize_height_ignore_pile_le_seuil() {
+        assert!(!should_resize_height(360.0, 372.0));
+    }
+
+    #[test]
+    fn should_resize_height_declenche_au_dela_du_seuil() {
+        assert!(should_resize_height(360.0, 373.0));
+    }
+
+    #[test]
+    fn should_resize_height_declenche_symetriquement_en_retrecissement() {
+        assert!(should_resize_height(700.0, 400.0));
     }
 }

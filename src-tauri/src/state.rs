@@ -33,6 +33,13 @@ pub struct AppState {
     pub compact_width: Mutex<f64>,
     /// Idem pour le mode complet (amendement A4 : 1000 px de départ).
     pub expanded_width: Mutex<f64>,
+    /// Hauteur adaptative courante du mode compact (amendement A7, point 1 : même mécanique que
+    /// la largeur — la hauteur s'ajuste au contenu réellement affiché, bornée 200 px–80 % de la
+    /// hauteur d'écran, plutôt que figée). Valeur de départ = l'ancienne hauteur fixe (360 px),
+    /// avant toute mesure du contenu réel côté webview ; recalculée par `tray::fit_window_height`.
+    pub compact_height: Mutex<f64>,
+    /// Idem pour le mode complet (420 px de départ, ancienne hauteur fixe du mode complet).
+    pub expanded_height: Mutex<f64>,
 }
 
 impl Default for AppState {
@@ -43,6 +50,8 @@ impl Default for AppState {
             compact: Mutex::new(true),
             compact_width: Mutex::new(520.0),
             expanded_width: Mutex::new(1000.0),
+            compact_height: Mutex::new(360.0),
+            expanded_height: Mutex::new(420.0),
         }
     }
 }
