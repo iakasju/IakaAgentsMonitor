@@ -230,18 +230,11 @@ fn created_of(path: &Path) -> Option<i64> {
 
 // ===================== Formatage des durées (fait en Rust, D9) =====================
 
-/// « Actif il y a » : toujours en secondes (borné par le seuil de liveness, jamais plus que
-/// quelques dizaines de secondes en pratique).
-pub fn format_active_ago(secs: i64) -> String {
-    format!("{} s", secs.max(0))
-}
-
-/// « Démarré il y a » : secondes sous 60 s, minutes au-delà, `h min` au-delà de 60 min. `None`
-/// (date de création indisponible) -> chaîne vide (mention omise côté appelant).
-pub fn format_started_ago(secs: Option<i64>) -> String {
-    let Some(secs) = secs else {
-        return String::new();
-    };
+/// Cœur commun de formatage d'une durée en secondes : secondes sous 60 s, minutes au-delà,
+/// `h min` au-delà de 60 min (`h` sec si le reste est nul). Partagé par « Actif il y a » et
+/// « Démarré il y a » (amendement A5, point 1 : même format au-delà de 60 s, ex. « 6 min », «
+/// 1 h 5 min » — jamais « 371 s »).
+fn format_duration_secs(secs: i64) -> String {
     let secs = secs.max(0);
     if secs < 60 {
         return format!("{secs} s");
@@ -257,6 +250,21 @@ pub fn format_started_ago(secs: Option<i64>) -> String {
     } else {
         format!("{hours} h {rem_min} min")
     }
+}
+
+/// « Actif il y a » : secondes sous 60 s, puis même format que « Démarré il y a » au-delà
+/// (amendement A5, point 1 — constat réel : « 371 s » affiché en compact, corrigé en « 6 min »).
+pub fn format_active_ago(secs: i64) -> String {
+    format_duration_secs(secs)
+}
+
+/// « Démarré il y a » : secondes sous 60 s, minutes au-delà, `h min` au-delà de 60 min. `None`
+/// (date de création indisponible) -> chaîne vide (mention omise côté appelant).
+pub fn format_started_ago(secs: Option<i64>) -> String {
+    let Some(secs) = secs else {
+        return String::new();
+    };
+    format_duration_secs(secs)
 }
 
 // ===================== Lecture bornée en tête de transcript =====================
@@ -1219,9 +1227,19 @@ mod tests {
     }
 
     #[test]
-    fn format_active_ago_toujours_en_secondes() {
+    fn format_active_ago_sous_60_secondes() {
         assert_eq!(format_active_ago(0), "0 s");
-        assert_eq!(format_active_ago(89), "89 s");
+        assert_eq!(format_active_ago(45), "45 s");
+    }
+
+    /// Amendement A5, point 1 : au-delà de 60 s, même format que « Démarré il y a » — constat
+    /// réel corrigé, jamais « 371 s ».
+    #[test]
+    fn format_active_ago_au_dela_de_60_secondes_comme_demarre() {
+        assert_eq!(format_active_ago(60), "1 min");
+        assert_eq!(format_active_ago(371), "6 min");
+        assert_eq!(format_active_ago(3600 + 5 * 60), "1 h 5 min");
+        assert_eq!(format_active_ago(2 * 3600), "2 h");
     }
 
     #[test]
