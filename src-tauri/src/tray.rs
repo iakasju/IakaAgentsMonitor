@@ -2,9 +2,13 @@
 //! titre texte = effectif d'agents en cours (`set_title`, DA-2 : toujours affiché, `0` compris).
 //! Aucune rasterisation SVG, aucune dépendance de rendu d'icône. Clic gauche = ouvre DIRECTEMENT
 //! la fenêtre, ancrée sous l'icône (amendement A3, point 9) ; menu clic droit « Afficher » /
-//! « Quitter ». Amendement A4 (point 1) : la fenêtre bascule entre un mode compact (520×360,
-//! 5 colonnes) et un mode complet (1000×420, 8 colonnes), commande `set_window_mode` appelée par
-//! le bouton « agrandir » du frontend.
+//! « Quitter ». Amendement A4 (point 1) : la fenêtre bascule entre un mode compact (5 colonnes) et
+//! un mode complet (8 colonnes), commande `set_window_mode` appelée par le bouton « agrandir » du
+//! frontend. Amendement A6 (point 1) : dans les deux modes, la LARGEUR n'est plus figée — elle
+//! s'ajuste au contenu réellement affiché (mesuré côté webview, seule couche qui connaît le rendu
+//! réel des polices), bornée 480–1200 px, sans jamais bouger le bord droit de la fenêtre par
+//! rapport à l'icône (`anchor_under_icon`, inchangée depuis A4). Seule la HAUTEUR reste fixe par
+//! mode.
 //!
 //! Provenance : patron repris d'iakaTokenCounter (`src-tauri/src/tray.rs`, branche
 //! `worktree-agent-a73ae73650ed5e328`, commit `1c9fd0e`), simplifié : plus de composition
@@ -16,12 +20,38 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, Position, Rect, W
 
 use crate::state::AppState;
 
-/// Taille de la fenêtre en mode compact (amendement A4, point 1) : 5 colonnes
-/// (Agent · Projet · Runner · Actif · Reste), même valeur que `tauri.conf.json`.
-const COMPACT_SIZE: (f64, f64) = (520.0, 360.0);
-/// Taille de la fenêtre en mode complet (amendement A4, point 1) : 8 colonnes
-/// (Agent · Projet · Runner · Modèle · Tâche · Démarré · Actif · Reste).
-const EXPANDED_SIZE: (f64, f64) = (1000.0, 420.0);
+/// Hauteur de la fenêtre en mode compact (amendement A4, point 1) : 5 colonnes
+/// (Agent · Runner · Actif · État · Reste). Fixe : l'amendement A6 ne porte que sur la largeur.
+const COMPACT_HEIGHT: f64 = 360.0;
+/// Hauteur de la fenêtre en mode complet (amendement A4, point 1) : 8 colonnes
+/// (Agent · Runner · Modèle · Tâche · Démarré · Actif · État · Reste).
+const EXPANDED_HEIGHT: f64 = 420.0;
+
+/// Bornes de la largeur adaptative de la fenêtre (amendement A6, point 1), dans les DEUX modes.
+const WIN_WIDTH_MIN: f64 = 480.0;
+const WIN_WIDTH_MAX: f64 = 1200.0;
+
+/// Écart minimal (px logiques) entre la largeur actuellement appliquée et la largeur mesurée du
+/// contenu pour déclencher un VRAI redimensionnement (amendement A6, point 1 : « sans
+/// clignotement ni saut à chaque tick »). Hystérésis documentée : `agents.rs` n'émet
+/// `tray://agents` que si l'instantané change réellement, mais la colonne « Actif il y a » change
+/// pourtant à quasi chaque tick (5 s) tant qu'un agent écrit — sans ce seuil, la mesure du
+/// contenu (qui varie de quelques px d'un tick à l'autre, arrondi de police/sous-pixel)
+/// redimensionnerait la fenêtre en continu. Sous ce seuil, on garde la taille en place ; au-delà,
+/// c'est un vrai changement de contenu (agent apparu/disparu, tâche plus longue…) qu'on suit.
+const WIDTH_RESIZE_THRESHOLD_PX: f64 = 12.0;
+
+/// Borne la largeur mesurée du contenu dans la fourchette de l'amendement A6 (point 1).
+fn clamp_window_width(natural: f64) -> f64 {
+    natural.clamp(WIN_WIDTH_MIN, WIN_WIDTH_MAX)
+}
+
+/// Décide si l'écart entre la largeur actuellement appliquée et la largeur cible (déjà bornée)
+/// justifie un redimensionnement réel — hystérésis de l'amendement A6, point 1 (cf. doc de
+/// `WIDTH_RESIZE_THRESHOLD_PX`). Symétrique : un rétrécissement suffisant redimensionne aussi.
+fn should_resize_width(current: f64, target: f64) -> bool {
+    (target - current).abs() > WIDTH_RESIZE_THRESHOLD_PX
+}
 
 /// Identifiant du tray, pour le retrouver via `app.tray_by_id`.
 pub const TRAY_ID: &str = "main";
@@ -133,11 +163,17 @@ fn position_window_under_tray(window: &WebviewWindow, icon_rect: Rect, win_width
     }));
 }
 
-/// Largeur logique courante de la fenêtre (amendement A4, point 1), déduite du mode mémorisé dans
-/// `AppState` plutôt que relue sur la fenêtre (cf. doc de `position_window_under_tray`).
+/// Largeur logique courante de la fenêtre (amendement A4, point 1, largeur adaptative depuis A6),
+/// déduite du mode et de la largeur mémorisés dans `AppState` plutôt que relue sur la fenêtre
+/// (cf. doc de `position_window_under_tray`).
 fn current_width(app: &AppHandle) -> f64 {
-    let compact = *app.state::<AppState>().compact.lock().unwrap();
-    if compact { COMPACT_SIZE.0 } else { EXPANDED_SIZE.0 }
+    let state = app.state::<AppState>();
+    let compact = *state.compact.lock().unwrap();
+    if compact {
+        *state.compact_width.lock().unwrap()
+    } else {
+        *state.expanded_width.lock().unwrap()
+    }
 }
 
 /// Clic gauche sur l'icône : ouvre DIRECTEMENT la fenêtre (amendement A3, point 9 — plus de
@@ -161,22 +197,69 @@ fn toggle_window(app: &AppHandle, icon_rect: Rect) {
 /// Bascule la taille de la fenêtre entre les deux modes de l'amendement A4 (point 1). Appelée par
 /// le bouton « agrandir » du frontend (le choix — compact/complet — est mémorisé côté webview,
 /// `localStorage`, pas ici ; `AppState::compact` n'existe que pour réancrer, cf. doc de
-/// `position_window_under_tray`). Réancre sous l'icône avec le dernier rect connu (mémorisé à
-/// chaque clic sur l'icône par `toggle_window`) ; sans rect connu (avant tout premier clic),
-/// redimensionne seulement — la position sera correcte au premier clic, qui repositionne toujours
-/// la fenêtre.
+/// `position_window_under_tray`). Utilise la dernière largeur ADAPTATIVE connue pour le mode
+/// visé (amendement A6, point 1 : plus de taille fixe) — `fit_window_width` l'affine ensuite dès
+/// la prochaine mesure du contenu réel côté webview. Réancre sous l'icône avec le dernier rect
+/// connu (mémorisé à chaque clic sur l'icône par `toggle_window`) ; sans rect connu (avant tout
+/// premier clic), redimensionne seulement — la position sera correcte au premier clic, qui
+/// repositionne toujours la fenêtre.
 #[tauri::command]
 pub fn set_window_mode(app: AppHandle, compact: bool) {
     let Some(window) = app.get_webview_window("popover") else {
         return;
     };
-    let (width, height) = if compact { COMPACT_SIZE } else { EXPANDED_SIZE };
+    let state = app.state::<AppState>();
+    *state.compact.lock().unwrap() = compact;
+    let width = if compact {
+        *state.compact_width.lock().unwrap()
+    } else {
+        *state.expanded_width.lock().unwrap()
+    };
+    let height = if compact { COMPACT_HEIGHT } else { EXPANDED_HEIGHT };
     let _ = window.set_size(LogicalSize::new(width, height));
-    *app.state::<AppState>().compact.lock().unwrap() = compact;
 
-    let rect = *app.state::<AppState>().last_tray_rect.lock().unwrap();
+    let rect = *state.last_tray_rect.lock().unwrap();
     if let Some(rect) = rect {
         position_window_under_tray(&window, rect, width);
+    }
+}
+
+/// Ajuste la largeur de la fenêtre au contenu réellement affiché (amendement A6, point 1).
+/// Appelée par le frontend après CHAQUE peinture du tableau (mesure DOM du rendu réel, seule
+/// couche qui connaît les polices) avec la largeur naturelle mesurée (px logiques) ; agit sur le
+/// mode COURANT (`AppState::compact`), jamais sur l'autre mode (une fenêtre cachée ne mesure pas
+/// son propre contenu). Borne (`clamp_window_width`) puis n'applique un VRAI redimensionnement
+/// que si l'écart dépasse le seuil d'hystérésis (`should_resize_width`) — sinon la fenêtre ne
+/// bouge pas, pour éviter tout clignotement à chaque tick (5 s).
+#[tauri::command]
+pub fn fit_window_width(app: AppHandle, natural_width: f64) {
+    let Some(window) = app.get_webview_window("popover") else {
+        return;
+    };
+    let state = app.state::<AppState>();
+    let compact = *state.compact.lock().unwrap();
+    let target = clamp_window_width(natural_width);
+
+    let applied = {
+        let width_lock = if compact {
+            &state.compact_width
+        } else {
+            &state.expanded_width
+        };
+        let mut current = width_lock.lock().unwrap();
+        if !should_resize_width(*current, target) {
+            return;
+        }
+        *current = target;
+        target
+    };
+
+    let height = if compact { COMPACT_HEIGHT } else { EXPANDED_HEIGHT };
+    let _ = window.set_size(LogicalSize::new(applied, height));
+
+    let rect = *state.last_tray_rect.lock().unwrap();
+    if let Some(rect) = rect {
+        position_window_under_tray(&window, rect, applied);
     }
 }
 
@@ -214,5 +297,53 @@ mod tests {
         let (x_expanded, _) = anchor_under_icon(icon_x, icon_y, icon_w, icon_h, 1000.0);
         assert_eq!(x_compact + 520.0, icon_x + icon_w);
         assert_eq!(x_expanded + 1000.0, icon_x + icon_w);
+    }
+
+    // ------------------------- Amendement A6, point 1 : largeur adaptative -------------------
+
+    #[test]
+    fn clamp_window_width_laisse_passer_une_valeur_dans_la_fourchette() {
+        assert_eq!(clamp_window_width(700.0), 700.0);
+    }
+
+    #[test]
+    fn clamp_window_width_borne_au_minimum_480() {
+        assert_eq!(clamp_window_width(300.0), 480.0);
+    }
+
+    #[test]
+    fn clamp_window_width_borne_au_maximum_1200() {
+        assert_eq!(clamp_window_width(1500.0), 1200.0);
+    }
+
+    #[test]
+    fn clamp_window_width_accepte_exactement_les_bornes() {
+        assert_eq!(clamp_window_width(480.0), 480.0);
+        assert_eq!(clamp_window_width(1200.0), 1200.0);
+    }
+
+    #[test]
+    fn should_resize_width_ignore_un_ecart_sous_le_seuil_hysteresis() {
+        // Bruit de mesure DOM d'un tick à l'autre (arrondi de police) : 5 px < 12 px, ignoré.
+        assert!(!should_resize_width(520.0, 525.0));
+        assert!(!should_resize_width(520.0, 515.0));
+    }
+
+    #[test]
+    fn should_resize_width_ignore_pile_le_seuil() {
+        // Écart strictement égal au seuil : PAS un redimensionnement (le seuil est exclusif,
+        // cf. doc de WIDTH_RESIZE_THRESHOLD_PX — "dépasse le seuil", pas "atteint").
+        assert!(!should_resize_width(520.0, 532.0));
+    }
+
+    #[test]
+    fn should_resize_width_declenche_au_dela_du_seuil() {
+        assert!(should_resize_width(520.0, 533.0));
+    }
+
+    #[test]
+    fn should_resize_width_declenche_symetriquement_en_retrecissement() {
+        // Un contenu qui rétrécit nettement (agent parti) doit aussi faire rétrécir la fenêtre.
+        assert!(should_resize_width(1000.0, 700.0));
     }
 }

@@ -19,13 +19,20 @@ pub struct AppState {
     /// bouton « agrandir » du frontend, qui lui ne reçoit aucun rect (il ne vient pas d'un
     /// événement sur l'icône).
     pub last_tray_rect: Mutex<Option<Rect>>,
-    /// Mode courant de la fenêtre (amendement A4, point 1) : `true` = compacte (520×360, valeur
-    /// par défaut, cohérente avec `tauri.conf.json`), `false` = complète (1000×420). Sert
-    /// UNIQUEMENT à connaître la largeur à utiliser pour réancrer la fenêtre au prochain clic sur
-    /// l'icône (`toggle_window`) — jamais interrogé via `WebviewWindow::outer_size()` juste après
-    /// un `set_size()`, qui peut encore renvoyer l'ANCIENNE taille (les deux passent par le même
+    /// Mode courant de la fenêtre (amendement A4, point 1) : `true` = compacte, `false` =
+    /// complète. Sert à savoir QUELLE largeur adaptative utiliser (`compact_width` /
+    /// `expanded_width`) pour réancrer la fenêtre au prochain clic sur l'icône
+    /// (`toggle_window`) — jamais interrogé via `WebviewWindow::outer_size()` juste après un
+    /// `set_size()`, qui peut encore renvoyer l'ANCIENNE taille (les deux passent par le même
     /// event loop mais l'ordre de prise d'effet n'est pas garanti côté AppKit).
     pub compact: Mutex<bool>,
+    /// Largeur adaptative courante du mode compact (amendement A6, point 1 : la largeur s'ajuste
+    /// au contenu réellement affiché, bornée 480–1200 px, plutôt que figée). Valeur de départ =
+    /// l'ancienne taille fixe (`tauri.conf.json`), avant toute mesure du contenu réel côté
+    /// webview ; recalculée par `tray::fit_window_width`.
+    pub compact_width: Mutex<f64>,
+    /// Idem pour le mode complet (amendement A4 : 1000 px de départ).
+    pub expanded_width: Mutex<f64>,
 }
 
 impl Default for AppState {
@@ -34,6 +41,8 @@ impl Default for AppState {
             running_agents: Mutex::new(AgentsSnapshot::default()),
             last_tray_rect: Mutex::new(None),
             compact: Mutex::new(true),
+            compact_width: Mutex::new(520.0),
+            expanded_width: Mutex::new(1000.0),
         }
     }
 }
