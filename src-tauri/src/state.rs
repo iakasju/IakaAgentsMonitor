@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use tauri::Rect;
 
-use crate::agents::AgentsSnapshot;
+use crate::tree::AgentsSnapshot;
 
 /// Etat applicatif partagé (manage Tauri).
 pub struct AppState {

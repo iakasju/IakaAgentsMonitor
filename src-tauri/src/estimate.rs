@@ -244,6 +244,49 @@ pub fn split_label_suffix(label: &str) -> (String, Option<Estimate>) {
     (remaining, Some(estimate))
 }
 
+// ==================== Extraction BRUTE (pour une source, avant validation) ====================
+//
+// Une source (publieur ou adaptateur) doit transmettre l'estimation TELLE QU'ANNONCÉE, sans la
+// valider elle-même (Q5-A de agnostique-mqtt.md : « une seule grammaire, côté app »). Les deux
+// fonctions suivantes renvoient donc le texte BRUT de la valeur repérée (déjà confirmé conforme à
+// la grammaire, pour ne jamais transmettre un texte qui ne se réanalyserait pas), et non une
+// structure déjà analysée.
+
+/// Cherche la ligne d'estimation (mêmes règles que [`find_consigne_estimate`]) et renvoie le
+/// texte BRUT de la valeur (`"~10 min"`, jamais la structure). `None` si rien de conforme dans
+/// la fenêtre de lignes examinée.
+pub fn find_consigne_estimate_raw(consigne: &str) -> Option<String> {
+    consigne
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .take(CONSIGNE_SCAN_LINES)
+        .find_map(|line| {
+            let trimmed = line.trim_start();
+            let rest = strip_label_prefix(trimmed)?;
+            let rest = skip_ws(rest);
+            let rest = rest.strip_prefix(':')?;
+            let value = rest.trim();
+            parse_value(value)?;
+            Some(value.to_string())
+        })
+}
+
+/// Extrait le texte BRUT du suffixe d'estimation d'un libellé (`"X (~10 min)"` -> `Some("~10
+/// min")`), SANS le retirer du libellé (contrairement à [`split_label_suffix`]) — une source n'a
+/// besoin que de la valeur annoncée. `None` si le suffixe est absent ou invalide.
+pub fn suffix_estimate_raw(label: &str) -> Option<String> {
+    let trimmed = label.trim_end();
+    let chars: Vec<char> = trimmed.chars().collect();
+    let window_start = chars.len().saturating_sub(SUFFIX_WINDOW_CHARS);
+    let window: String = chars[window_start..].iter().collect();
+    let without_close = window.strip_suffix(')')?;
+    let open_byte_pos = without_close.rfind('(')?;
+    let inner = without_close[open_byte_pos + 1..].trim();
+    let value_str = inner.strip_prefix('~')?;
+    parse_value(value_str)?;
+    Some(inner.to_string())
+}
+
 // ============================== Résolution (priorité) ==============================
 
 /// Combine les deux textes d'une délégation : la ligne de consigne l'emporte sur le suffixe du
@@ -581,6 +624,25 @@ mod tests {
     fn fill_pct_plafonne_a_100() {
         assert_eq!(estimate_view(&est(600), 900).fill_pct, 100);
         assert_eq!(estimate_view(&est(600), 300).fill_pct, 50);
+    }
+
+    // ---------------------------- Extraction brute (source) ----------------------------
+
+    #[test]
+    fn find_consigne_estimate_raw_renvoie_le_texte_brut() {
+        assert_eq!(
+            find_consigne_estimate_raw("Durée estimée : ~10 min\nreste"),
+            Some("~10 min".to_string())
+        );
+        assert_eq!(find_consigne_estimate_raw("rien ici"), None);
+        assert_eq!(find_consigne_estimate_raw("Durée estimée : ~1000 min"), None);
+    }
+
+    #[test]
+    fn suffix_estimate_raw_renvoie_le_texte_brut_sans_retirer_le_libelle() {
+        assert_eq!(suffix_estimate_raw("Tache (~10 min)"), Some("~10 min".to_string()));
+        assert_eq!(suffix_estimate_raw("Legolas passe 2 sur 3 (relance)"), None);
+        assert_eq!(suffix_estimate_raw("X (10 min)"), None, "tilde obligatoire");
     }
 
     #[test]

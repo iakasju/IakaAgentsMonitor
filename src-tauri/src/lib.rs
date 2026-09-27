@@ -1,16 +1,19 @@
 //! IakaAgentsMonitor — GUI tray (Tauri v2) : qui travaille en ce moment, pour quel projet, pour
-//! qui. App autonome, en lecture seule sur les transcripts Claude Code déjà écrits localement.
-//! Aucun service, aucun bus, aucun port. Cf. specs/instructions/liste-des-agents.md.
+//! qui. Agnostique du runner (specs/instructions/agnostique-mqtt.md) : les fiches d'agent
+//! arrivent soit par le bus MQTT local (tout runner qui publie sur `iaka/agents/out/…`), soit,
+//! en repli quand le broker est absent, par l'adaptateur Claude Code (lecture des transcripts
+//! déjà écrits localement). Aucun autre service, aucun port en écoute côté app.
 
-mod agents;
 mod card;
 mod claude_paths;
 mod estimate;
 mod labels;
 mod roster;
+mod sources;
 mod state;
 mod tray;
 mod tree;
+mod watcher;
 
 use state::AppState;
 
@@ -21,7 +24,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
-            agents::get_running_agents,
+            watcher::get_running_agents,
             tray::set_window_mode,
             tray::fit_window_width,
             tray::fit_window_height
@@ -35,9 +38,9 @@ pub fn run() {
             let handle = app.handle().clone();
             tray::build_tray(&handle)?;
 
-            // Agents Claude Code en cours : watcher dedie, aucune persistance (l'instantane se
-            // reconstruit a chaud depuis les sidecars a chaque tick).
-            agents::start_watcher(handle.clone());
+            // Agents en cours : watcher dedie (source bus + repli fichiers), aucune persistance
+            // (l'instantane se reconstruit a chaud a chaque tick).
+            watcher::start_watcher(handle.clone());
 
             Ok(())
         })

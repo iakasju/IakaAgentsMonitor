@@ -336,13 +336,23 @@ fn build_session_node(
         Some(card) => {
             let elapsed = (now - card.last_seen_at).max(0);
             let started_secs = (now - card.started_at).max(0);
-            let (task_display, _) = estimate::split_label_suffix(card.task.as_deref().unwrap_or(""));
+            let (task_display, _) = estimate::resolve(&estimate::DelegationText {
+                consigne: None,
+                short_label: Some(card.task.clone().unwrap_or_default()),
+            });
+            let task_display = task_display.unwrap_or_default();
             let task = if task_display.trim().is_empty() {
                 "coordinateur".to_string()
             } else {
                 task_display
             };
             let resolved = resolve_persona(Some(&labels.main_persona), &roster_map, labels);
+            // État du coordinateur (contrat § Fiche, champ `state`) : "idle" entre deux tours,
+            // signalé dans l'infobulle — les boutons de contrôle (pause/reprise/arrêt) restent un
+            // sous-lot séparé (amendement A1, non livré ici), cette mention est purement
+            // informative.
+            let state = card.state_or_default();
+            let state_suffix = if state == "idle" { " (en attente)" } else { "" };
             (
                 AgentNode {
                     sprite: resolved.sprite,
@@ -355,7 +365,10 @@ fn build_session_node(
                     model: card.model.as_deref().map(|m| labels.model_label(m)).unwrap_or_else(|| "—".to_string()),
                     runner: runner_label.clone(),
                     estimate: None, // DA-T6 : la session principale n'a jamais d'estimation.
-                    tooltip: format!("{} (coordinateur) — actif il y a {elapsed} s", resolved.key),
+                    tooltip: format!(
+                        "{} (coordinateur){state_suffix} — actif il y a {elapsed} s",
+                        resolved.key
+                    ),
                     children: coordinator_children,
                     overflow: None,
                 },
@@ -437,7 +450,11 @@ fn build_children(
             let resolved = resolve_persona(card.persona.as_deref(), roster_map, labels);
             let elapsed = (now - card.last_seen_at).max(0);
             let started_secs = (now - card.started_at).max(0);
-            let (task_display, _) = estimate::split_label_suffix(card.task.as_deref().unwrap_or(""));
+            let (task_display, _) = estimate::resolve(&estimate::DelegationText {
+                consigne: None,
+                short_label: Some(card.task.clone().unwrap_or_default()),
+            });
+            let task_display = task_display.unwrap_or_default();
 
             let mut tooltip = if task_display.is_empty() {
                 format!("{} — actif il y a {elapsed} s", resolved.key)

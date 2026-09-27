@@ -127,16 +127,18 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 }
 
 /// Met à jour le titre du tray = effectif courant (DA-2 : toujours affiché, `0` compris) +
-/// tooltip lisible. Appelé par `agents::run_watcher` à chaque changement d'instantané.
-pub fn update_title(app: &AppHandle, count: u32) {
+/// tooltip lisible, complétée de la source courante (étape 7 de agnostique-mqtt.md : « — source :
+/// bus » ou « — source : fichiers (bus absent) »). Appelé par `watcher::run_watcher` à chaque
+/// changement d'instantané ou de source.
+pub fn update_title(app: &AppHandle, count: u32, source: &str) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
     let _ = tray.set_title(Some(count.to_string()));
     let label = if count == 1 {
-        "1 agent en cours".to_string()
+        format!("1 agent en cours — source : {source}")
     } else {
-        format!("{count} agents en cours")
+        format!("{count} agents en cours — source : {source}")
     };
     let _ = tray.set_tooltip(Some(label));
 }
