@@ -33,9 +33,19 @@ le démon relaie fiches, présence et sessions vers le central sous le même arb
 (mêmes règles dans les trois langages, prouvées par `contract-vectors/`). Vecteurs partagés exécutés par
 `fleet/` (`node --test`), le publieur et l'app (`cargo test`, `src-tauri/tests/vectors.rs`).
 
-Agnostique du runner (`specs/instructions/agnostique-mqtt.md`) : les fiches d'agent arrivent soit par le
-**bus MQTT local**, soit, **en repli strict** quand le broker local est absent, par l'**adaptateur Claude
-Code** (lecture des transcripts dans `~/.claude/projects/`). L'app **s'abonne seulement** : aucun service,
+**« Ce poste » lu sur le disque** (`specs/instructions/ce-poste-vue-locale-lisibilite.md`, D1-D4 ; remplace
+la bascule stricte bus-ou-fichiers Q3-A d'`agnostique-mqtt.md`) : l'app lit **elle-même** les sources du démon,
+sans broker ni démon — `~/.claude/sessions/<pid>.json` (vivacité `kill(pid,0)`, crate `libc` en dépendance
+directe, **Unix seulement**) et `~/.cache/iaka-agents/<sessionId>/<agentId>.json` (`src-tauri/src/sources/local_sessions.rs`,
+portage de `fleet/src/agent/sessions.js`/`cards.js`, vecteurs `contract-vectors/local-sessions.json`). **La session
+fait foi** : pid vivant ⇒ affichée toujours ; coordinateur = fiche `main` sinon ligne synthétique (nom de session,
+status, dépôt du `cwd`) ; sous-agents = fiches du disque **unies** à celles du bus local s'il est joint
+(dédoublonnage, la plus récente gagne) ; fiche orpheline fraîche (90 s) ⇒ « agents non rattachés » ; session sans
+aucune fiche ⇒ **repli par transcripts pour CETTE session seule** (`claude_code_files::cards_for_session`) — le
+parcours complet de `~/.claude/projects` n'est plus appelé (il coûtait ~440 ms/tick en release, cause des pics CPU).
+Les fiches d'un runner autre que Claude Code (bus local) restent leurs propres sessions. Titre
+`Ce poste — <node> · N session(s) · M agent(s)` + `démon : <libellé>` + phrase d'état (`src-tauri/src/local_view.rs`).
+L'app **s'abonne seulement** : aucun service,
 aucun port en écoute ; connexions sortantes : `127.0.0.1:1883` (iakahub d'iakaTokenCounter, réutilisé sans
 le modifier) et, **seulement si `~/.iakafleet/.env` porte des identifiants**, le broker central en **TLS**
 (`mqtts://mqtt.naonedge.com:8883` par défaut, `IAKAFLEET_MQTT_URL`), abonnement `iaka/+/out/#`, jamais `in/`.
@@ -45,8 +55,8 @@ comme un shell (`fleet/` n'importe pas `child_process` : garde statique par list
 sous `node --permission` par les gabarits de service, sans `--allow-child-process`, `G-EXEC-2`). Complète iakaTokenCounter sans le recouvrir.
 
 Stack : Tauri 2 (Rust) + TypeScript/Vite ; `fleet/` : Node ≥ 22.14 (modèle de permissions), JS sans build, dépendance `mqtt` (épinglée).
-Client MQTT (`rumqttc`, TLS rustls déjà inclus) et parseur TOML (`toml`) sont les deux seules dépendances
-Rust non-Tauri ; aucun nom de runner ni de fournisseur de modèle hors de
+Client MQTT (`rumqttc`, TLS rustls déjà inclus), parseur TOML (`toml`) et `libc` (vivacité des pid) sont les
+seules dépendances Rust non-Tauri ; aucun nom de runner ni de fournisseur de modèle hors de
 `src-tauri/config/labels.default.toml`, `src-tauri/src/sources/claude_code_files.rs` et
 `publishers/claude-code/` (vérifiable par grep, cf. instruction). Icône de barre de menus fixe
 (mode template macOS) + titre = effectif d'agents ; fenêtre = tableau des agents, indenté par
@@ -64,10 +74,16 @@ npm run build           # build front de prod
 npm run tauri build     # bundle .app macOS
 npm run typecheck       # tsc --noEmit
 npm run test:publisher  # tests du publieur Claude Code (node --test, faux broker node:net)
+npm run test:styles     # = test:contrast + test:fontsize (Node sans dépendance, ~0,1 s)
+npm run test:contrast   # WCAG 2.x : registre scripts/contrast-registry.json (>= 4,5:1 tout texte, >= 5:1
+                         # bandeaux, clair ET sombre), coloris conservés (seuls les jetons D8 changent, ± 5°)
+npm run test:fontsize   # zéro font-size en dur hors bloc --sc-fs-*, plancher 14/13 px, crans 14/16/18 (défaut 16)
+scripts/measure-cpu.sh  # protocole D7 sur un BUILD DE PUBLICATION (décideur) : 600 s, moyenne <= 1 %, pic <= 10 %
 
 cd src-tauri
-cargo test               # ~130 tests (fiche, config, roster, arbre, sources, bus, distante, vecteurs)
+cargo test               # ~140 tests (fiche, config, roster, arbre, sources, bus, distante, vecteurs)
 cargo clippy --all-targets -- -D warnings
+cargo run --release --example tick_bench   # micro-banc : ancien tick (parcours complet) vs nouveau (O(sessions))
 
 cd fleet                 # démon de machine + CLI (ex-iakaFleet)
 npm ci && npm test       # node --test, aucune connexion externe (test/permission.test.js : démon sous --permission contre un faux broker sur 127.0.0.1)
@@ -77,7 +93,10 @@ node bin/iakafleet-agent.js                 # démon (en pratique lancé par un 
 ```
 
 Variables d'environnement de l'app : `IAKAAM_MQTT_PORT` (port du broker local, défaut 1883),
-`IAKAAM_LIVENESS_SECS` (seuil de péremption, défaut 90). Central / nœud / confidentialité
+`IAKAAM_LIVENESS_SECS` (péremption des **sous-agents**, défaut 90 ; une session vivante ne périme jamais),
+`IAKAAM_TRACE=1` (durée de chaque tick sur stderr, budget p95 ≤ 50 ms), `IAKAFLEET_SESSIONS_DIR` (répertoire de
+sessions, comme le démon). Taille du texte : trois crans 14 / 16 / 18 px dans la barre du haut (défaut 16,
+mémorisé `iakaam-size`). Central / nœud / confidentialité
 (`~/.iakafleet/.env`, cf. `fleet/docs/installation.md`) : `IAKA_NODE`, `IAKAFLEET_MQTT_URL`,
 `IAKAFLEET_AGENT_USER`/`_PASS` ou `IAKAFLEET_CONSOLE_USER`/`_PASS`, `IAKA_MASK_NAMES`, `IAKA_SHOW_TASKS`.
 Secrets : Vaultwarden `work/iakaFleet`, jamais dans le dépôt.
@@ -145,6 +164,10 @@ reprise** dans le `.md` (ce qui vient d'être fait, ce qui reste, prochaine éta
 - [x] Fusion iakaFleet + vue distante — `specs/instructions/fusion-flotte-vue-distante.md` : import `fleet/`,
       contrat v2, vecteurs, relais des fiches, CLI agents, source distante + zone « Autres machines »
       (livré en P2 hors broker réel ; **gate Legolas à passer**).
+- [ ] Ce poste, vue locale et lisibilité — `specs/instructions/ce-poste-vue-locale-lisibilite.md` : source locale
+      disque (D1-D3), titre + phrase d'état (D4), message vide (D5), direction A + crans 14/16/18 + coloris
+      accentués (D6, D8), trace et protocole CPU (D7) — P2 remis au **gate Legolas** (aucun verdict) ; recette visuelle
+      et budget CPU sur build de publication (`CA-12`, `CA-R1`) = décideur.
 - [ ] Reste de la fusion : `M4` (TLS `rumqttc` vers le VPS, après le Lot 0 amendé), lot `L-INSTALL`
       (démon + hooks, Mac puis PC — geste du décideur), recette `CA-R*`, README de renvoi dans iakaFleet
       puis archivage (décideur), état des lieux v0.3.0.
