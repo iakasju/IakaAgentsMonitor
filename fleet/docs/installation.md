@@ -81,7 +81,8 @@ s'ecrit sur stderr avec le code 2.
 |---|---|
 | **en ligne** | agent connecte, dernier battement recent (<= 3 x `heartbeat_s`) |
 | **muette** | agent encore connecte au broker mais horloge arretee (battement perime) |
-| **hors ligne depuis X** | testament recu ou arret propre : la machine est partie |
+| **hors ligne (dernier signe de vie il y a X)** | testament recu ou arret propre : la machine est partie ; X = temps ecoule depuis son dernier battement (ou depuis l'heure exacte d'un arret propre) |
+| **hors ligne (heure d'arrêt inconnue ; connecté il y a X)** | idem, mais aucun battement connu : on ne sait que l'heure de la derniere connexion |
 | **inconnue** | la machine a publie des codes mais jamais `online` |
 | `! sessions illisibles` | l'agent ne peut pas lire le repertoire de sessions de Claude Code |
 | `? (dernier connu : busy, il y a 2 h)` | session d'une machine non "en ligne" : derniere valeur connue, pas un fait |
@@ -90,6 +91,8 @@ s'ecrit sur stderr avec le code 2.
 | `- Gimli  running  tache masquee` | agent (fiche) sous sa session, rattache par `<sid>` ; `tache masquee` = la machine ne publie pas le texte (`IAKA_SHOW_TASKS` absent) |
 | `agents non rattaches` | fiches dont le `<sid>` ne correspond a aucune session (ex. apres `/clear`) : jamais perdues |
 | `! fiches d'agents : aucune source sur cette machine` | hooks du publieur non installes sur cette machine : ce n'est PAS « aucun agent » |
+
+La precision du « dernier signe de vie » est d'environ une minute (periode de battement). Le testament est depose a la connexion : son horodatage est celui de la connexion du demon, jamais celui de sa mort.
 
 Une machine **mise en veille passe "hors ligne"** : c'est la verite, pas une erreur.
 
