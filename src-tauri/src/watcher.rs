@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::labels;
 use crate::roster::Roster;
+use crate::local_view;
 use crate::sources::{
     bus::BusSource,
     claude_code_files,
@@ -85,6 +86,7 @@ pub fn source_label(bus_connected: bool) -> &'static str {
 fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
     let labels = labels::load_labels();
     let roster = Roster::new();
+    let node = crate::fleet_config::load().node;
     let projects_dir = claude_code_files::claude_projects_dir();
     let sessions_dir = local_sessions::sessions_dir();
     let cards_dir = local_sessions::cards_dir();
@@ -120,8 +122,9 @@ fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
         );
         let source = source_label(bus_connected);
 
-        let snap = outcome.snapshot;
-        let _ = notice;
+        let mut snap = outcome.snapshot;
+        let daemon = remote.own_daemon_label(now);
+        snap.header = Some(local_view::build_header(node.as_deref(), &snap, &daemon, notice));
         {
             let state = app.state::<AppState>();
             *state.running_agents.lock().unwrap() = snap.clone();

@@ -20,6 +20,7 @@ import type {
   FleetAgent,
   FleetMachine,
   FleetSession,
+  LocalHeader,
   RemoteView,
   SessionNode,
 } from "./types";
@@ -249,6 +250,9 @@ function groupByProject(sessions: SessionNode[]): Group[] {
  * récursivement leurs descendants — jamais les groupes entre eux (amendement A6, point 2). */
 function sortedGroups(snap: AgentsSnapshot): Group[] {
   const groups = groupByProject(snap.sessions);
+  if (snap.unattached.length > 0) {
+    groups.push({ project: UNATTACHED_LABEL, roots: structuredClone(snap.unattached), color: -1 });
+  }
   if (!sort) return groups;
   const { col, dir } = sort;
   for (const g of groups) {
@@ -363,7 +367,7 @@ function headerRow(): HTMLElement {
  * toutes les valeurs de couleur vivent dans `styles.css`, l'index seul vient de Rust. */
 function groupRowElement(project: string, color: number, columnCount: number): HTMLElement {
   const tr = document.createElement("tr");
-  tr.className = `agents-group-row agents-group-row--c${color}`;
+  tr.className = `agents-group-row agents-group-row--${color < 0 ? "none" : `c${color}`}`;
   const td = document.createElement("td");
   td.colSpan = columnCount;
   td.textContent = project;
@@ -471,7 +475,11 @@ export function renderAgents(snap: AgentsSnapshot): void {
   if (!section) return;
   section.replaceChildren();
 
-  if (snap.sessions.length === 0) {
+  // Titre « Ce poste » (D4) : même gabarit que « Autres machines », puis la phrase d'état ; l'absence
+  // ne se déguise jamais (source locale dégradée => dite).
+  if (snap.header) section.appendChild(localHeader(snap.header));
+
+  if (snap.sessions.length === 0 && snap.unattached.length === 0) {
     const p = document.createElement("p");
     p.className = "empty";
     p.textContent = "Aucun agent en cours";
@@ -492,6 +500,33 @@ export function renderAgents(snap: AgentsSnapshot): void {
     more.textContent = `+${snap.overflowSessions} session(s)`;
     section.appendChild(more);
   }
+}
+
+/** Libellé du groupe des fiches orphelines (D2.5) ; couleur -1 = teinte neutre (pas un dépôt). */
+const UNATTACHED_LABEL = "agents non rattachés";
+
+/** En-tête de « Ce poste » : titre (+ état du démon sur la même ligne), phrase d'état, avertissement. */
+function localHeader(h: LocalHeader): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "local-head";
+  const title = document.createElement("div");
+  title.className = "section-title";
+  title.setAttribute("role", "heading");
+  title.setAttribute("aria-level", "2");
+  const name = document.createElement("span");
+  name.className = "local-title";
+  name.textContent = h.title;
+  const daemon = document.createElement("span");
+  daemon.className = "local-daemon";
+  daemon.textContent = h.daemon;
+  title.append(name, daemon);
+  wrap.appendChild(title);
+  const phrase = document.createElement("p");
+  phrase.className = "local-phrase";
+  phrase.textContent = h.phrase;
+  wrap.appendChild(phrase);
+  if (h.notice) wrap.appendChild(fleetNote(h.notice, "fleet-notice fleet-notice--down"));
+  return wrap;
 }
 
 // ---- « Autres machines » (vue distante, instruction de fusion D4) --------------------------------
@@ -599,7 +634,9 @@ export function renderFleet(view: RemoteView): void {
   }
   section.hidden = false;
   const title = document.createElement("div");
-  title.className = "fleet-title";
+  title.className = "section-title";
+  title.setAttribute("role", "heading");
+  title.setAttribute("aria-level", "2");
   title.textContent = "Autres machines";
   section.appendChild(title);
 
@@ -611,7 +648,10 @@ export function renderFleet(view: RemoteView): void {
 
   if (view.machines.length === 0) {
     if (view.status === "connected") {
-      section.appendChild(fleetNote("Aucune autre machine n'a publié", "empty"));
+      // D5 : message lisible et informatif, en encre secondaire conforme (plus `.empty` en faible).
+      const where = view.brokerHost ? ` sur ${view.brokerHost}` : "";
+      section.appendChild(fleetNote(`Aucune autre machine n'a publié${where}`, "fleet-empty"));
+      section.appendChild(fleetNote("Les machines apparaissent ici dès que leur démon tourne.", "fleet-empty fleet-empty--hint"));
     }
     return;
   }

@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use crate::card::AgentCard;
 use crate::estimate;
 use crate::labels::Labels;
+use crate::local_view::LocalHeader;
 use crate::roster::{expand_home, PersonaInfo, Roster};
 
 /// Bornes d'affichage : au-delà, un marqueur « +N » (identiques à liste-des-agents.md).
@@ -181,6 +182,9 @@ pub struct AgentsSnapshot {
     /// Agents dont la session n'est pas (ou plus) vivante mais dont la fiche est fraîche (D2.5 de
     /// `ce-poste-vue-locale-lisibilite.md`) : « agents non rattachés », jamais perdus.
     pub unattached: Vec<AgentNode>,
+    /// Titre, état du démon et phrase d'état de « Ce poste » — posé par le watcher, `None` hors
+    /// de la vue locale (tests du cœur).
+    pub header: Option<LocalHeader>,
 }
 
 pub(crate) fn format_duration_secs(secs: i64) -> String {
@@ -295,6 +299,7 @@ pub fn build_snapshot_ext(
             None
         },
         unattached,
+        header: None,
     }
 }
 

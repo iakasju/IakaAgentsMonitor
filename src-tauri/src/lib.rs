@@ -11,6 +11,7 @@ pub mod estimate;
 pub mod fleet_config;
 pub mod fleet_model;
 pub mod labels;
+pub mod local_view;
 pub mod roster;
 pub mod sources;
 mod state;

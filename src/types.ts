@@ -45,6 +45,8 @@ export interface AgentNode {
    * specs/instructions/agnostique-mqtt.md, étape 8) — plus aucune constante figée ici : toute la
    * neutralité vis-à-vis du runner tient dans ce champ. */
   runner: string;
+  /** État d'exécution (`running` | `idle`, contrat § Fiche) ; vide pour le marqueur de débordement. */
+  state: string;
   /** Temps restant estimé (colonne « Reste »), `null` pour le coordinateur, le marqueur de
    * débordement, ou tout agent sans estimation annoncée — cellule à tiret, jamais de barre
    * inventée. */
@@ -70,6 +72,27 @@ export interface AgentsSnapshot {
   count: number;
   sessions: SessionNode[];
   overflowSessions: number | null;
+  /** Agents dont la session n'est plus vivante mais dont la fiche est fraîche (D2.5 de
+   * `ce-poste-vue-locale-lisibilite.md`) : « agents non rattachés », jamais perdus. */
+  unattached: AgentNode[];
+  /** Titre, état du démon et phrase d'état de « Ce poste » (D4), déjà composés côté Rust. */
+  header: LocalHeader | null;
+}
+
+/** En-tête de « Ce poste » (miroir Rust `local_view::LocalHeader`) : la webview ne fait que peindre. */
+export interface LocalHeader {
+  /** `Ce poste — <node> · N session(s) · M agent(s)`. */
+  title: string;
+  /** `démon : <libellé>` — mêmes mots que la vue distante. */
+  daemon: string;
+  /** « 2 agents travaillent · 1 session en cours sur 4 ». */
+  phrase: string;
+  /** Avertissement de source locale dégradée (l'absence ne se déguise jamais en vide). */
+  notice: string | null;
+  sessions: number;
+  agents: number;
+  activeAgents: number;
+  busySessions: number;
 }
 
 // ---- Vue « Autres machines » (central) : miroir Rust `sources::remote::RemoteView` -----------
@@ -118,4 +141,6 @@ export interface RemoteView {
   reason: string | null;
   machines: FleetMachine[];
   ownNode: string | null;
+  /** Hôte du broker central (message « Aucune autre machine n'a publié sur <hôte> »). */
+  brokerHost: string | null;
 }

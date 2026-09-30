@@ -385,6 +385,11 @@ button:focus-visible {
   color: var(--grp-4-fg);
   border-left-color: var(--grp-4-fg);
 }
+.agents-group-row--none td {
+  background: var(--sc-well);
+  color: var(--sc-ink-muted);
+  border-left-color: var(--sc-ink-muted);
+}
 .agents-group-row--c5 td {
   background: var(--grp-5-bg);
   color: var(--grp-5-fg);
@@ -518,13 +523,45 @@ button:focus-visible {
 .fleet[hidden] {
   display: none;
 }
-.fleet-title {
+/* Titre de section (« Ce poste », « Autres machines ») : MÊME gabarit (D4). */
+.section-title {
   font-family: var(--sc-font-mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sc-ink-muted);
   padding: 8px 8px 4px;
+}
+.local-head {
+  border-bottom: 1px solid var(--sc-border);
+}
+.local-head .section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+.local-title {
+  color: var(--sc-ink);
+  font-weight: 700;
+}
+.local-daemon {
+  color: var(--sc-ink-muted);
+}
+.local-phrase {
+  margin: 0;
+  padding: 0 8px 8px;
+  font-size: 12px;
+  color: var(--sc-ink);
+}
+.fleet-empty {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--sc-ink-muted);
+}
+.fleet-empty--hint {
+  padding-bottom: 12px;
 }
 .fleet-notice {
   font-family: var(--sc-font-mono);

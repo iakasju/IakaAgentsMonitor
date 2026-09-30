@@ -13,6 +13,7 @@
 
 use rumqttc::{Client, Event, MqttOptions, Packet, QoS, SubscribeReasonCode, Transport};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -22,7 +23,9 @@ use std::time::Duration;
 use crate::card::parse_card;
 use crate::contract::{self, parse_topic, Topic};
 use crate::fleet_config::{RemoteConfig, RemoteSetting};
-use crate::fleet_model::{build_fleet, decode_code_msg, MachineView, RemoteStore};
+use crate::fleet_model::{
+    build_fleet, decode_code_msg, machine_state, machine_state_label, CodeMsg, MachineView, RemoteStore,
+};
 
 const RECONNECT_MIN_BACKOFF: Duration = Duration::from_secs(1);
 const RECONNECT_MAX_BACKOFF: Duration = Duration::from_secs(30);
@@ -64,12 +67,19 @@ pub struct RemoteView {
     pub reason: Option<String>,
     pub machines: Vec<MachineView>,
     pub own_node: Option<String>,
+    /// Hôte du broker central (message « Aucune autre machine n'a publié sur <hôte> ») ; `None`
+    /// sans central configuré.
+    pub broker_host: Option<String>,
 }
 
 struct Inner {
     store: RemoteStore,
     link: Link,
     own_node: Option<String>,
+    /// Codes de `presence/` du PROPRE `<node>` (jamais mêlés aux « Autres machines ») : servent
+    /// seulement à dire l'état du démon de cette machine dans le titre de « Ce poste ».
+    own_meta: HashMap<String, CodeMsg>,
+    broker_host: Option<String>,
 }
 
 impl Inner {
@@ -84,6 +94,7 @@ impl Inner {
                 // Resynchronisation : les retenus effacés pendant une coupure ne doivent pas
                 // survivre dans le magasin.
                 self.store = RemoteStore::default();
+                self.own_meta.clear();
                 self.link = Link::Connected;
             }
             FeedEvent::Denied(reason) | FeedEvent::Disconnected(reason) => {
@@ -95,11 +106,19 @@ impl Inner {
 
     fn apply_publish(&mut self, topic: &str, payload: &[u8]) {
         match parse_topic(topic) {
-            // Messages de son propre <node> : ignorés (pas de doublon avec « Ce poste »).
-            Some(Topic::Presence { node, .. })
-            | Some(Topic::Session { node, .. })
-            | Some(Topic::Agent { node, .. })
-                if self.is_own(&node) => {}
+            // Présence de son propre <node> : conservée à part (état du démon, titre de « Ce
+            // poste »), jamais dans la table des autres machines.
+            Some(Topic::Presence { node, code }) if self.is_own(&node) => match decode_code_msg(payload) {
+                Ok(Some(m)) => {
+                    self.own_meta.insert(code, m);
+                }
+                Ok(None) => {
+                    self.own_meta.remove(&code);
+                }
+                Err(_) => {}
+            },
+            // Sessions et fiches de son propre <node> : ignorées (pas de doublon avec « Ce poste »).
+            Some(Topic::Session { node, .. }) | Some(Topic::Agent { node, .. }) if self.is_own(&node) => {}
             Some(Topic::Presence { .. }) | Some(Topic::Session { .. }) => match decode_code_msg(payload) {
                 Ok(Some(m)) => {
                     self.store.codes.insert(topic.to_string(), m);
@@ -137,14 +156,22 @@ impl RemoteSource {
             RemoteSetting::NotConfigured => Self::inert(Link::NotConfigured, own_node),
             RemoteSetting::Refused(reason) => Self::inert(Link::Unreachable(reason.clone()), own_node),
             RemoteSetting::Configured(cfg) => {
-                Self::start_with_feed(Box::new(RumqttFeed::new(cfg.clone())), own_node)
+                let src = Self::start_with_feed(Box::new(RumqttFeed::new(cfg.clone())), own_node);
+                src.inner.lock().unwrap().broker_host = Some(cfg.host.clone());
+                src
             }
         }
     }
 
     fn inert(link: Link, own_node: Option<String>) -> Self {
         RemoteSource {
-            inner: Arc::new(Mutex::new(Inner { store: RemoteStore::default(), link, own_node })),
+            inner: Arc::new(Mutex::new(Inner {
+                store: RemoteStore::default(),
+                link,
+                own_node,
+                own_meta: HashMap::new(),
+                broker_host: None,
+            })),
             stop: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -155,6 +182,8 @@ impl RemoteSource {
             store: RemoteStore::default(),
             link: Link::Connecting,
             own_node,
+            own_meta: HashMap::new(),
+            broker_host: None,
         }));
         let stop = Arc::new(AtomicBool::new(false));
         let (inner_c, stop_c) = (inner.clone(), stop.clone());
@@ -182,6 +211,26 @@ impl RemoteSource {
             reason,
             machines: build_fleet(&g.store, g.own_node.as_deref(), now_s),
             own_node: g.own_node.clone(),
+            broker_host: g.broker_host.clone(),
+        }
+    }
+
+    /// État du démon de CETTE machine, pour le titre de « Ce poste » (`D4`). Même fonction de
+    /// libellé que pour les autres machines (`machine_state_label`) quand sa présence est lue ;
+    /// sinon le motif de l'absence est dit (jamais un blanc).
+    pub fn own_daemon_label(&self, now_s: i64) -> String {
+        let g = self.inner.lock().unwrap();
+        if g.link == Link::NotConfigured {
+            return "non observé (pas de broker central)".to_string();
+        }
+        if g.own_meta.contains_key("online") {
+            return machine_state_label(&machine_state(&g.own_meta, now_s), now_s);
+        }
+        match &g.link {
+            Link::Connected => machine_state_label(&machine_state(&g.own_meta, now_s), now_s), // « inconnue »
+            Link::Connecting => "non observé (connexion au broker central…)".to_string(),
+            Link::Unreachable(_) => "non observé (broker central injoignable)".to_string(),
+            Link::NotConfigured => unreachable!("traité plus haut"),
         }
     }
 }
@@ -429,5 +478,40 @@ mod tests {
         let v = src.view(0);
         assert_eq!(v.status, "unreachable");
         assert!(v.reason.unwrap().contains("en clair refusé"));
+    }
+
+    #[test]
+    fn etat_du_demon_propre_meme_libelle_que_les_autres_machines() {
+        // D4 : pas de central => « non observé » ; présence propre lue => MÊMES mots que la vue
+        // distante (même fonction) ; jamais mêlée aux « Autres machines ».
+        let none = RemoteSource::start(&RemoteSetting::NotConfigured, Some("mac".into()));
+        assert_eq!(none.own_daemon_label(10_000), "non observé (pas de broker central)");
+
+        let (src, tx) = source(Some("mac"));
+        assert_eq!(src.own_daemon_label(10_000), "non observé (connexion au broker central…)");
+        tx.send(FeedEvent::Connected).unwrap();
+        wait_for(&src, |v| v.status == "connected");
+        assert_eq!(src.own_daemon_label(10_000), "inconnue");
+        for n in ["mac", "pc"] {
+            publish(&tx, &format!("iaka/{n}/out/presence/online/current"), r#"{"v":false,"t":1000}"#);
+            publish(&tx, &format!("iaka/{n}/out/presence/last_tick_at/current"), r#"{"v":9950,"t":9950}"#);
+        }
+        let v = wait_for(&src, |v| v.machines.iter().any(|m| m.node == "pc" && m.state_label.contains("dernier signe de vie")));
+        let pc = v.machines.iter().find(|m| m.node == "pc").unwrap();
+        assert_eq!(v.machines.len(), 1, "le propre node ne fait pas partie des autres machines");
+        // Attendre que la présence propre soit lue (même file d'événements que pc : déjà traitée).
+        assert_eq!(src.own_daemon_label(10_000), pc.state_label, "même fonction de libellé");
+        assert_eq!(src.own_daemon_label(10_000), "hors ligne (dernier signe de vie il y a 50 s)");
+        tx.send(FeedEvent::Disconnected("réseau coupé".into())).unwrap();
+        wait_for(&src, |v| v.status == "unreachable");
+        assert_eq!(src.own_daemon_label(10_000), "hors ligne (dernier signe de vie il y a 50 s)", "dernier connu conservé");
+    }
+
+    #[test]
+    fn broker_injoignable_sans_presence_propre_dit_non_observe() {
+        let (src, tx) = source(Some("mac"));
+        tx.send(FeedEvent::Disconnected("refusé".into())).unwrap();
+        wait_for(&src, |v| v.status == "unreachable");
+        assert_eq!(src.own_daemon_label(10_000), "non observé (broker central injoignable)");
     }
 }
