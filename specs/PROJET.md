@@ -105,3 +105,14 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
   exécuté comme un shell ; TLS + un identifiant MQTT par machine + ACL par branche ; secrets dans
   Vaultwarden ; confidentialité (pas d'identifiant de session ni de socket vers le central, masquage
   facultatif des noms) ; aucun centre obligatoire ; CLI d'abord, puis GUI (= le Monitor).
+- **2026-09-30** — **« Ce poste » = toutes les sessions et tous les agents de la machine**, lus par l'app
+  elle-même sur les fichiers du démon (`~/.claude/sessions`, `~/.cache/iaka-agents`) ; la **bascule stricte
+  Q3-A** (bus **ou** fichiers) est **remplacée** par une union ; l'ancienne détection par transcripts reste
+  en **repli par session** ; budget CPU au repos ≤ 1 % moyen, aucun pic > 10 % (build de publication).
+  *Décideur, recommandations acceptées* — `specs/instructions/ce-poste-vue-locale-lisibilite.md`.
+- **2026-09-30** — **Lisibilité** : direction **A « Tableau calme »** de Loki + **phrase d'état** de C en tête
+  de « Ce poste » ; **coloris actuels conservés, seulement un peu accentués** (aucune nouvelle teinte) ;
+  plancher **14 px courant / 13 px secondaire**, rien sous 12 px ; **trois crans 14 / 16 / 18 px** dans la barre
+  du haut ; à 480 px **deux lignes par agent**, runner et modèle **visibles** (amende A4 point 1) ; bandeaux de
+  dépôt A7 retouchés dans la même limite. *Décideur : « A mes en gardant les coloris actuelles juste un peu
+  accentués. reco ok ».* Maquettes : `~/work/iakagraph/etudes/IakaAgentsMonitor/lisibilite/`.

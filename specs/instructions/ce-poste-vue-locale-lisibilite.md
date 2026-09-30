@@ -8,6 +8,13 @@
 > elle grave les **exigences testables** que toute direction retenue doit tenir.
 >
 > Conventions : `F*` fait · `M*` mesure par Gimli · `D*` décision · `R*` risque · `CA-*` critère.
+>
+> ✅ **TRANCHÉ par le décideur le 2026-09-30** (verbatim : *« A mes en gardant les coloris actuelles juste
+> un peu accentués. reco ok »*) : `D1`, `D2` (union qui remplace Q3-A), `D3`, `D7` **acceptées telles
+> quelles** ; `D6` **tranchée autrement** que la recommandation initiale (plancher **14 / 13 px**, trois
+> crans **14 / 16 / 18 px**) ; direction visuelle **A « Tableau calme »** de Loki **+ la phrase d'état de C**
+> en tête de « Ce poste » ; **coloris actuels conservés, seulement accentués** (`D8`). Plus aucune question
+> ouverte (§ 9).
 
 ---
 
@@ -49,7 +56,7 @@ que « Ce poste » montre **toutes** les sessions et **tous** les agents de la m
 
 ## 3. Décisions
 
-### `D1` — Source de « Ce poste » : **l'app lit elle-même les sources disque du démon** — *recommandée*
+### `D1` — Source de « Ce poste » : **l'app lit elle-même les sources disque du démon** — ✅ *acceptée (option i)*
 
 | Option | Pour | Contre | Coût |
 |---|---|---|---|
@@ -84,10 +91,11 @@ d'abord).
 
 **Conséquence assumée — amendement d'un arbitrage antérieur** : la **bascule stricte Q3-A**
 d'`agnostique-mqtt.md` (bus **ou** fichiers, jamais les deux) est **remplacée** par cette union ; le bus
-local reste une source (runners non-Claude à venir), il n'est plus exclusif. *Le décideur doit le
-confirmer* (§ 9).
+local reste une source (runners non-Claude à venir), il n'est plus exclusif. ✅ **Confirmé par le décideur
+le 2026-09-30** ; Gimli ajoute en tête d'`agnostique-mqtt.md` une ligne « Q3-A remplacée par l'union `D2` de
+`ce-poste-vue-locale-lisibilite.md` » (seule écriture autorisée dans cette instruction-là).
 
-### `D3` — Sort de l'ancienne détection par transcripts : **gardée, réduite au repli par session**
+### `D3` — Sort de l'ancienne détection par transcripts : **gardée, réduite au repli par session** — ✅ *acceptée*
 
 Retirée comme source principale (elle est la cause probable des pics CPU, `F4`, et masque les sessions
 calmes, `F5`) ; conservée **pour une session sans fiche** (`D2`.4), là où elle apporte persona, modèle et
@@ -109,28 +117,65 @@ Même gabarit visuel que le titre « Autres machines » (niveau de titre identiq
 Le propre `<node>` reste **exclu du tableau** « Autres machines » ; sa présence n'est lue que pour ce libellé.
 Le titre du tray (effectif) = `M` agents, inchangé.
 
+**Phrase d'état en tête de « Ce poste »** (reprise de la direction C, validée le 2026-09-30) : sous le titre,
+une phrase courte qui résume la machine — forme de référence : la phrase de tête de
+`direction-C-coup-doeil.html` de Loki, **réduite aux données déjà calculées** (nombre de sessions, dont
+`busy`, nombre d'agents actifs, état du démon). Aucune donnée nouvelle n'est introduite pour elle.
+
 ### `D5` — « Autres machines » vide : un message **lisible et informatif**
 
 `Aucune autre machine n'a publié sur <hôte du broker>` + sous-ligne « Les machines apparaissent ici dès que
 leur démon tourne. » — en **encre de texte secondaire conforme `D6`** (plus la classe `.empty` en
 `--sc-ink-faint`).
 
-### `D6` — Lisibilité : **exigences**, pas de direction visuelle
+### `D6` — Lisibilité : **direction A de Loki**, exigences testables — ✅ *tranché le 2026-09-30*
 
-Toute direction de Loki retenue par le décideur doit tenir :
+Direction retenue : **A « Tableau calme »** (`direction-A-tableau.html`), **+ la phrase d'état de C** (`D4`).
+Références à **LIRE sans les modifier** (dépôt `iakagraph`, hors périmètre d'écriture de Gimli) :
 
-1. **Tokens** : toutes les tailles et encres passent par des variables CSS (`--fs-*`, `--sc-ink-*`) ;
-   **aucune** valeur `font-size` en px hors du bloc de tokens (`grep` ⇒ 0).
-2. **Plancher** : texte courant **≥ 13 px** ; texte secondaire, étiquettes et en-têtes de colonnes
-   **≥ 12 px** ; **rien sous 12 px**, lettres de pastille et étiquettes mono comprises. *(Valeurs
-   recommandées, à confirmer par le décideur.)*
-3. **Contraste WCAG 2.x ≥ 4,5:1** pour **tout** texte (courant **et** secondaire, `--sc-ink-faint`
-   compris), en **clair et en sombre**, sur chacun de ses fonds réels (lignes, bandeaux de dépôt, notes).
-   Seuls les éléments **non textuels décoratifs** (guides `├─`, filets) peuvent descendre à 3:1.
-4. **Réglage de taille** : un contrôle à **trois crans** (100 % · 115 % · 130 %), à côté des boutons ⤢ et
-   ☾, mémorisé comme le thème ; il agit par une variable d'échelle unique ; la fenêtre se ré-ajuste
-   (A6/A7).
-5. **Survie de F11** : rien de la liste F11 ne régresse.
+- `/Users/sjupin/work/iakagraph/etudes/IakaAgentsMonitor/lisibilite/direction-A-tableau.html` — **source**
+  de la mise en page, de l'échelle typographique et des valeurs de jetons (bloc `:root`, l. 6-12) ;
+- `/Users/sjupin/work/iakagraph/etudes/IakaAgentsMonitor/lisibilite/CONTRASTES.md` — rapports calculés et
+  mesurés (§ « Direction A ») : **valeurs cibles des encres** ;
+- `/Users/sjupin/work/iakagraph/etudes/IakaAgentsMonitor/lisibilite/index.html` et `README.md` — contexte,
+  questions tranchées ; `direction-C-coup-doeil.html` — **seulement** pour la phrase d'état.
+
+Exigences :
+
+1. **Jetons** : toutes les tailles passent par l'échelle **`--sc-fs-body / -sec / -chip / -head / -title /
+   -hero`** de Loki, et toutes les encres par `--sc-*` ; **aucune** valeur `font-size` en px hors du bloc de
+   jetons (`grep` ⇒ 0).
+2. **Plancher** : texte courant **≥ 14 px** ; texte secondaire (valeurs secondaires, étiquettes, chips,
+   en-têtes) **≥ 13 px** ; **rien sous 12 px**, lettres de pastille comprises.
+3. **Trois crans de taille : corps 14 / 16 / 18 px**, repris des crans `s / m / l` de Loki (`data-size`,
+   l. 10-12 : sec 13 / 14,5 / 16 px, etc.) ; **réglage dans la barre du haut**, mémorisé comme le thème ;
+   la fenêtre se ré-ajuste (A6/A7). **Cran par défaut : 14 px** (`s`) — le plus proche de l'app actuelle et
+   le seul qui tient à 480 px sans défilement horizontal ; révisable en une phrase.
+4. **Contraste WCAG 2.x ≥ 4,5:1** pour **tout** texte, en **clair et en sombre**, sur ses fonds réels ;
+   jamais l'exception « grand texte » ; seuls les éléments **décoratifs non textuels** (guides `├─`, filets)
+   peuvent descendre à 3:1. `--sc-ink-faint` n'est plus employé pour du texte porteur d'information : ce
+   texte passe en `--sc-ink-muted` et se distingue par la **forme** (italique, libellé), comme dans A.
+5. **Mise en page à 480 px : deux lignes par agent** (A), **runner et modèle visibles** (pas de masquage
+   derrière un clic). ⚠️ Ceci **amende A4 point 1** de `liste-des-agents.md` (le mode compact masquait
+   « Modèle ») : le compact garde ses 5 colonnes de tête, le modèle passe en seconde ligne.
+6. **Survie de F11** : rien d'autre de la liste F11 ne régresse.
+
+### `D8` — Couleurs : **coloris actuels conservés, seulement accentués** — ✅ *décideur, 2026-09-30*
+
+**Interdit** : changer de palette ou de teintes (accents, pastilles de persona, bandeaux de dépôt A7).
+**Autorisé, et c'est la limite haute** : assombrir (clair) / éclaircir (sombre) **juste assez** pour
+atteindre ≥ 4,5:1 avec marge, et **seulement** ces jetons :
+
+| Jeton | Actuel (clair / sombre) | Cible (clair / sombre), `CONTRASTES.md` § A |
+|---|---|---|
+| `--sc-ink-muted` | `#6f6d64` / `#9a9a92` | `#57554d` / `#b4b3ab` |
+| `--sc-ink-faint` | `#a3a199` / `#63666c` | `#66645b` / `#a1a099` |
+| `--sc-ok`, `--sc-danger` | `#1a7f5a`, `#c1372c` / `#4ad393`, `#ef6b5e` (`styles.css:42,44,89,91`) | clair : `#176b4b`, `#b12f25` (assombris) ; sombre : **inchangés** (≥ 4,74:1 mesuré) |
+| `--grp-*-fg` (bandeaux A7) | valeurs A7 (`styles.css:59-69`, `97-107`, `126-136`) — plus faibles : clair `grp-3/4/5` 4,78–4,85:1, sombre `grp-4` 4,82:1 | **même teinte**, assombrie en clair / éclaircie en sombre jusqu'à **≥ 5:1** (les autres `grp-*` ne bougent pas) |
+
+Toute autre différence de valeur entre `direction-A-tableau.html` et `styles.css` (fonds, `--sc-ink`,
+accent, pastilles `--sc-sp-*`…) **garde la valeur actuelle de l'app**. Règle de contrôle : pour chaque jeton
+modifié, la **teinte** (angle HSL) reste à ± 5° de l'actuelle — seule la luminosité bouge.
 
 ### `D7` — Sobriété CPU : **budget et protocole**
 
@@ -140,7 +185,7 @@ quand le bus local est absent. `D2`/`D3` la suppriment (lecture O(sessions vivan
 durée d'un tick **≤ 50 ms au 95e centile** ; CPU **moyen ≤ 1 %**, **aucun échantillon > 10 %** (hors les
 5 premières secondes). Protocole : `npm run tauri build`, lancer le `.app`, échantillonner `ps -o %cpu,rss -p
 <pid>` chaque seconde pendant 600 s ; durée de tick journalisée derrière `IAKAAM_TRACE=1` ; consigner les
-chiffres dans le commit. *(Seuils recommandés, à confirmer.)*
+chiffres dans le commit. ✅ *Budget accepté par le décideur le 2026-09-30.*
 
 ## 4. Impacts sur les autres specs
 
@@ -155,11 +200,14 @@ chiffres dans le commit. *(Seuils recommandés, à confirmer.)*
 ## 5. Périmètre
 
 - **Inclus** : source locale Rust (`D1`, `D2`, `D3`), vecteurs `local-sessions.json` (Node + Rust), titre
-  « Ce poste » (`D4`), message vide (`D5`), exigences de lisibilité (`D6`) appliquées **à la direction choisie
-  par le décideur**, instrumentation et mesure CPU (`D7`), tests, doc (`CLAUDE.md` du dépôt).
-- **Exclu** : le **choix** de la direction visuelle (décideur, sur les maquettes de Loki) ; le PC et toute
-  GUI Windows ; les **ordres** (boutons État toujours désactivés) ; le testament (`corr-hors-ligne-duree.md`) ;
-  toute modification du démon, du publieur ou du contrat de bus hors § 6 ; `~/.claude/` (lecture seule).
+  « Ce poste » et phrase d'état (`D4`), message vide (`D5`), lisibilité selon la direction **A** (`D6`) et
+  accentuation des coloris (`D8`), instrumentation et mesure CPU (`D7`), tests, doc (`CLAUDE.md` du dépôt) ;
+  **une ligne d'amendement** en tête d'`agnostique-mqtt.md` (Q3-A) et de `liste-des-agents.md` (A4 point 1).
+- **Exclu** : toute **autre** retouche de couleur (nouvelle teinte, nouvelle palette, pastilles `--sc-sp-*`,
+  fonds, accent) ; toute écriture dans `~/work/iakagraph/` (maquettes de Loki **lues seulement**) ; le PC et
+  toute GUI Windows ; les **ordres** (boutons État toujours désactivés) ; le testament
+  (`corr-hors-ligne-duree.md`) ; toute modification du démon, du publieur ou du contrat de bus hors § 6 ;
+  `~/.claude/` (lecture seule).
 
 ## 6. Étapes (Gimli)
 
@@ -175,10 +223,14 @@ chiffres dans le commit. *(Seuils recommandés, à confirmer.)*
    fonction de libellé que « Autres machines ») ; rendu `render.ts`.
 4. **Message vide** (`D5`).
 5. **Mesure CPU** `D7` sur build de publication **avant/après** l'étape 2 (chiffres dans les commits).
-6. **Lisibilité** (`D6`) — **après** le choix du décideur parmi les directions de Loki : tokens, plancher,
-   contrastes, réglage de taille ; **test de contraste** automatique (`npm run test:contrast`, script Node
-   sans dépendance qui lit les tokens de `styles.css` et un **registre versionné** des couples encre/fond)
-   ⇒ **rouge** avant correction des encres.
+6. **Lisibilité** (`D6`, `D8`) — direction **A** + phrase d'état de **C**, fichiers de Loki **lus, jamais
+   modifiés** (chemins absolus en `D6`). Ordre : (a) **test de contraste d'abord**
+   (`npm run test:contrast`, script Node sans dépendance qui lit les jetons de `styles.css`, clair **et**
+   sombre, et un **registre versionné** des couples encre/fond réellement employés) ⇒ **rouge** sur les
+   encres actuelles ; (b) jetons `D8` (accentuation seulement) ⇒ vert ; (c) échelle `--sc-fs-*` et crans
+   14/16/18 dans la barre du haut ; (d) mise en page A (deux lignes par agent à 480 px, runner et modèle
+   visibles), phrase d'état ; (e) une ligne d'amendement en tête de `liste-des-agents.md` : « A4 point 1
+   amendé par `ce-poste-vue-locale-lisibilite.md` `D6`.5 ».
 7. `cargo test`, `clippy -D warnings`, `npm run typecheck`, `npm run build`, `npm test` (fleet),
    `npm run test:contrast` ; `CLAUDE.md` mis à jour.
 
@@ -198,11 +250,16 @@ chiffres dans le commit. *(Seuils recommandés, à confirmer.)*
 - [ ] **CA-6** — Titre exact `Ce poste — <node> · N session(s) · M agent(s)` et libellé démon **identique** à
       celui d'une machine distante dans le même état (même fonction, test).
 - [ ] **CA-7** — « Autres machines » vide : message `D5` avec l'hôte du broker, contraste ≥ 4,5:1.
-- [ ] **CA-8** — `grep -nE 'font-size:\s*[0-9]' src/styles.css` hors bloc de tokens ⇒ **0** ; aucun token
-      de taille < 12 px ; texte courant ≥ 13 px.
+- [ ] **CA-8** — `grep -nE 'font-size:\s*[0-9]' src/styles.css` hors bloc de jetons ⇒ **0** ; au cran
+      14 px : texte courant **≥ 14 px**, texte secondaire **≥ 13 px**, **aucune** taille calculée < 12 px
+      (mesure `getComputedStyle` sur la fenêtre, consignée).
 - [ ] **CA-9** — `npm run test:contrast` : **tous** les couples du registre ≥ 4,5:1 en clair **et** en
-      sombre ; **contre-essai** : remettre `--sc-ink-faint` à `#a3a199` le fait rougir.
-- [ ] **CA-10** — Réglage de taille 3 crans, mémorisé au redémarrage, fenêtre ré-ajustée.
+      sombre, bandeaux `grp-*` ≥ 5:1 ; **contre-essai** : remettre `--sc-ink-faint` à `#a3a199` le fait rougir.
+- [ ] **CA-9b** — **Coloris conservés** (`D8`) : seuls les jetons listés en `D8` diffèrent de `styles.css`
+      d'origine (`git diff` des jetons) ; pour chacun, teinte HSL à ± 5° de l'actuelle (vérif par le même script).
+- [ ] **CA-10** — Trois crans **14 / 16 / 18 px** dans la barre du haut, défaut 14, mémorisé au redémarrage,
+      fenêtre ré-ajustée ; à 480 px, deux lignes par agent, runner et modèle visibles, aucun défilement
+      horizontal ; phrase d'état en tête de « Ce poste ».
 - [ ] **CA-11** — **Non-régression F11** : lettre/pastille, indentation, tri, compact/large, « Reste », bandeau
       de dépôt, État désactivé, ajustement de fenêtre, thèmes — vérifiés un par un (capture au gate).
 - [ ] **CA-12** — Budget `D7` tenu sur build de publication (chiffres avant/après consignés).
@@ -217,19 +274,24 @@ chiffres dans le commit. *(Seuils recommandés, à confirmer.)*
 | Source locale Rust + assemblage + repli | 1,0 |
 | Titre « Ce poste » + message vide | 0,3 |
 | Mesure CPU (avant/après, instrumentation) | 0,3 |
-| Lisibilité (tokens, plancher, contrastes, test, réglage) | 0,6 |
+| Lisibilité : test de contraste, jetons `D8`, échelle et 3 crans | 0,5 |
+| Mise en page A (deux lignes à 480 px, runner/modèle visibles) + phrase d'état | 0,5 |
 | Tests, doc, gate | 0,3 |
-| **Total** | **≈ 2,8** (fourchette **2,2 – 3,8**) |
+| **Total** | **≈ 3,2** (fourchette **2,6 – 4,2**) |
 
+*Hausse de 0,4 j-h sur l'estimation initiale* : la direction A demande une **mise en page** (deux lignes par
+agent, amendement de A4) et pas seulement des jetons.
 **Complexité : moyenne. Risque : moyen** (portage d'une règle en Rust, format interne des fichiers de
-session). **Inconnues** : `M1` (si la cause CPU est ailleurs, +0,3 à +0,5) ; direction de Loki retenue (ampleur
-du retouchage CSS) ; `libc` absent de l'arbre (+0,05). *Ordre de grandeur révisable.*
+session, réagencement du tableau V4 sans casser F11). **Inconnues** : `M1` (si la cause CPU est ailleurs,
++0,3 à +0,5) ; `libc` absent de l'arbre (+0,05). *Ordre de grandeur révisable.*
 
-## 9. Ce que le décideur doit trancher
+## 9. Décisions du décideur (2026-09-30) — plus rien à trancher
 
-1. **Source `D1`** : (i) recommandée.
-2. **Remplacer la bascule stricte Q3-A** d'`agnostique-mqtt.md` par l'union `D2` (conséquence de (i)).
-3. **Garder la détection par transcripts en repli par session** (`D3`) plutôt que la retirer.
-4. **Plancher typographique** 13 / 12 px et **réglage 3 crans** 100/115/130 % (`D6`).
-5. **Budget CPU** `D7` (≤ 1 % moyen, aucun pic > 10 %, tick ≤ 50 ms p95).
-6. **La direction visuelle** parmi celles de Loki (étape 6 en dépend ; les étapes 1 à 5 n'en dépendent pas).
+1. Source `D1` : **(i)** — acceptée.
+2. Bascule stricte Q3-A **remplacée** par l'union `D2` — acceptée.
+3. Détection par transcripts **gardée en repli par session** (`D3`) — acceptée.
+4. Plancher **14 / 13 px**, rien sous 12 px ; **trois crans 14 / 16 / 18 px** dans la barre du haut (`D6`) —
+   tranché (recommandation d'Odin, pas celle du cadrage initial).
+5. Budget CPU `D7` — accepté.
+6. Direction **A** + phrase d'état de **C** ; **coloris actuels conservés, un peu accentués** (`D8`) ; à 480 px
+   deux lignes par agent ; runner et modèle visibles ; bandeaux A7 retouchés dans la limite `D8`.
