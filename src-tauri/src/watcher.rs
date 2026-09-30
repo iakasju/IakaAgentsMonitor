@@ -6,7 +6,7 @@
 //! stricte bus-OU-fichiers (Q3-A de `agnostique-mqtt.md`, remplacée par cette union). Seul endroit
 //! qui décide QUELLES sources alimentent l'app à un instant donné.
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::labels;
@@ -33,6 +33,10 @@ const TICK: Duration = Duration::from_secs(5);
 /// Variable d'environnement de seuil de liveness (DA-1 de liste-des-agents.md).
 const LIVENESS_ENV: &str = "IAKAAM_LIVENESS_SECS";
 const DEFAULT_LIVENESS_SECS: u64 = 90;
+
+/// Variable d'environnement de trace : `IAKAAM_TRACE=1` journalise sur stderr la durée de chaque tick
+/// (budget D7 : p95 ≤ 50 ms) — protocole de mesure dans `scripts/measure-cpu.sh`.
+const TRACE_ENV: &str = "IAKAAM_TRACE";
 
 /// Seuil de liveness (s), lu depuis `IAKAAM_LIVENESS_SECS`. Valeur absente/invalide -> défaut 90.
 pub fn liveness_secs_from_env() -> u64 {
@@ -90,11 +94,13 @@ fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
     let projects_dir = claude_code_files::claude_projects_dir();
     let sessions_dir = local_sessions::sessions_dir();
     let cards_dir = local_sessions::cards_dir();
+    let trace = std::env::var(TRACE_ENV).is_ok_and(|v| v == "1");
     let mut last: Option<AgentsSnapshot> = None;
     let mut last_source: &str = "";
     let mut last_fleet: Option<RemoteView> = None;
 
     loop {
+        let tick_started = Instant::now();
         let now = now_secs();
         let liveness = liveness_secs_from_env() as i64;
 
@@ -145,6 +151,15 @@ fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
         if last_fleet.as_ref() != Some(&fleet) {
             let _ = app.emit(FLEET_EVENT, &fleet);
             last_fleet = Some(fleet);
+        }
+        if trace {
+            eprintln!(
+                "[iakaam] tick {:.2} ms · {} session(s) · {} agent(s) · bus {}",
+                tick_started.elapsed().as_secs_f64() * 1000.0,
+                sessions.len(),
+                last.as_ref().map_or(0, |s| s.count),
+                if bus_connected { "joint" } else { "absent" }
+            );
         }
         std::thread::sleep(TICK);
     }
