@@ -19,19 +19,33 @@
 
 <!-- 2-4 lignes : à quoi sert le projet, pour qui, le résultat produit. -->
 
-Stack : <!-- ex: React + TypeScript + Tauri/Rust + SQLite -->
+**iakaFleet** : vue de la flotte de sessions Claude Code (Mac + PC Windows), en **lecture seule** au MVP.
+Un **agent par machine** lit `~/.claude/sessions/<pid>.json` et publie l'etat sur MQTT ; une **console CLI**
+lit le broker. Vision : `specs/PROJET.md`. Instruction du MVP : `specs/instructions/mvp-vue-flotte-lecture-seule.md`.
+
+Stack : **Node >= 20, ESM, JavaScript sans build**, une seule dependance applicative `mqtt` (MQTT.js, epinglee
+exactement, `package-lock.json` commite), tests `node --test` (zero dependance de test).
+Broker par defaut `mqtts://mqtt.naonedge.com:8883` (racine de topics `iakafleet/<host>/...`, contrat v1 dans
+`src/shared/contract.js`). Config : `~/.iakafleet/.env` (voir `.env.example`, `docs/installation.md`).
+
+Regles dures : **aucun `child_process`** dans `src/` ni `bin/` (garde `G-EXEC`) ; un ordre recu n'est jamais
+execute comme un shell ; la verification TLS n'est pas debrayable ; aucun secret dans le depot.
+
+Arborescence : `src/shared/` (contrat, config) · `src/agent/` (sessions, gitHead, iakaframeVersion, publisher,
+index) · `src/console/` (fleetModel, render, index) · `bin/` (points d'entree) · `deploy/` (services 3 OS) ·
+`test/` (+ `fixtures/sessions/`).
 
 ---
 
 ## Commandes à utiliser
 
 ```bash
-# ex:
-# npm run dev          # démarrer en dev
-# npm run build        # build de prod
-# npm run test:all     # tous les tests
-# npm run lint:all     # typecheck + lint
-# bash scripts/quality-report.sh   # rapport qualité consolidé
+npm install                        # une dependance : mqtt (epinglee)
+npm test                           # node --test (sans reseau, sans broker)
+npm run lint                       # syntaxe + regles du projet (pas de typecheck : JS sans build)
+node bin/iakafleet-agent.js        # agent (en pratique : lance par le service, deploy/)
+node bin/iakafleet.js ls|watch [--json]   # console (code de sortie 2 = broker/auth/config en echec)
+IAKAFLEET_LIVE=1 npm test          # ajoute la mesure reelle de la version d'iakaframe (M3)
 ```
 
 <!-- Si un Makefile/scripts existent, exiger de passer par eux plutôt que les
@@ -55,12 +69,12 @@ Stack : <!-- ex: React + TypeScript + Tauri/Rust + SQLite -->
 
 ---
 
-## Dépôt git : Forgejo (iakabox)
+## Dépôt git : Forgejo VPS (git.naonedge.com)
 
-Remote par défaut : **Forgejo LAN** `http://192.168.2.11:3001/<user>/<repo>.git`,
-**HTTP + token** (SSH inutilisable). Token via `$env:FORGEJO_TOKEN` ou `.git/config`
-local — **jamais commité**. Voir `iakabox-usage.html` (iakaframe) pour clone/push,
-création de dépôt (API, description **ASCII**) et rotation de token.
+Remote `origin` : **Forgejo du VPS NaonEdge** `https://git.naonedge.com/sjupin/iakaFleet.git`,
+**HTTPS + token** (l'ancien Forgejo LAN iakabox est mort ; le NAS reste un miroir secondaire sous
+le nom `nas`). Token via `$FORGEJO_TOKEN` ou `.git/config` local — **jamais commité**. Création de
+dépôt par l'API (description **ASCII**). Détail : skill `iakaframe-forgejo`.
 
 ## Cycle de documentation (état des lieux)
 
@@ -94,4 +108,9 @@ reprise** dans le `.md` (ce qui vient d'être fait, ce qui reste, prochaine éta
 
 <!-- Liste des features priorisées. Chaque entrée pointe vers son instruction. -->
 
-- [ ] <!-- feature → specs/instructions/feature-xxx.md -->
+- [~] MVP vue flotte lecture seule — `specs/instructions/mvp-vue-flotte-lecture-seule.md` (P2 en cours ; recette
+      reelle en attente du Lot 0 et de l'acces au PC Windows)
+- [ ] Prerequis Lot 0 : ACL + comptes MQTT `iakafleet/` — `naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md`
+- [ ] Ordres avec accuse de reception — `specs/instructions/ordres-accuse-reception.md` (a cadrer)
+- [ ] Autorisations / gestes destructifs — `specs/instructions/autorisations-gestes-destructifs.md` (a cadrer)
+- [ ] Console graphique, liaison iakaHub, source par hooks (optionnels, a cadrer)
