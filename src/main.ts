@@ -118,6 +118,43 @@ document.getElementById("expandBtn")?.addEventListener("click", () => {
   fitWindowToContent(); // puis affine la largeur sur le contenu reellement repeint (A6)
 });
 
+// ---- Taille du texte : trois crans 14 / 16 / 18 px (ce-poste-vue-locale-lisibilite.md D6.3) ----
+// Memorise comme le theme (localStorage, meme mecanique) ; `data-size` sur <html> pilote l'echelle
+// `--sc-fs-*` de styles.css. Defaut : m (16 px). Le changement ré-ajuste la fenetre (A6/A7) une
+// fois la mise en page refaite.
+const SIZE_KEY = "iakaam-size";
+type TextSize = "s" | "m" | "l";
+
+function loadSizePref(): TextSize {
+  try {
+    const v = localStorage.getItem(SIZE_KEY);
+    return v === "s" || v === "l" ? v : "m";
+  } catch {
+    return "m";
+  }
+}
+
+function applySize(size: TextSize, persist: boolean): void {
+  document.documentElement.setAttribute("data-size", size);
+  document.querySelectorAll<HTMLButtonElement>("#sizeSeg button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.size === size));
+  });
+  if (persist) {
+    try {
+      localStorage.setItem(SIZE_KEY, size);
+    } catch {
+      /* localStorage indisponible : le cran ne survit pas au redemarrage de l'app. */
+    }
+    // Deux images : laisser le navigateur refaire la mise en page avant de mesurer le contenu.
+    requestAnimationFrame(() => requestAnimationFrame(fitWindowToContent));
+  }
+}
+
+applySize(loadSizePref(), false);
+document.querySelectorAll<HTMLButtonElement>("#sizeSeg button").forEach((b) => {
+  b.addEventListener("click", () => applySize(b.dataset.size as TextSize, true));
+});
+
 // ---- Theme clair/sombre (amendement A3, point 1) ----
 // Par defaut, suit macOS (media query CSS, aucun JS requis). Bascule manuelle memorisee dans
 // localStorage : le bouton alterne clair <-> sombre <-> (retour au suivi automatique de macOS).

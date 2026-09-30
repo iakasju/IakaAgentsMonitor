@@ -79,7 +79,49 @@
   --sc-font-display: "Manrope", system-ui, sans-serif;
   --sc-font-body: "Public Sans", system-ui, sans-serif;
   --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
+  /* Échelle typographique (ce-poste-vue-locale-lisibilite.md D6, direction A de Loki) : SEUL endroit où
+     une taille s'écrit en px — partout ailleurs `var(--sc-fs-…)` (npm run test:fontsize). Cran par
+     DÉFAUT = m (corps 16 px). Plancher : corps >= 14 px, texte secondaire >= 13 px, rien sous 12 px.
+     body = texte courant · sec = valeurs secondaires · chip = étiquettes, en-têtes · head = titres de
+     section et bandeaux · title = nom de l'app · hero = réservé (phrase d'état de « Ce poste »). */
+  --sc-fs-body: 16px;
+  --sc-fs-sec: 14.5px;
+  --sc-fs-chip: 14px;
+  --sc-fs-head: 15px;
+  --sc-fs-title: 18px;
+  --sc-fs-hero: 18px;
+  --sc-pad-y: 9px;
+  --sc-pad-x: 12px;
   color-scheme: light;
+}
+/* Trois crans de taille (barre du haut, mémorisé comme le thème — main.ts) : s = 14 px, m = 16 px
+   (défaut), l = 18 px de corps. Valeurs reprises de la direction A de Loki (data-size s / m / l). */
+:root[data-size="s"] {
+  --sc-fs-body: 14px;
+  --sc-fs-sec: 13px;
+  --sc-fs-chip: 13px;
+  --sc-fs-head: 14px;
+  --sc-fs-title: 16px;
+  --sc-fs-hero: 16px;
+  --sc-pad-y: 7px;
+}
+:root[data-size="m"] {
+  --sc-fs-body: 16px;
+  --sc-fs-sec: 14.5px;
+  --sc-fs-chip: 14px;
+  --sc-fs-head: 15px;
+  --sc-fs-title: 18px;
+  --sc-fs-hero: 18px;
+  --sc-pad-y: 9px;
+}
+:root[data-size="l"] {
+  --sc-fs-body: 18px;
+  --sc-fs-sec: 16px;
+  --sc-fs-chip: 15.5px;
+  --sc-fs-head: 17px;
+  --sc-fs-title: 20px;
+  --sc-fs-hero: 20px;
+  --sc-pad-y: 11px;
 }
 /* Thème sombre : suit macOS (prefers-color-scheme) SAUF bascule manuelle vers le clair
    (data-theme="light"), et bascule manuelle vers le sombre (data-theme="dark") même si l'OS est
@@ -155,44 +197,55 @@ body {
   background: var(--sc-bg);
   color: var(--sc-ink);
   font-family: var(--sc-font-body);
-  font-size: 12px;
+  font-size: var(--sc-fs-body);
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Barre du haut collante : la fenêtre défile en page entière (plus de hauteur « magique » pour la
+   section des agents), la barre reste visible. */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: 6px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--sc-border);
   background: var(--sc-surface);
 }
 
 .brand {
   font-family: var(--sc-font-display);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: var(--sc-fs-head);
   color: var(--sc-ink);
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
 .count {
   color: var(--sc-ink-muted);
   font-family: var(--sc-font-mono);
-  font-size: 11px;
+  font-size: var(--sc-fs-sec);
 }
 
 /* Amendement A7, point 2 : couleur d'accent au repos (fond léger + bordure/texte accent, au lieu
-   du gris neutre), survol plus marqué (fond plein accent, texte inversé — contrastes vérifiés
-   6,30:1 en clair et 5,74:1 en sombre). */
+   du gris neutre), survol plus marqué (fond plein accent, texte inversé — contrastes vérifiés par
+   `npm run test:contrast`). */
 .theme-btn {
   font-family: var(--sc-font-mono);
-  font-size: 11px;
-  padding: 2px 7px;
+  font-size: var(--sc-fs-chip);
+  padding: 2px 9px;
+  min-height: 30px;
   border-radius: 6px;
   border: 1px solid var(--sc-accent);
   background: var(--sc-accent-bg);
@@ -205,10 +258,46 @@ body {
   border-color: var(--sc-accent);
 }
 
+/* Réglage de la taille du texte (D6.3) : trois crans A A A dans la barre du haut, le cran actif
+   plein accent — même langage que les boutons ⤢ et ☾/☀. */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--sc-accent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg button {
+  font-family: var(--sc-font-mono);
+  min-height: 30px;
+  padding: 2px 10px;
+  border: 0;
+  border-left: 1px solid var(--sc-accent);
+  background: var(--sc-accent-bg);
+  color: var(--sc-accent);
+  cursor: pointer;
+}
+.seg button:first-child {
+  border-left: 0;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--sc-accent);
+  color: var(--sc-surface);
+  font-weight: 700;
+}
+.seg-s {
+  font-size: var(--sc-fs-chip);
+}
+.seg-m {
+  font-size: calc(var(--sc-fs-chip) * 1.2);
+}
+.seg-l {
+  font-size: calc(var(--sc-fs-chip) * 1.4);
+}
+
 /* Amendement A5, point 3 : aucun cadre de focus visible à l'ouverture de la fenêtre (le premier
    bouton focusable ne doit pas s'afficher "actif" au clic droit -> Afficher) ; le cadre ne
    revient qu'au clavier (Tab), via :focus-visible. Règle générique "button" : couvre tous les
-   boutons présents (⤢, thème) et futurs. */
+   boutons présents (⤢, thème, taille) et futurs. */
 button:focus {
   outline: none;
 }
@@ -220,52 +309,82 @@ button:focus-visible {
 .footbar {
   display: flex;
   justify-content: space-between;
-  padding: 5px 12px;
-  color: var(--sc-ink-faint);
+  padding: 6px 14px;
+  color: var(--sc-ink-muted);
   font-family: var(--sc-font-mono);
-  font-size: 10px;
+  font-size: var(--sc-fs-sec);
   border-top: 1px solid var(--sc-border);
   background: var(--sc-surface);
 }
 
 .agents {
   padding: 0;
-  overflow: auto;
-  max-height: calc(100vh - 62px);
 }
 
 .empty {
-  color: var(--sc-ink-faint);
-  font-family: var(--sc-font-mono);
-  font-size: 12px;
-  padding: 16px 8px;
+  color: var(--sc-ink-muted);
+  font-size: var(--sc-fs-sec);
+  padding: 16px 14px;
+  margin: 0;
   text-align: center;
 }
 
+/* Titre de section (« Ce poste », « Autres machines ») : MÊME gabarit (D4) — police d'affichage en
+   gras, taille « head », encre pleine. */
+.section-title {
+  font-family: var(--sc-font-display);
+  font-weight: 800;
+  font-size: var(--sc-fs-head);
+  color: var(--sc-ink);
+  padding: 14px 14px 2px;
+}
+.local-head {
+  border-bottom: 1px solid var(--sc-border);
+}
+.local-head .section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+}
+.local-daemon {
+  font-family: var(--sc-font-mono);
+  font-weight: 400;
+  font-size: var(--sc-fs-sec);
+  color: var(--sc-ink-muted);
+}
+/* Phrase d'état (reprise de la direction C) : une phrase, pas un tableau. */
+.local-phrase {
+  margin: 0;
+  padding: 2px 14px 12px;
+  font-size: var(--sc-fs-body);
+  color: var(--sc-ink);
+}
+
 /* Tableau des agents en cours (amendement A1 + A3) : une ligne par agent, INDENTEE par
-   profondeur de délégation avec des guides ASCII (├─ └─ │, amendement A3 point 4), colonnes
-   triables (clic sur l'en-tête, indicateur ▲/▼). */
+   profondeur de délégation avec des guides ASCII (├─ └─, amendement A3 point 4), colonnes
+   triables (clic sur l'en-tête, indicateur ▲/▼). Direction A (D6) : même tableau, agrandi. */
 .agents-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--sc-fs-body);
 }
 
 .agents-table th,
 .agents-table td {
   text-align: left;
-  padding: 4px 8px;
+  padding: var(--sc-pad-y) var(--sc-pad-x);
   border-bottom: 1px solid var(--sc-border);
+  vertical-align: middle;
   white-space: nowrap;
 }
 
 .agents-table th {
   font-family: var(--sc-font-mono);
   color: var(--sc-ink-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  font-size: var(--sc-fs-chip);
+  padding-block: 8px;
   user-select: none;
   cursor: pointer;
 }
@@ -287,13 +406,8 @@ button:focus-visible {
 
 /* Amendement A6, point 1 : plus de `table-layout: fixed` ni de largeurs en pourcentage — c'est la
    FENÊTRE qui s'ajuste au contenu (largeur naturelle mesurée côté webview,
-   `measureContentWidth` dans render.ts + `fit_window_width` côté Rust), jamais l'inverse. Le
-   mode compact n'a donc plus besoin d'un style de table dédié : `table-layout: auto` (défaut)
-   laisse chaque colonne prendre sa largeur naturelle, bornée uniquement par la colonne Tâche
-   (`.agents-cell-task` ci-dessous), la SEULE autorisée à ellipser (amendement A6, point 1 :
-   « seule la Tâche peut être en ellipse »). Toutes les autres cellules restent sur une seule
-   ligne, sans troncature (déjà garanti par `.agents-table th, .agents-table td`, `white-space:
-   nowrap`, plus haut). */
+   `measureContentWidth` dans render.ts + `fit_window_width` côté Rust), jamais l'inverse. Seule la
+   colonne Tâche (`.agents-cell-task`) peut ellipser (A6 point 1). */
 .agents-cell-task {
   max-width: 280px;
   white-space: nowrap;
@@ -301,9 +415,21 @@ button:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* Deux lignes par agent (D6.5, direction A) : ligne 1 = guide, pastille, persona ; ligne 2 = le
+   modèle (visible, jamais derrière un clic) — seulement en mode compact, le mode large a sa colonne
+   Modèle. Amende A4 point 1 de liste-des-agents.md. */
+.agent-subline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: var(--sc-fs-sec);
+  color: var(--sc-ink-muted);
+}
+
 /* Guides de délégation (amendement A3, point 4) : même police mono que le reste des données
-   denses, ton discret — l'information porteuse est l'indentation, le guide ne fait que la
-   souligner visuellement (repère iakaframe § « Restitution en relais »). */
+   denses ; l'information porteuse est l'indentation, le guide la souligne. Encre « faible »
+   remontée à >= 4,5:1 (D8) : le guide reste lisible. */
 .tree-guide {
   font-family: var(--sc-font-mono);
   color: var(--sc-ink-faint);
@@ -311,31 +437,31 @@ button:focus-visible {
 }
 
 .agents-persona {
-  margin-left: 6px;
+  margin-left: 8px;
   vertical-align: middle;
   font-family: var(--sc-font-body);
-  font-weight: 500;
+  font-weight: 600;
 }
 
+/* Ligne de débordement : distinguée par la FORME (italique), plus par la pâleur (D6.4). */
 .agents-overflow-row td {
-  color: var(--sc-ink-faint);
+  color: var(--sc-ink-muted);
   font-style: italic;
 }
 
 /* Sprite (point d'extension UNIQUE pour une future icône pixel art 4×4, amendement A1) : la
-   lettre du persona dans un carré arrondi à la couleur de sa pastille iakaframe. Couleurs et
-   contraste AA déjà résolus par le backend (D9, amendement A3 point 10) ; ce style ne fait que
-   peindre. */
+   lettre du persona dans un carré arrondi à la couleur de sa pastille iakaframe — taille
+   proportionnelle au corps de texte. Couleurs et contraste AA résolus par le backend (D9). */
 .sprite {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: calc(var(--sc-fs-body) * 1.55);
+  height: calc(var(--sc-fs-body) * 1.55);
+  border-radius: 6px;
   font-family: var(--sc-font-display);
-  font-weight: 700;
-  font-size: 10px;
+  font-weight: 800;
+  font-size: var(--sc-fs-sec);
   flex: 0 0 auto;
   vertical-align: middle;
 }
@@ -344,29 +470,30 @@ button:focus-visible {
    discret — reprend .sc-chip de la charte. */
 .chip {
   font-family: var(--sc-font-mono);
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
+  font-size: var(--sc-fs-chip);
+  padding: 1px 7px;
+  border-radius: 5px;
   background: var(--sc-well);
   color: var(--sc-ink-muted);
   border: 1px solid var(--sc-border);
   white-space: nowrap;
+  display: inline-block;
+  line-height: 1.35;
 }
 
 /* Ligne de séparation pleine largeur au nom du dépôt (amendement A6, point 2), même rôle que
    `.pv-group-row` de la maquette V4 : porte le nom du projet, l'arbre de délégation de ce dépôt
-   apparaît juste dessous, inchangé. Remplace la colonne « Projet », devenue redondante. Couleur
-   STABLE par dépôt (amendement A7, point 3) : liseré gauche épais + fond teinté léger + nom en
-   couleur, posés par la classe `.agents-group-row--c<index>` (index venu de Rust, valeurs de
-   couleur ci-dessous — cf. commentaire de la palette `--grp-*` dans `:root`). */
+   apparaît juste dessous. Couleur STABLE par dépôt (amendement A7, point 3) : liseré gauche épais
+   + fond teinté léger + nom en couleur, posés par `.agents-group-row--c<index>` (index venu de
+   Rust, valeurs `--grp-*` dans `:root`). Direction A : nom en gras, taille « head », casse du nom. */
 .agents-group-row td {
   border-top: 1px solid var(--sc-border);
   border-bottom: 1px solid var(--sc-border);
-  border-left: 4px solid transparent;
-  font-family: var(--sc-font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  border-left: 5px solid transparent;
+  font-family: var(--sc-font-body);
+  font-weight: 700;
+  font-size: var(--sc-fs-head);
+  padding-block: 7px;
   white-space: nowrap;
 }
 .agents-group-row--c0 td {
@@ -406,38 +533,35 @@ button:focus-visible {
 }
 
 /* Colonne « État » (amendement A6, point 3 ; couleur amendement A7, point 2) : pastille
-   « running » — seul état réel aujourd'hui — accompagnée d'un bouton bascule et d'un bouton ■
-   (arrêt), tous deux TOUJOURS DÉSACTIVÉS tant que le bus MQTT (et son amendement A1
-   d'agnosticisme) n'est pas livré : rien n'est cliquable, jamais de bascule purement visuelle qui
-   ferait croire à une action. Chacun est teinté selon son sens (running = vert, ■ = rouge,
-   amendement A7 point 2) tout en restant VISIBLEMENT désactivé : `opacity` réduite en plus du
-   curseur `not-allowed`, pour ne jamais se confondre avec un contrôle actif. Le texte d'un
-   contrôle désactivé est hors du champ d'application du contraste AA (WCAG 1.4.3 : les
-   composants inactifs n'ont pas d'exigence de contraste) ; l'infobulle et `aria-label` portent
-   l'explication ("commande disponible avec le bus MQTT"). */
+   « running » accompagnée d'un bouton ■ (arrêt), tous deux TOUJOURS DÉSACTIVÉS tant que les ordres
+   (bus MQTT) ne sont pas livrés : rien n'est cliquable, jamais de bascule purement visuelle.
+   Teintés selon leur sens (running = vert, ■ = rouge). D6.4 (contraste >= 4,5:1 pour TOUT texte) :
+   la pâleur par `opacity` est remplacée par une bordure POINTILLÉE + `cursor: not-allowed` — le
+   contrôle reste visiblement désactivé sans affaiblir son texte. L'infobulle et `aria-label`
+   portent l'explication ("commande disponible avec le bus MQTT"). */
 .status-cell {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 .status-btn {
   all: unset;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-family: var(--sc-font-mono);
-  font-size: 10px;
-  padding: 1px 6px;
+  font-size: var(--sc-fs-chip);
+  padding: 1px 10px;
   border-radius: 999px;
-  border: 1px solid var(--sc-ok);
+  border: 1px dashed var(--sc-ok);
   color: var(--sc-ok);
-  opacity: 0.6;
   cursor: not-allowed;
   white-space: nowrap;
+  line-height: 1.4;
 }
 .status-btn .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex: none;
   background: var(--sc-ok);
@@ -445,40 +569,36 @@ button:focus-visible {
 .status-stop-btn {
   all: unset;
   font-family: var(--sc-font-mono);
-  font-size: 9px;
+  font-size: var(--sc-fs-chip);
   line-height: 1;
-  padding: 1px 4px;
-  border: 1px solid var(--sc-danger);
+  padding: 2px 6px;
+  border: 1px dashed var(--sc-danger);
   border-radius: 4px;
   color: var(--sc-danger);
-  opacity: 0.6;
   cursor: not-allowed;
   flex: none;
 }
 
 /* Colonne « Reste » (specs/instructions/temps-restant.md) : barre qui se colore par palier
-   (3 niveaux nets, DA-T3) + texte court. Dimensions et classes reprises telles quelles de la
-   maquette finalisée par Loki (commit f671cc4, onglet V4). Le texte reste en
-   `--sc-ink-muted` par défaut (vert/orange ne colorent QUE la barre) ; seul le dépassement
+   (3 niveaux nets, DA-T3) + texte court. Le texte reste en `--sc-ink-muted` ; seul le dépassement
    (`.over`) colore aussi le texte, en `--sc-danger` — l'information n'est jamais portée par la
-   seule couleur, le texte est toujours présent. */
+   seule couleur, le texte est toujours présent. Barre un peu plus large (direction A). */
 .reste {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .reste-track {
   position: relative;
   flex: none;
-  width: 56px;
-  height: 6px;
+  width: 72px;
+  height: 8px;
   background: var(--sc-well);
   border: 1px solid var(--sc-border);
-  border-radius: 3px;
+  border-radius: 4px;
   /* Amendement A4, point 3 : PAS de overflow:hidden ici, sinon le repère de dépassement
-     `.reste-mark` (dont le tracé dépasse volontairement la piste, top/bottom -2px) est rogné. Le
-     remplissage (`.reste-fill`) n'a de son côté jamais besoin d'être clippé : sa largeur est déjà
-     plafonnée à 100 % de la piste côté Rust (D9, `fillPct`), rien à en cacher. */
+     `.reste-mark` (dont le tracé dépasse volontairement la piste) est rogné. Le remplissage est
+     déjà plafonné à 100 % de la piste côté Rust (D9, `fillPct`). */
   overflow: visible;
 }
 .reste-fill {
@@ -486,45 +606,47 @@ button:focus-visible {
   left: 0;
   top: 0;
   bottom: 0;
-  border-radius: 2px 0 0 2px;
+  border-radius: 3px 0 0 3px;
 }
 .reste-fill.full {
-  border-radius: 2px;
+  border-radius: 3px;
 }
 .reste-mark {
   position: absolute;
   right: 0;
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
   background: var(--sc-danger);
 }
 .reste-txt {
   font-family: var(--sc-font-mono);
-  font-size: 10px;
+  font-size: var(--sc-fs-sec);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   color: var(--sc-ink-muted);
 }
 .reste-txt.over {
   color: var(--sc-danger);
-  font-weight: 600;
+  font-weight: 700;
 }
 .reste-dash {
   font-family: var(--sc-font-mono);
-  color: var(--sc-ink-faint);
-  font-size: 10px;
+  color: var(--sc-ink-muted);
+  font-size: var(--sc-fs-sec);
 }
 
 .agents-more {
-  font-size: 10px;
+  font-size: var(--sc-fs-sec);
   font-family: var(--sc-font-mono);
-  color: var(--sc-ink-faint);
-  padding: 6px 8px;
+  color: var(--sc-ink-muted);
+  padding: 6px 14px;
 }
 
 /* « Autres machines » (vue distante, instruction de fusion D4) : même tableau V4, mêmes jetons ;
-   seulement de quoi dire l'absence (broker injoignable, tâche masquée, dernier état connu). */
+   seulement de quoi dire l'absence (broker injoignable, tâche masquée, dernier état connu). Ce
+   qui était « faible » (pâle) se distingue désormais par la FORME (italique, libellé) en
+   `--sc-ink-muted` (D6.4). */
 .fleet {
   border-top: 1px solid var(--sc-border);
   padding: 0;
@@ -532,68 +654,43 @@ button:focus-visible {
 .fleet[hidden] {
   display: none;
 }
-/* Titre de section (« Ce poste », « Autres machines ») : MÊME gabarit (D4). */
-.section-title {
-  font-family: var(--sc-font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--sc-ink-muted);
-  padding: 8px 8px 4px;
-}
-.local-head {
-  border-bottom: 1px solid var(--sc-border);
-}
-.local-head .section-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 12px;
-}
-.local-title {
-  color: var(--sc-ink);
-  font-weight: 700;
-}
-.local-daemon {
-  color: var(--sc-ink-muted);
-}
-.local-phrase {
-  margin: 0;
-  padding: 0 8px 8px;
-  font-size: 12px;
-  color: var(--sc-ink);
-}
-.fleet-empty {
-  margin: 0;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: var(--sc-ink-muted);
-}
-.fleet-empty--hint {
-  padding-bottom: 12px;
-}
 .fleet-notice {
   font-family: var(--sc-font-mono);
-  font-size: 11px;
+  font-size: var(--sc-fs-sec);
   color: var(--sc-ink-muted);
-  padding: 4px 8px;
+  padding: 6px 14px;
   margin: 0;
 }
 .fleet-notice--down {
   color: var(--sc-danger);
 }
+/* D5 : « Aucune autre machine n'a publié sur <hôte> » + sous-ligne, encre secondaire conforme. */
+.fleet-empty {
+  margin: 0;
+  padding: 6px 14px 0;
+  font-size: var(--sc-fs-body);
+  color: var(--sc-ink-muted);
+}
+.fleet-empty--hint {
+  padding-top: 2px;
+  padding-bottom: 14px;
+  font-size: var(--sc-fs-sec);
+}
 .fleet-alert td {
   color: var(--sc-warn);
   font-family: var(--sc-font-mono);
+  font-size: var(--sc-fs-sec);
 }
 .fleet-none td {
-  color: var(--sc-ink-faint);
+  color: var(--sc-ink-muted);
   font-family: var(--sc-font-mono);
+  font-style: italic;
 }
 .fleet-task--masked {
-  color: var(--sc-ink-faint);
+  color: var(--sc-ink-muted);
   font-style: italic;
 }
 .fleet-row--stale td {
-  color: var(--sc-ink-faint);
+  color: var(--sc-ink-muted);
+  font-style: italic;
 }
