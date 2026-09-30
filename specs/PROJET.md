@@ -106,7 +106,8 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
 
 | Feature | Instruction | État |
 |---|---|---|
-| **MVP — vue de la flotte en lecture seule** | `specs/instructions/mvp-vue-flotte-lecture-seule.md` | **cadrée, au gate P1→P2** |
+| Prérequis broker — ACL + comptes `iakafleet/` (dépôt `naonedge-vps`) | `~/work/naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md` | **cadrée, à valider par le décideur** |
+| **MVP — vue de la flotte en lecture seule** | `specs/instructions/mvp-vue-flotte-lecture-seule.md` | **cadrée, D1/Q2-Q4 tranchées, au gate P1→P2** |
 | Envoi d'ordres à une session + accusé de réception, trace des ordres | `specs/instructions/ordres-accuse-reception.md` | à cadrer (après le MVP) |
 | Autorisations (qui ordonne quoi) + gestes destructifs sous confirmation humaine | `specs/instructions/autorisations-gestes-destructifs.md` | à cadrer (après les ordres) |
 | Console graphique (widget IakaCockpit ou page WSS) | `specs/instructions/console-graphique.md` | à cadrer (optionnel) |
@@ -138,7 +139,17 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
   broker `192.168.2.11` a un mot de passe perdu). *Décideur.*
 - **2026-09-30** — **Sécurité** : TLS, **un identifiant MQTT par machine** (secrets dans
   Vaultwarden, jamais en dur), ACL par topic, trace de ce qui est envoyé. *Décideur.*
-- **2026-09-30** — *Proposé par le cadrage, soumis au gate P1→P2* : l'agent de flotte est un
-  **paquet autonome dans ce dépôt**, pas une brique ajoutée à iakaHub au MVP (motifs mesurés dans
-  l'instruction MVP, `D1`). Si le décideur retient iakaHub comme hôte, seule la § « Où vit
-  l'agent » de l'instruction change.
+- **2026-09-30** — **L'agent de flotte est un paquet AUTONOME dans ce dépôt**, pas une brique
+  d'iakaHub. Son cœur est écrit pour être **importable plus tard** par iakaHub ; la liaison reste
+  une instruction **optionnelle** (`liaison-iakahub`). Motifs mesurés : instruction MVP, `D1`.
+  *Décideur (Q1).*
+- **2026-09-30** — **Lot 0 (broker) : voie prudente.** Les droits `iakafleet/` et les comptes MQTT
+  ne sont **pas** posés depuis ce dépôt : ils font l'objet d'une instruction propre au dépôt du
+  broker, `~/work/naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md`, validée par le décideur
+  puis jouée par Gimli en session interactive autorisée « Production Deploy ». Le MVP en
+  **dépend** pour sa recette réelle. *Décideur (Q2).*
+- **2026-09-30** — **Confidentialité** : l'agent publie le **nom** de session et son dossier
+  **ramené au home** ; jamais d'identifiant de session ni de socket. **Option de masquage du nom
+  par machine** (configuration), **désactivée par défaut**. *Décideur (Q3).*
+- **2026-09-30** — **Console : CLI d'abord** (`iakafleet ls` / `watch` / `--json`) ; interface
+  graphique plus tard (`console-graphique`). *Décideur (Q4).*

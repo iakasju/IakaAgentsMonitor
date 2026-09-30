@@ -82,10 +82,10 @@ personne n'annonce** (testament MQTT).
 > leur état sur MQTT selon le contrat code/valeur ; une console CLI lit le broker et rend la flotte.
 > Aucun des deux n'exécute rien, ne commande rien, et ne dépend d'aucun centre.**
 
-### `D1` — Où vit l'agent : **paquet autonome dans iakaFleet**, pas une brique d'iakaHub au MVP — *soumis au gate*
+### `D1` — Où vit l'agent : **paquet autonome dans iakaFleet**, pas une brique d'iakaHub — ✅ *tranché par le décideur le 2026-09-30 (Q1)*
 
-L'ordre de mission nomme iakaHub comme **candidat**, à valider. Le cadrage **recommande de ne pas
-l'y loger au MVP**, pour trois motifs mesurés :
+L'ordre de mission nommait iakaHub comme **candidat**. Le cadrage a recommandé de ne pas l'y loger,
+et **le décideur a retenu cette recommandation**, pour trois motifs mesurés :
 
 1. **`F7`** — iakaHub **refuse de démarrer sans Discord**. L'y loger oblige soit à provisionner
    Discord sur chaque machine de la flotte, soit à modifier son démarrage — sur un dépôt dont le
@@ -97,8 +97,7 @@ l'y loger au MVP**, pour trois motifs mesurés :
 
 **Ce que ça préserve** : le cœur de l'agent (`src/agent/*`) est écrit en **modules purs à
 dépendances injectées** ; iakaHub pourra l'**importer** plus tard (instruction `liaison-iakahub`)
-sans réécriture. **Si le décideur retient iakaHub comme hôte**, seuls changent l'étape 8
-(service) et le lieu du code — le contrat (`D4`), la console et les critères restent valables.
+sans réécriture ; cette liaison reste une instruction **optionnelle**, jamais un prérequis.
 
 ### `D2` — L'agent **ne lance aucun processus** : zéro `child_process`
 
@@ -144,7 +143,7 @@ Topic = `iakafleet/<host>/<code>/current`. Effacement d'un code = **payload vide
 | `status` | string | `status` **tel quel** (`idle`/`busy`/`waiting`/`shell`/autre) |
 | `status_since` | number | `statusUpdatedAt` / 1000 |
 | `stuck_suspect` | boolean | `true` si `parkedJobId` présent **et** `updatedAt > statusUpdatedAt` (`F15`) |
-| `name` | string | `name` |
+| `name` | string\|null | `name` — **`null` si le masquage est activé** sur la machine (`IAKAFLEET_MASK_NAMES=1`, `D10`) |
 | `kind` · `entrypoint` | string | idem |
 | `claude_version` | string | `version` |
 | `cwd` | string | `cwd` **relatif au home** (`~/work/azime`) — le chemin absolu ne quitte pas la machine |
@@ -155,6 +154,8 @@ Topic = `iakafleet/<host>/<code>/current`. Effacement d'un code = **payload vide
 
 **Non publiés, délibérément** : `sessionId`, `bridgeSessionId` (valeur), `messagingSocketPath`,
 tout contenu de conversation. On publie **l'état**, jamais un identifiant exploitable.
+*Confidentialité validée par le décideur le 2026-09-30 (Q3)* : nom de session et dossier ramené au
+home publiés ; masquage du nom **par machine**, facultatif, **désactivé par défaut**.
 
 **Racine à part** : `iakafleet/#` n'est capté ni par le pont iakaboxlogs (`iakaboxlogs/#`) ni par le
 futur pont du VPS (`iakaframe/#`). Le contrat est porté par **un seul module** (`src/shared/contract.js`)
@@ -166,8 +167,11 @@ importé par l'agent **et** la console.
 tout caractère hors `[a-z0-9-]` remplacé par `-`. **Refus au démarrage** si le résultat est vide ou
 contient `+`, `#`, `/`.
 
-Comptes et ACL (à poser au **Lot 0** dans `~/work/naonedge-vps/stack/mosquitto/acl`) — lignes
-**explicites**, pas de `pattern %u` : il s'appliquerait aussi aux trois comptes existants (`F19`).
+Comptes et ACL — **posés par le Lot 0, qui n'est PAS joué depuis ce dépôt** (décideur, Q2) : il
+est cadré dans `~/work/naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md`, **validé par le
+décideur**, puis exécuté par Gimli en session interactive autorisée « Production Deploy ». Le
+bloc ci-dessous est **rappelé pour lecture** ; la **source qui fait foi** est cette instruction-là.
+Lignes **explicites**, pas de `pattern %u` : il s'appliquerait aussi aux trois comptes existants (`F19`).
 
 ```
 user fleet-console
@@ -221,7 +225,7 @@ Chercher `@naonedge/iakaframe/package.json` : (1) `IAKAFLEET_IAKAFRAME_PKG` si d
 `node_modules/@naonedge/iakaframe/package.json`. Introuvable ⇒ `null`. Relu à chaque battement
 (une mise à jour du CLI se voit sans redémarrer l'agent). Chemins réels : `M3`.
 
-### `D9` — Console : **CLI**, trois gestes, et **l'absence ne se déguise jamais en vide**
+### `D9` — Console : **CLI**, trois gestes, et **l'absence ne se déguise jamais en vide** — ✅ *CLI d'abord, tranché par le décideur le 2026-09-30 (Q4)*
 
 `iakafleet ls` (instantané puis sortie) · `iakafleet watch` (rafraîchi) · `--json` (sortie
 machine, pour les tests et l'outillage). Connexion en `fleet-console`, abonnement `iakafleet/#`,
@@ -251,7 +255,9 @@ Fichier `~/.iakafleet/.env` (même chemin sous les trois OS, via `os.homedir()`)
 d'environnement priment. Variables : `IAKAFLEET_MQTT_URL` (défaut
 `mqtts://mqtt.naonedge.com:8883`), `IAKAFLEET_HOST`, `IAKAFLEET_AGENT_USER`/`_PASS`,
 `IAKAFLEET_CONSOLE_USER`/`_PASS`, `IAKAFLEET_SESSIONS_DIR` (défaut `~/.claude/sessions`),
-`IAKAFLEET_SCAN_S`, `IAKAFLEET_HEARTBEAT_S`, `IAKAFLEET_IAKAFRAME_PKG`.
+`IAKAFLEET_SCAN_S`, `IAKAFLEET_HEARTBEAT_S`, `IAKAFLEET_IAKAFRAME_PKG`, `IAKAFLEET_MASK_NAMES`
+(`1` ⇒ le code `name` de chaque session est publié `null` ; **absent ou `0` par défaut** ⇒ nom publié —
+réglage **propre à chaque machine**, décideur Q3).
 🛑 **`mqtt://` en clair n'est accepté que vers `127.0.0.1`/`localhost`** (tests) ; toute autre
 adresse exige `mqtts://`, et **la vérification du certificat n'est pas débrayable** au MVP.
 Aucun secret dans le dépôt ; `.env.example` sans valeurs.
@@ -260,8 +266,12 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
 
 ## 4. Périmètre
 
+**Prérequis (hors de ce lot)** : le **Lot 0** — ACL + comptes MQTT sur le broker du VPS — est
+cadré par `~/work/naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md` et **exécuté au titre de
+cette instruction-là**. Les étapes 0 à 9 **n'en dépendent pas** (tests sans réseau) ; la **recette
+réelle** (étape 11, `CA-R*`) **en dépend**.
+
 **Inclus**
-- Lot 0 (hors dépôt, sur autorisation) : ACL + comptes MQTT sur le broker du VPS.
 - Le paquet Node `iakafleet` : agent (`iakafleet-agent`) + console (`iakafleet`), contrat v1.
 - Tests `node --test` (zéro dépendance de test), fixtures de fichiers de session.
 - Gabarits de service : launchd (macOS), tâche planifiée au logon (Windows), systemd user (Linux).
@@ -273,6 +283,8 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
   sous-arbre de sessions (instruction `ordres-accuse-reception`).
 - **Toute exécution** (`child_process`, shell, `claude -p`) — `D2`.
 - Toute modification d'**iakaHub**, d'**iakalog.mjs**, d'**iakaTokenCounter**, d'**iakaboxlogs**.
+- 🛑 **Toute écriture dans `~/work/naonedge-vps/`** et toute commande sur le VPS : c'est le Lot 0,
+  porté par sa propre instruction (décideur, Q2).
 - Persistance, historique, base, trace dans iakaboxlogs.
 - Interface graphique (widget, page WSS) ; compte `dashboard` du broker non touché.
 - Inventaire des dépôts hors sessions ; supervision CPU/RAM/disque.
@@ -316,10 +328,10 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
 9. **Documentation** : `docs/installation.md` (installer l'agent, poser `~/.iakafleet/.env`, lancer
    la console, lire les états), `CLAUDE.md` (ce qu'est le projet, stack, commandes, backlog,
    **section Forgejo corrigée** — `F13`).
-10. **Lot 0 — broker** (session interactive autorisée, cf. `R6`) : lignes ACL de `D5` dans
-    `~/work/naonedge-vps/stack/mosquitto/acl` (commit **dans ce dépôt-là**), `passwd` régénéré sur
-    le VPS (saisie interactive), rechargement **SIGHUP** du broker, secrets dans Vaultwarden et dans
-    `~/.iakafleet/.env` de chaque machine. *Peut être joué avant l'étape 1 si l'autorisation est là.*
+10. **Point d'attente — Lot 0.** Vérifier que `mqtt-acl-iakafleet.md` (dépôt `naonedge-vps`) est
+    **exécuté et coché** (ses critères, dont le testament prouvé). **Rien n'est joué ici** : si le
+    Lot 0 n'est pas fait, **s'arrêter** et remonter à Aragorn. Seul geste de ce lot : poser les
+    identifiants **lus dans Vaultwarden** dans `~/.iakafleet/.env` de chaque machine.
 11. **Recette réelle** `CA-R1`→`CA-R8` sur le Mac et le PC Windows.
 12. `iakaframe snapshot --reason version --version v0.2.0 --note "MVP vue flotte lecture seule"` +
     récit de reprise.
@@ -337,8 +349,8 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
 - `docs/installation.md`, `README.md`, `.env.example` — **créés**.
 - `CLAUDE.md` — **mis à jour** (projet, stack, commandes, backlog, section Forgejo).
 - `specs/etat-des-lieux.md` — récit de reprise.
-- *(hors dépôt, Lot 0)* `~/work/naonedge-vps/stack/mosquitto/acl` (+ `passwd` sur le VPS, non
-  commité) ; Vaultwarden ; `~/.iakafleet/.env` sur chaque machine.
+- *(hors dépôt)* `~/.iakafleet/.env` sur chaque machine (identifiants lus dans Vaultwarden).
+  Les fichiers du broker relèvent de `mqtt-acl-iakafleet.md` (dépôt `naonedge-vps`), **pas de ce lot**.
 
 **Non touchés, vérifiable** : tout `~/work/iakaHub/`, `~/work/iakaframe/`, `~/work/iakaTokenCounter/`,
 `~/work/iakaboxlogs/`, `~/.claude/` (**lu, jamais écrit**).
@@ -354,7 +366,7 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
 | **R3** | 🛑 **Testament jeté en silence** si l'ACL ne couvre pas son topic (`F20`) : une machine morte resterait « en ligne » | **haute** | ACL `readwrite iakafleet/<host>/#` (`D5`) ; **`CA-R3` tue l'agent pour de vrai** et exige de voir « hors ligne » — un testament non prouvé n'est pas livré |
 | **R4** | **« busy » éternel** (`F15`) ou `sessionId` périmé (`F16`) | moyenne | Clé = pid ; `stuck_suspect` publié et affiché « busy ? » ; vivacité jugée sur le pid |
 | **R5** | **Fuite d'information** vers le broker (noms de session, chemins) | moyenne | Broker à soi, TLS, ACL fermée ; `cwd` relatif au home ; identifiants de session et socket **non publiés** (`D4`) |
-| **R6** | **Lot 0 touche la prod** d'un autre dépôt (`naonedge-vps`) | moyenne | Session interactive autorisée par le décideur ; ACL **additive** (les trois comptes existants inchangés) ; `mosquitto_passwd` **sans `-c`** (il écrase le fichier) ; SIGHUP et non redémarrage |
+| **R6** | **Le Lot 0 touche la prod** d'un autre dépôt (`naonedge-vps`) | moyenne | **Sorti de ce lot** (décideur, Q2) : instruction propre `mqtt-acl-iakafleet.md`, validée puis jouée en session « Production Deploy ». Ici, seul risque résiduel : **attendre** le Lot 0 (étape 10) |
 | **R7** | **Deux agents sur le même `<host>`** (même client id) : le broker déconnecte l'ancien ⇒ bascule en boucle | faible | client id fixe `iakafleet-agent-<host>` documenté ; le service est l'**unique** lanceur |
 | **R8** | **Horloges décalées** entre machines faussent la péremption | faible | Seuil large (3 × battement) ; `t` affiché brut en `--json` |
 | **R9** | Chaîne d'approvisionnement `mqtt` | faible | Version épinglée exacte, lockfile commité, arbre mesuré (`M4`) |
@@ -390,13 +402,14 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
       vide ⇒ message explicite + code 0.
 - [ ] **CA-11** — Config : `mqtt://` vers une adresse autre que `127.0.0.1`/`localhost` ⇒ **refus au
       démarrage** ; `<host>` invalide ⇒ refus nommé.
+- [ ] **CA-12** — Masquage (Q3) : sans `IAKAFLEET_MASK_NAMES` ⇒ `name` publié ; avec `IAKAFLEET_MASK_NAMES=1`
+      ⇒ `name` publié **`null`** pour **toutes** les sessions, les autres codes inchangés.
 
 ### Recette réelle (Gimli, puis le décideur)
 
-- [ ] **CA-R1** — Lot 0 : `mosquitto_sub -u fleet-console … -t 'iakafleet/#'` fonctionne ; le même
-      compte **ne peut pas publier** (MQTT 5, `PUBACK` code **135 Not authorized** — pas de conclusion
-      sur un `-V 4` silencieux, piège déjà payé au CA-6 du broker) ; `fleet-<mac>` **ne peut pas**
-      publier sous `iakafleet/<pc>/`. Les trois comptes existants fonctionnent comme avant.
+- [ ] **CA-R1** — Prérequis constaté : les critères de `~/work/naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md`
+      sont **cochés** (droits, refus de publication de la console, cloisonnement entre machines,
+      testament prouvé). *Vérif : lecture de ce fichier, pas re-jeu.*
 - [ ] **CA-R2** — Agents lancés **par leur service** sur le Mac **et** le PC : `iakafleet ls` depuis le
       Mac **et** depuis le PC montre **les deux machines en ligne**, OS, versions (dont
       `iakaframe_version`) et les sessions ouvertes, avec **dépôt et branche** corrects.
@@ -437,14 +450,13 @@ Aucun secret dans le dépôt ; `.env.example` sans valeurs.
 | Poste | j-h |
 |---|---:|
 | Étape 0 — mesures sur deux machines | 0,25 |
-| Lot 0 — ACL + comptes + secrets (prod VPS) | 0,25 |
-| Contrat + config | 0,25 |
+| Contrat + config (dont masquage du nom) | 0,3 |
 | Lecture de l'hôte (sessions, git, version) + fixtures | 0,6 |
 | Publication (testament, différentiel, purge, reconnexion) + gardes | 0,75 |
 | Console (modèle, rendu, `ls`/`watch`/`--json`) | 0,5 |
 | Services 3 OS + documentation | 0,5 |
 | Recette réelle Mac + PC | 0,4 |
-| **Total** | **≈ 3,5** (fourchette **3 – 4,5**) |
+| **Total** | **≈ 3,3** (fourchette **2,75 – 4,25**) — **hors Lot 0**, chiffré à part (≈ 0,3 j-h) dans `mqtt-acl-iakafleet.md` |
 
 **Complexité : moyenne.** Aucune brique difficile ; l'effort va à l'**honnêteté** de la vue (testament
 prouvé, absence jamais déguisée en vide, fantômes purgés).
@@ -455,4 +467,5 @@ prouvé, absence jamais déguisée en vide, fantômes purgés).
 2. Service Windows jamais recetté dans le portefeuille (`F9`) : **+0,25 à +0,5**.
 3. Accès au PC Windows pour la recette : **délai**, pas charge.
 4. `bw` absent du Mac à ce jour (backlog `naonedge-vps`) : versement Vaultwarden par l'interface web.
-5. Autorisation du Lot 0 (prod VPS) : **délai**, pas charge.
+5. Validation puis exécution du Lot 0 (prod VPS, instruction séparée) : **délai** avant la recette
+   réelle, pas charge.
