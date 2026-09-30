@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:publisher": "node --test publishers/claude-code/test/*.test.mjs"
+    "test:publisher": "node --test publishers/claude-code/test/*.test.mjs",
+    "test:contrast": "node scripts/test-contrast.mjs",
+    "test:fontsize": "node scripts/test-fontsize.mjs",
+    "test:styles": "npm run test:contrast && npm run test:fontsize"
   },
   "dependencies": {
     "@tauri-apps/api": "^2"
