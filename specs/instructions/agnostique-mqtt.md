@@ -1,5 +1,13 @@
 # Instruction : IakaAgentsMonitor agnostique du runner, par le bus MQTT local
 
+> **Note du 2026-09-30 (fusion iakaFleet — `specs/instructions/fusion-flotte-vue-distante.md`, étape 6)** :
+> les topics de ce document sont **remplacés par le contrat v2** `specs/contrat-bus-iaka.md`.
+> `iaka/agents/out/<runner>/<sessionId>/<agentId>` devient
+> **`iaka/<node>/out/agents/<runner>/<sessionId>/<agentId>`** (le corps de la fiche est **inchangé**), et le
+> topic cible de l'amendement A1 (**non codé**), `iaka/agents/in/<runner>/<sessionId>/<agentId>`, devient
+> **`iaka/<node>/in/agents/<runner>/<sessionId>/<agentId>`** (point d'entrée unique des ordres, `D7` de la
+> fusion). Les occurrences `iaka/agents/…` plus bas sont l'historique du contrat v1.
+
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Gimli (P2).
 > Statut : **VALIDÉE** (Q1 à Q9 = A), pas encore réalisée. L'amendement **A1** (27/09, commande
 > pause / reprise / arrêt) est **PROPOSÉ, en attente d'arbitrage** (QC1 à QC9 de

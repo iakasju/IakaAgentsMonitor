@@ -1,7 +1,11 @@
-# Publieur Claude Code — contrat MQTT v1 IakaAgentsMonitor
+# Publieur Claude Code — contrat de bus `iaka/` v2 (IakaAgentsMonitor)
 
-Publie/efface des fiches d'agent sur le bus MQTT local (`iaka/agents/out/claude-code/<sessionId>/<agentId>`,
-retenues, QoS 1), conformément à `specs/instructions/agnostique-mqtt.md`. Node ≥ 18, **aucune
+Publie/efface des fiches d'agent sur le bus MQTT local (`iaka/<node>/out/agents/claude-code/<sessionId>/<agentId>`,
+retenues, QoS 1), conformément à `specs/contrat-bus-iaka.md` (topics) et
+`specs/instructions/agnostique-mqtt.md` (fiche). Le `<node>` est `IAKA_NODE` (variable d'environnement, sinon
+`~/.iakafleet/.env`, alias `IAKAFLEET_HOST`), sinon le nom d'hôte, normalisé comme dans le démon `fleet/` et l'app
+(vecteurs `contract-vectors/`) ; un `<node>` refusé ⇒ aucune publication. Le démon `fleet/` relaie ensuite ces fiches
+vers le central **depuis les fichiers** que ce script écrit déjà (`~/.cache/iaka-agents/`), sans passer par le bus local. Node ≥ 18, **aucune
 dépendance**. Toujours code de sortie 0, jamais de sortie sur stdout : ce script ne ralentit et ne
 bloque jamais une session Claude Code, même si le broker est absent ou lent (budget total 1,5 s).
 
@@ -118,6 +122,7 @@ bloque jamais une session Claude Code, même si le broker est absent ou lent (bu
 
 - `IAKAAM_MQTT_PORT` — port du broker (défaut `1883`), à faire correspondre à celui d'iakahub si
   surchargé.
+- `IAKA_NODE` — identifiant de la machine dans le topic (défaut : nom d'hôte normalisé).
 
 ## Tests
 

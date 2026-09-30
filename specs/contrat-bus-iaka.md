@@ -45,10 +45,12 @@ par `/` crée un premier niveau vide, source classique d'erreurs d'ACL.
 - **`presence/` et `sessions/`** : modèle **code/valeur** d'iakaTokenCounter —
   `{"v":<scalaire|null>,"t":<epoch s>}`, jamais d'objet ni de tableau ; **retain, QoS 1** ;
   effacement = **payload vide 0 octet, retained**. Codes : ceux d'iakaFleet MVP `D4` (`meta/*` devient
-  `presence/*`, noms de codes inchangés), plus le masquage (§ 4) et un code neuf
+  `presence/*`, noms de codes inchangés), plus le masquage (§ 4) et deux codes neufs :
   `presence/cards_source_ok/current` (boolean : la source locale des fiches d'agents existe-t-elle ?
   **`false` écrit, jamais sous-entendu** — sans lui, « pas de hooks installés » et « aucun agent »
-  seraient le même écran vide).
+  seraient le même écran vide) et `sessions/<pid>/sid/current` (`sha256(sessionId)` sur 12 hex, § 1 : la
+  **clé de rattachement** d'une fiche d'agent à sa session ; ajout compatible, v2 inchangée, § 7 —
+  **ajouté en P2 par Gimli** : l'instruction D4 exige ce rattachement sans le nommer dans les codes).
 - **`agents/`** : **exception déclarée** au modèle code/valeur — la **fiche d'agent JSON v1** du Monitor
   (`agnostique-mqtt.md` § « Fiche »), inchangée champ pour champ, **retain, QoS 1**, effacement = payload
   vide. Motif : une fiche est un **document** cohérent (persona, tâche, parent, modèle) que le Monitor

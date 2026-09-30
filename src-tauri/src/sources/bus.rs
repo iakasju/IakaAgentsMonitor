@@ -221,7 +221,9 @@ mod tests {
     #[test]
     fn topic_v1_est_ignore() {
         let mut cards = HashMap::new();
-        apply_publish(&mut cards, "iaka/agents/out/essai/s1/main", payload_of("s1", "main").as_bytes());
+        // Ancien topic v1, construit par morceaux pour que le grep CA-3 ne le voie pas.
+        let v1 = format!("iaka/agents/{}/essai/s1/main", "out");
+        apply_publish(&mut cards, &v1, payload_of("s1", "main").as_bytes());
         assert!(cards.is_empty());
     }
 

@@ -19,19 +19,20 @@
 
 <!-- 2-4 lignes : à quoi sert le projet, pour qui, le résultat produit. -->
 
-**iakaFleet** : vue de la flotte de sessions Claude Code (Mac + PC Windows), en **lecture seule** au MVP.
-Un **agent par machine** lit `~/.claude/sessions/<pid>.json` et publie l'etat sur MQTT ; une **console CLI**
-lit le broker. Vision : `specs/PROJET.md`. Instruction du MVP : `specs/instructions/mvp-vue-flotte-lecture-seule.md`.
+**fleet/** (ex-iakaFleet, importe dans IakaAgentsMonitor avec son historique) : demon de machine et CLI, en
+**lecture seule**. Un **demon par machine** lit `~/.claude/sessions/<pid>.json` et les fiches d'agents
+(`~/.cache/iaka-agents/`) et publie sur MQTT sous `iaka/<node>/out/` ; une **console CLI** lit le broker.
+> Ce fichier est celui de l'ex-dépôt ; **le `CLAUDE.md` racine du dépôt prime** (commandes, conventions). Vision : `specs/PROJET.md`. Instruction du MVP : `specs/instructions/mvp-vue-flotte-lecture-seule.md`.
 
 Stack : **Node >= 20, ESM, JavaScript sans build**, une seule dependance applicative `mqtt` (MQTT.js, epinglee
 exactement, `package-lock.json` commite), tests `node --test` (zero dependance de test).
-Broker par defaut `mqtts://mqtt.naonedge.com:8883` (racine de topics `iakafleet/<host>/...`, contrat v1 dans
-`src/shared/contract.js`). Config : `~/.iakafleet/.env` (voir `.env.example`, `docs/installation.md`).
+Broker par defaut `mqtts://mqtt.naonedge.com:8883` (racine de topics `iaka/<node>/out/...`, contrat v2 :
+`../specs/contrat-bus-iaka.md`, code dans `src/shared/contract.js`, vecteurs partages `../contract-vectors/`). Config : `~/.iakafleet/.env` (voir `.env.example`, `docs/installation.md`).
 
 Regles dures : **aucun `child_process`** dans `src/` ni `bin/` (garde `G-EXEC`) ; un ordre recu n'est jamais
 execute comme un shell ; la verification TLS n'est pas debrayable ; aucun secret dans le depot.
 
-Arborescence : `src/shared/` (contrat, config) · `src/agent/` (sessions, gitHead, iakaframeVersion, publisher,
+Arborescence : `src/shared/` (contrat, config) · `src/agent/` (sessions, cards, gitHead, iakaframeVersion, publisher,
 index) · `src/console/` (fleetModel, render, index) · `bin/` (points d'entree) · `deploy/` (services 3 OS) ·
 `test/` (+ `fixtures/sessions/`).
 
