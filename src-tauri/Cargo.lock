@@ -1745,6 +1745,7 @@ dependencies = [
 name = "iakaagentsmonitor"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "rumqttc",
  "rumqttd",
  "serde",

@@ -186,6 +186,5 @@ fn vecteurs_local_assemblage_regle_d2() {
         fb.sort_unstable();
         let exp_fb: Vec<u32> = e["fallbackFor"].as_array().unwrap().iter().map(|p| p.as_u64().unwrap() as u32).collect();
         assert_eq!(fb, exp_fb, "{name} repli par session (aucun autre fichier ouvert)");
-        let _ = e["otherRunners"].as_array().unwrap(); // verifie via le nombre de sessions affichees (runner tiers = sa propre session)
     }
 }

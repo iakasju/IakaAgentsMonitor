@@ -224,6 +224,25 @@ pub fn build_snapshot(
     labels: &Labels,
     roster: &Roster,
 ) -> AgentsSnapshot {
+    build_snapshot_ext(cards, &HashSet::new(), &[], now, liveness_secs, labels, roster)
+}
+
+/// Comme [`build_snapshot`], avec deux apports de « Ce poste » (ce-poste-vue-locale-lisibilite.md
+/// D2) :
+/// - `pinned` : sessions `(runner, sessionId)` dont on SAIT qu'elles vivent (pid vivant) — elles
+///   s'affichent TOUJOURS, même sans écriture récente (plus de péremption à 90 s pour une
+///   session ; celle des sous-agents reste inchangée) ;
+/// - `orphans` : fiches fraîches dont la session n'est pas vivante, rendues à plat sous
+///   `unattached` (« agents non rattachés », jamais perdus).
+pub fn build_snapshot_ext(
+    cards: &[AgentCard],
+    pinned: &HashSet<(String, String)>,
+    orphans: &[AgentCard],
+    now: i64,
+    liveness_secs: i64,
+    labels: &Labels,
+    roster: &Roster,
+) -> AgentsSnapshot {
     let iakaframe_root = expand_home(&labels.iakaframe_root);
 
     // Regroupement par session (runner, sessionId) — une session peut porter un coordinateur
@@ -239,10 +258,16 @@ pub fn build_snapshot(
     let mut with_activity: Vec<(i64, SessionNode)> = Vec::new();
     let mut count: u32 = 0;
 
-    for ((_runner, _session_id), group) in &sessions {
-        let Some((node, activity)) =
-            build_session_node(group, now, liveness_secs, labels, roster, &iakaframe_root)
-        else {
+    for (key, group) in &sessions {
+        let Some((node, activity)) = build_session_node(
+            group,
+            pinned.contains(key),
+            now,
+            liveness_secs,
+            labels,
+            roster,
+            &iakaframe_root,
+        ) else {
             continue;
         };
         count += count_live_agents(&node.coordinator);
@@ -258,6 +283,9 @@ pub fn build_snapshot(
         .map(|(_, n)| n)
         .collect();
 
+    let unattached = build_unattached(orphans, now, labels, roster, &iakaframe_root);
+    count += unattached.iter().map(|n| n.overflow.unwrap_or(1)).sum::<u32>();
+
     AgentsSnapshot {
         count,
         sessions,
@@ -266,8 +294,44 @@ pub fn build_snapshot(
         } else {
             None
         },
-        unattached: Vec::new(),
+        unattached,
     }
+}
+
+/// Rend les fiches orphelines à plat (aucune hiérarchie : leur parent n'est plus là), du plus
+/// ancien démarrage au plus récent, avec les bornes d'affichage habituelles. L'identité d'une
+/// fiche orpheline est `<sessionId>/<agentId>` (deux sessions mortes peuvent porter chacune un
+/// `main`) ; un `main` orphelin reprend le persona du coordinateur de la configuration.
+fn build_unattached(
+    orphans: &[AgentCard],
+    now: i64,
+    labels: &Labels,
+    roster: &Roster,
+    iakaframe_root: &std::path::Path,
+) -> Vec<AgentNode> {
+    if orphans.is_empty() {
+        return Vec::new();
+    }
+    let flat: Vec<AgentCard> = orphans
+        .iter()
+        .map(|c| {
+            let mut c = c.clone();
+            if c.agent_id == "main" && c.persona.is_none() {
+                c.persona = Some(labels.main_persona.clone());
+            }
+            c.agent_id = format!("{}/{}", c.session_id, c.agent_id);
+            c.parent_id = None;
+            c
+        })
+        .collect();
+    let by_id: HashMap<&str, &AgentCard> = flat.iter().map(|c| (c.agent_id.as_str(), c)).collect();
+    let display_parent: HashMap<&str, Option<String>> = flat.iter().map(|c| (c.agent_id.as_str(), None)).collect();
+    let mut children_of: HashMap<Option<String>, Vec<&str>> = HashMap::new();
+    children_of.insert(None, flat.iter().map(|c| c.agent_id.as_str()).collect());
+    let reference_cwd = flat.iter().find_map(|c| c.cwd.as_deref());
+    let roster_map = roster.resolve(reference_cwd, iakaframe_root);
+    let runner_label = flat.first().map(|c| labels.runner_label(&c.runner)).unwrap_or_default();
+    build_children(None, &children_of, &by_id, &display_parent, now, labels, &roster_map, &runner_label)
 }
 
 fn count_live_agents(node: &AgentNode) -> u32 {
@@ -280,6 +344,7 @@ fn count_live_agents(node: &AgentNode) -> u32 {
 
 fn build_session_node(
     group: &[&AgentCard],
+    pinned: bool,
     now: i64,
     liveness_secs: i64,
     labels: &Labels,
@@ -291,7 +356,7 @@ fn build_session_node(
 
     let coordinator_alive = coordinator_card.is_some_and(|c| card_alive(c, now, liveness_secs));
     let any_descendant_alive = subagents.iter().any(|c| card_alive(c, now, liveness_secs));
-    if !coordinator_alive && !any_descendant_alive {
+    if !coordinator_alive && !any_descendant_alive && !pinned {
         return None;
     }
 

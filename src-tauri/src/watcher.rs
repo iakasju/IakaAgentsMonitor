@@ -1,16 +1,24 @@
-//! watcher — assemble les DEUX sources (specs/instructions/agnostique-mqtt.md, étape 7) selon la
-//! bascule de repli (Q3-A, repli STRICT) et pousse l'instantané construit par le cœur neutre
-//! (`tree::build_snapshot`) à la webview. Seul endroit qui décide QUELLE source alimente l'app à
-//! un instant donné — ni `tree`, ni les sources elles-mêmes, ne connaissent cette décision.
+//! watcher — assemble les sources de « Ce poste » selon la règle D2 de
+//! `specs/instructions/ce-poste-vue-locale-lisibilite.md` (la session fait foi, les fiches la
+//! peuplent : fichiers de session du démon + fiches du publieur, unis aux fiches du bus local s'il
+//! est joint ; repli par transcripts POUR UNE SESSION sans fiche, jamais pour le répertoire entier)
+//! et pousse l'instantané construit par le cœur neutre (`tree`) à la webview. Remplace la bascule
+//! stricte bus-OU-fichiers (Q3-A de `agnostique-mqtt.md`, remplacée par cette union). Seul endroit
+//! qui décide QUELLES sources alimentent l'app à un instant donné.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::labels;
 use crate::roster::Roster;
-use crate::sources::{bus::BusSource, claude_code_files, remote::{RemoteSource, RemoteView}};
+use crate::sources::{
+    bus::BusSource,
+    claude_code_files,
+    local_sessions::{self, LocalInput},
+    remote::{RemoteSource, RemoteView},
+};
 use crate::state::AppState;
-use crate::tree::{self, AgentsSnapshot};
+use crate::tree::AgentsSnapshot;
 
 /// Nom d'événement poussé à la webview à chaque changement d'instantané agents.
 pub const AGENTS_EVENT: &str = "tray://agents";
@@ -64,10 +72,11 @@ pub fn start_watcher(app: AppHandle) {
     std::thread::spawn(move || run_watcher(app, bus, remote));
 }
 
-/// Libellé de source affiché dans l'infobulle du tray (étape 7).
+/// Libellé de source affiché dans l'infobulle du tray : les fichiers du poste sont TOUJOURS lus
+/// (la session fait foi) ; le bus local s'y ajoute quand il est joint (union `D2`, plus de bascule).
 pub fn source_label(bus_connected: bool) -> &'static str {
     if bus_connected {
-        "bus"
+        "fichiers + bus"
     } else {
         "fichiers (bus absent)"
     }
@@ -76,6 +85,9 @@ pub fn source_label(bus_connected: bool) -> &'static str {
 fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
     let labels = labels::load_labels();
     let roster = Roster::new();
+    let projects_dir = claude_code_files::claude_projects_dir();
+    let sessions_dir = local_sessions::sessions_dir();
+    let cards_dir = local_sessions::cards_dir();
     let mut last: Option<AgentsSnapshot> = None;
     let mut last_source: &str = "";
     let mut last_fleet: Option<RemoteView> = None;
@@ -84,19 +96,32 @@ fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
         let now = now_secs();
         let liveness = liveness_secs_from_env() as i64;
 
-        // Bascule de repli STRICTE (Q3-A) : broker joignable -> source bus SEULE ; broker
-        // injoignable -> source fichiers SEULE. Jamais de fusion des deux.
+        // D2 : sessions vivantes (pid) + fiches du disque, UNIES aux fiches du bus local s'il est
+        // joint. Coût O(sessions vivantes) : aucun parcours de `~/.claude/projects` (D3).
         let bus_connected = bus.is_connected();
-        let cards = if bus_connected {
-            bus.cards()
-        } else {
-            claude_code_files::claude_projects_dir()
-                .map(|dir| claude_code_files::cards_from_dir(&dir))
-                .unwrap_or_default()
+        let sessions = sessions_dir
+            .as_deref()
+            .and_then(|d| local_sessions::read_sessions(d, &local_sessions::pid_alive));
+        let notice = local_notice(sessions_dir.as_deref(), sessions.is_some());
+        let sessions = sessions.unwrap_or_default();
+        let disk_cards = cards_dir.as_deref().map(local_sessions::read_disk_cards).unwrap_or_default();
+        let bus_cards = if bus_connected { bus.cards() } else { Vec::new() };
+        let mut fallback = |s: &local_sessions::LocalSession| match (&projects_dir, s.cwd.as_deref(), s.session_id.as_deref()) {
+            (Some(dir), Some(cwd), Some(sid)) => claude_code_files::cards_for_session(dir, cwd, sid),
+            _ => Vec::new(),
         };
+        let outcome = local_sessions::build_local_snapshot(
+            LocalInput { sessions: &sessions, disk_cards, bus_cards },
+            &mut fallback,
+            now,
+            liveness,
+            &labels,
+            &roster,
+        );
         let source = source_label(bus_connected);
 
-        let snap = tree::build_snapshot(&cards, now, liveness, &labels, &roster);
+        let snap = outcome.snapshot;
+        let _ = notice;
         {
             let state = app.state::<AppState>();
             *state.running_agents.lock().unwrap() = snap.clone();
@@ -119,5 +144,18 @@ fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
             last_fleet = Some(fleet);
         }
         std::thread::sleep(TICK);
+    }
+}
+
+/// Avertissement de la source locale quand elle est dégradée : le vide ne se déguise jamais en
+/// « aucune session ».
+fn local_notice(dir: Option<&std::path::Path>, dir_ok: bool) -> Option<String> {
+    if !cfg!(unix) {
+        return Some("vivacité des sessions non prise en charge sur ce système".to_string());
+    }
+    match (dir, dir_ok) {
+        (None, _) => Some("dossier personnel introuvable : sessions non lues".to_string()),
+        (Some(d), false) => Some(format!("répertoire de sessions illisible ({})", d.display())),
+        (Some(_), true) => None,
     }
 }

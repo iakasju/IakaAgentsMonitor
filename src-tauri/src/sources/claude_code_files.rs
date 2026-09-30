@@ -24,7 +24,7 @@ use crate::estimate;
 
 /// Identifiant de runner de cet adaptateur (contrat, champ `runner`) — SEUL endroit, avec
 /// `publishers/claude-code/`, où cette chaîne est écrite.
-const RUNNER_ID: &str = "claude-code";
+pub(crate) const RUNNER_ID: &str = "claude-code";
 
 /// Plafond de lecture en tête d'un transcript (voir doc historique dans l'ancien `agents.rs`) :
 /// sert au `cwd`, au modèle et à la consigne, jamais à lire le fichier entier.
@@ -255,82 +255,124 @@ fn project_label_for_session(escaped_dir: &Path, coordinator_transcript: Option<
 /// Produit une fiche par agent (coordinateur + sous-agents) trouvé sous `projects_dir`, VIVANT
 /// ou non (la péremption est une décision du cœur neutre, `tree::build_snapshot`, pas de cette
 /// source). Fichier illisible (mtime absent) -> agent sauté, jamais de panique.
+///
+/// ⚠️ Parcourt le répertoire ENTIER (`F4` de ce-poste-vue-locale-lisibilite.md : ~1 s par passe sur
+/// 660 transcripts) : le watcher ne l'appelle plus (`D3`), il n'existe plus que pour le micro-banc
+/// `examples/tick_bench.rs` et les tests. Pour UNE session, voir [`cards_for_session`].
 pub fn cards_from_dir(projects_dir: &Path) -> Vec<AgentCard> {
     let raw_sessions = group_sessions(projects_dir);
     let mut out = Vec::new();
-
     for (key, raw) in &raw_sessions {
-        let escaped_dir = &key.0;
-        let sid = &key.1;
-        let project = project_label_for_session(escaped_dir, raw.coordinator_transcript.as_deref());
-        let cwd = raw
-            .coordinator_transcript
-            .as_deref()
-            .and_then(|p| first_cwd_in_transcript(p, TRANSCRIPT_HEAD_CAP));
+        out.extend(cards_of_session(&key.0, &key.1, raw));
+    }
+    out
+}
 
-        if let Some(path) = &raw.coordinator_transcript {
-            if let Some(mtime) = mtime_of(path) {
-                let started_at = created_of(path).unwrap_or(mtime);
-                out.push(AgentCard {
-                    v: 1,
-                    runner: RUNNER_ID.to_string(),
-                    runner_version: None,
-                    model: read_head_capped(path, TRANSCRIPT_HEAD_CAP)
-                        .as_deref()
-                        .and_then(model_from_head),
-                    persona: None,
-                    agent_id: "main".to_string(),
-                    parent_id: None,
-                    session_id: sid.clone(),
-                    project: Some(project.clone()),
-                    cwd: cwd.clone(),
-                    task: Some(coordinator_task_label(Some(path))),
-                    estimate: None,
-                    started_at,
-                    last_seen_at: mtime,
-                    state: Some("running".to_string()),
-                });
+/// Nom de dossier de projet de Claude Code pour un `cwd` : tout caractère non alphanumérique
+/// devient `-` (`/Users/x/work/a.b` -> `-Users-x-work-a-b`).
+fn escaped_project_dir_name(cwd: &str) -> String {
+    cwd.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect()
+}
+
+/// REPLI PAR SESSION (`D3`) : fiches d'UNE seule session (son transcript
+/// `<projets>/<cwd échappé>/<sessionId>.jsonl` et ses sous-agents `<sessionId>/subagents/*.jsonl`),
+/// sans jamais parcourir le répertoire des projets. Aucun fichier hors de cette session n'est
+/// ouvert ; transcript absent -> liste vide.
+pub fn cards_for_session(projects_dir: &Path, cwd: &str, session_id: &str) -> Vec<AgentCard> {
+    if cwd.is_empty() || session_id.is_empty() || session_id.contains(['/', '\\']) {
+        return Vec::new();
+    }
+    let escaped_dir = projects_dir.join(escaped_project_dir_name(cwd));
+    let transcript = escaped_dir.join(format!("{session_id}.jsonl"));
+    let mut raw = RawSession::default();
+    if transcript.is_file() {
+        raw.coordinator_transcript = Some(transcript);
+    }
+    if let Ok(entries) = std::fs::read_dir(escaped_dir.join(session_id).join("subagents")) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                continue;
+            }
+            if let Some(agent_id) = subagent_id(&path) {
+                raw.subagents.push(RawSubagent { agent_id, transcript_path: path });
             }
         }
+    }
+    cards_of_session(&escaped_dir, session_id, &raw)
+}
 
-        for sub in &raw.subagents {
-            let path = &sub.transcript_path;
-            let Some(mtime) = mtime_of(path) else { continue };
+/// Fiches (coordinateur + sous-agents) d'une session déjà découverte.
+fn cards_of_session(escaped_dir: &Path, sid: &str, raw: &RawSession) -> Vec<AgentCard> {
+    let mut out = Vec::new();
+    let project = project_label_for_session(escaped_dir, raw.coordinator_transcript.as_deref());
+    let cwd = raw
+        .coordinator_transcript
+        .as_deref()
+        .and_then(|p| first_cwd_in_transcript(p, TRANSCRIPT_HEAD_CAP));
+
+    if let Some(path) = &raw.coordinator_transcript {
+        if let Some(mtime) = mtime_of(path) {
             let started_at = created_of(path).unwrap_or(mtime);
-            let sidecar = path.with_extension("meta.json");
-            let meta = read_agent_meta(&sidecar).unwrap_or_default();
-            let head = read_head_capped(path, TRANSCRIPT_HEAD_CAP);
-            let model = head.as_deref().and_then(model_from_head);
-            let raw_consigne = head.as_deref().and_then(raw_user_snippet_from_head);
-            let estimate_raw = raw_consigne
-                .as_deref()
-                .and_then(estimate::find_consigne_estimate_raw)
-                .or_else(|| meta.description.as_deref().and_then(estimate::suffix_estimate_raw));
-            let persona = if meta.agent_type.is_empty() {
-                None
-            } else {
-                Some(meta.agent_type.clone())
-            };
-            let parent_id = meta.parent_agent_id.clone().or_else(|| Some("main".to_string()));
-
             out.push(AgentCard {
                 v: 1,
                 runner: RUNNER_ID.to_string(),
                 runner_version: None,
-                model,
-                persona,
-                agent_id: sub.agent_id.clone(),
-                parent_id,
-                session_id: sid.clone(),
+                model: read_head_capped(path, TRANSCRIPT_HEAD_CAP)
+                    .as_deref()
+                    .and_then(model_from_head),
+                persona: None,
+                agent_id: "main".to_string(),
+                parent_id: None,
+                session_id: sid.to_string(),
                 project: Some(project.clone()),
                 cwd: cwd.clone(),
-                task: meta.description.clone(),
-                estimate: estimate_raw,
+                task: Some(coordinator_task_label(Some(path))),
+                estimate: None,
                 started_at,
                 last_seen_at: mtime,
                 state: Some("running".to_string()),
             });
         }
+    }
+
+    for sub in &raw.subagents {
+        let path = &sub.transcript_path;
+        let Some(mtime) = mtime_of(path) else { continue };
+        let started_at = created_of(path).unwrap_or(mtime);
+        let sidecar = path.with_extension("meta.json");
+        let meta = read_agent_meta(&sidecar).unwrap_or_default();
+        let head = read_head_capped(path, TRANSCRIPT_HEAD_CAP);
+        let model = head.as_deref().and_then(model_from_head);
+        let raw_consigne = head.as_deref().and_then(raw_user_snippet_from_head);
+        let estimate_raw = raw_consigne
+            .as_deref()
+            .and_then(estimate::find_consigne_estimate_raw)
+            .or_else(|| meta.description.as_deref().and_then(estimate::suffix_estimate_raw));
+        let persona = if meta.agent_type.is_empty() {
+            None
+        } else {
+            Some(meta.agent_type.clone())
+        };
+        let parent_id = meta.parent_agent_id.clone().or_else(|| Some("main".to_string()));
+
+        out.push(AgentCard {
+            v: 1,
+            runner: RUNNER_ID.to_string(),
+            runner_version: None,
+            model,
+            persona,
+            agent_id: sub.agent_id.clone(),
+            parent_id,
+            session_id: sid.to_string(),
+            project: Some(project.clone()),
+            cwd: cwd.clone(),
+            task: meta.description.clone(),
+            estimate: estimate_raw,
+            started_at,
+            last_seen_at: mtime,
+            state: Some("running".to_string()),
+        });
     }
     out
 }
@@ -431,5 +473,33 @@ mod tests {
         fs::write(escaped.join("sid.jsonl"), "{}\n").unwrap();
         let cards = cards_from_dir(&dir);
         assert_eq!(cards[0].project, Some("-w-hors-projet-connu".to_string()));
+    }
+
+    #[test]
+    fn repli_par_session_ne_lit_que_la_session_demandee() {
+        let dir = tmp_dir("repli-session");
+        // La session demandée.
+        let cwd = "/Users/x/work/mon.projet";
+        let escaped = dir.join(escaped_project_dir_name(cwd));
+        assert_eq!(escaped.file_name().unwrap(), "-Users-x-work-mon-projet");
+        write_transcript_line(&escaped.join("sid-a.jsonl"), cwd, "claude-opus", "Ma tache");
+        let sub = escaped.join("sid-a/subagents/agent-s1.jsonl");
+        write_transcript_line(&sub, cwd, "claude-sonnet", "Consigne");
+        fs::write(escaped.join("sid-a/subagents/agent-s1.meta.json"), r#"{"agentType":"gimli","description":"Sous tache"}"#).unwrap();
+        // Une autre session, morte : ses transcripts existent mais ne doivent PAS être ouverts.
+        let other = dir.join("-Users-x-work-autre");
+        write_transcript_line(&other.join("sid-b.jsonl"), "/Users/x/work/autre", "claude-opus", "Morte");
+
+        let cards = cards_for_session(&dir, cwd, "sid-a");
+        let mut ids: Vec<&str> = cards.iter().map(|c| c.agent_id.as_str()).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, vec!["main", "s1"]);
+        assert!(cards.iter().all(|c| c.session_id == "sid-a"));
+        assert_eq!(cards.iter().find(|c| c.agent_id == "main").unwrap().task.as_deref(), Some("Ma tache"));
+
+        // Transcript absent, cwd vide, identifiant piégé : liste vide, jamais un parcours.
+        assert!(cards_for_session(&dir, cwd, "inconnue").is_empty());
+        assert!(cards_for_session(&dir, "", "sid-a").is_empty());
+        assert!(cards_for_session(&dir, cwd, "../sid-b").is_empty());
     }
 }

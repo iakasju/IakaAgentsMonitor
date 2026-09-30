@@ -22,6 +22,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rumqttc = "0.24"
 toml = "0.8"
+# Vivacité d'un pid (`kill(pid, 0)`, sous cfg(unix)) : déjà dans l'arbre de Tauri, rendue directe
+# et explicite (ce-poste-vue-locale-lisibilite.md D1).
+libc = "0.2"
 
 [dev-dependencies]
 rumqttd = "0.19"
