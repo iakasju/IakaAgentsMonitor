@@ -267,8 +267,13 @@ chiffres dans le commit. ✅ *Budget accepté par le décideur le 2026-09-30.*
 - [ ] **CA-11** — **Non-régression F11** : lettre/pastille, indentation, tri, compact/large, « Reste », bandeau
       de dépôt, État désactivé, ajustement de fenêtre, thèmes — vérifiés un par un (capture au gate).
 - [ ] **CA-12** — Budget `D7` tenu sur build de publication (chiffres avant/après consignés).
+      *État au 2026-10-01 : **non mesuré** (`scripts/measure-cpu.sh` en préparation). Indicatifs seulement :
+      build de dev 0,0–2,2 % sur 6 relevés, 62 Mo ; tick 1,6–2,7 ms (`IAKAAM_TRACE=1`) ; micro-banc p95
+      529 ms → 1,44 ms.*
 - [ ] **CA-R1** — **Recette du décideur** sur le Mac : titre, sessions et agents complets, lisibilité jugée
-      suffisante.
+      suffisante. *État au 2026-10-01 : **validé à l'écran par le décideur** (« c'est bon ok », `tauri dev`,
+      `ef3ed43`, gate Legolas PASS) — case laissée au décideur. Restent non vérifiés : largeur à 480 px au cran
+      16 px (CA-10), CA-12.*
 
 ## 8. Estimation
 

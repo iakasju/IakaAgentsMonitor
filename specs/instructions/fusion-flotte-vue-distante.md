@@ -310,6 +310,25 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
 antérieur au `true` du même démon `t=1790797788`). Correctif cadré :
 **`specs/instructions/corr-hors-ligne-duree.md`** (≈ 0,3 j-h), à livrer **avant** la recette de CA-R3.
 
+### 11.2 État de la recette au 2026-10-01 — consigné, **rien n'est coché sans le décideur**
+
+Lot `ce-poste-vue-locale-lisibilite.md` sur `feat/fusion-flotte` @ `ef3ed43`, **gate Legolas PASS**.
+
+| Critère | État au 2026-10-01 | Preuve / reste |
+|---|---|---|
+| **CA-R3** | **partiel : volet Mac de « Ce poste » vu à l'écran** | App lancée en `tauri dev` depuis le worktree (vue V4, direction A) : titre « Ce poste », agents sous leurs sessions. « Autres machines » affiche « Aucune autre machine n'a publié » (PC non joint). **Reste** : le PC dans « Autres machines » et son passage hors ligne (après `corr-hors-ligne-duree.md`) |
+| **CA-R4** | **non fait** | Coupure réseau du Mac **non testée** |
+| **CA-R6** | **partiel** | Le décideur a validé à l'écran le lot « Ce poste » (« c'est bon ok ») ; ni le PC ni la coupure réseau |
+| CA-R1, CA-R1b, CA-R2, CA-R5 | inchangés depuis le § 11.1 | — |
+
+Mesures du 2026-10-01 (Mac) : journal `IAKAAM_TRACE=1` ⇒ `tick 1,6 à 2,7 ms · 2 session(s) · 3 agent(s) · bus
+absent` (2 sessions = les 2 seuls fichiers de `~/.claude/sessions`, tous vivants : aucun écart) ; CPU au repos
+de l'app en **build de dev** 0,0 à 2,2 % sur 6 relevés (avant : pics de 35 à 90 %), mémoire 62 Mo ; micro-banc
+Legolas : ancien tick p50 453 ms / p95 529 ms / max 1323 ms, nouveau p50 1,37 ms / p95 1,44 ms / max 6 ms.
+**Non mesurés** : budget CPU sur **build de publication** (CA-12 du lot, `scripts/measure-cpu.sh`, en
+préparation) ; largeur réelle à 480 px au cran 16 px (risque signalé par Legolas).
+Observations de Legolas, non bloquantes, instruites dans **`specs/instructions/finition-ce-poste.md`**.
+
 ## 12. Estimation (jalon P1→P2)
 
 | Poste | j-h |
