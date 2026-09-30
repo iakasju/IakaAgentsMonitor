@@ -1,5 +1,7 @@
 # Instruction : Liste des agents en cours — MVP tray macOS
 
+> **A4 point 1 amendé par `ce-poste-vue-locale-lisibilite.md` `D6`.5** (2026-09-30) : le mode compact garde ses 5 colonnes de tête, mais le **modèle** passe en seconde ligne de la cellule Agent (deux lignes par agent, runner et modèle visibles sans clic).
+
 > Rédigé par le cadrage (P1, Gandalf) le 2026-09-26. Consommé par Gimli (P2).
 > Statut : **VALIDÉE par Stéphane le 26/09/2026** (« go ») : Q1 à Q6 = A. Maquette de référence : `docs/maquettes/visu-agents-5-versions.html`, version 1 (fenêtre de barre de menus), remplacée par le tableau V4 (amendement A1). Les recommandations ci-dessous étaient les valeurs par défaut, retenues par ce « go ».
 > **Amendement A1 (Stéphane, 26/09/2026)** : l'affichage par défaut n'est plus la popover V1 mais le **tableau V4** de la maquette (une ligne par agent, colonnes triables, runner et modèle), **avec une indentation qui représente la délégation** (enfant sous son parent). Clic sur l'icône de barre de menus → petite fenêtre avec ce tableau. **Icônes des agents** : pixel art en **4×4 caractères**, proposées par Loki et choisies par Stéphane **avant** implémentation ; en attendant, lettre dans un carré à la couleur de la pastille.

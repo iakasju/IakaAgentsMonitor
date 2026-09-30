@@ -1,5 +1,7 @@
 # Instruction : IakaAgentsMonitor agnostique du runner, par le bus MQTT local
 
+> **Q3-A remplacée par l'union `D2` de `ce-poste-vue-locale-lisibilite.md`** (2026-09-30) : la bascule stricte bus **ou** fichiers n'existe plus ; « Ce poste » lit les fichiers de session et de fiches du disque **et** le bus local s'il est joint, la détection par transcripts n'étant gardée qu'en repli **par session** (`D3`).
+
 > **Note du 2026-09-30 (fusion iakaFleet — `specs/instructions/fusion-flotte-vue-distante.md`, étape 6)** :
 > les topics de ce document sont **remplacés par le contrat v2** `specs/contrat-bus-iaka.md`.
 > `iaka/agents/out/<runner>/<sessionId>/<agentId>` devient
