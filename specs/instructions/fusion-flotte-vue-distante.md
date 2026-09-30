@@ -98,7 +98,7 @@ Le démon lit `~/.cache/iaka-agents/**/*.json` (`F5`) comme il lit `~/.claude/se
 vers le **central** sous `iaka/<node>/out/agents/…`, en appliquant la confidentialité (sid haché, `cwd`
 ramené au home, **`task` à `null` par défaut**, publié seulement si `IAKA_SHOW_TASKS=1` sur la machine — Q1). **Aucune dépendance** au bus local ni à iakaTokenCounter ; zéro
 changement au publieur hors son topic. Fiche disparue du disque ⇒ effacement retenu (même règle
-`G-PURGE` que les sessions). **`child_process` reste interdit** dans `fleet/` (`G-EXEC` inchangée).
+`G-PURGE` que les sessions). **`child_process` reste interdit** dans `fleet/` (`G-EXEC` ; durcissement `G-EXEC-2`, § 13.1).
 
 ### `D4` — L'app : « **Ce poste** » par les sources locales, « **Autres machines** » par le central
 
@@ -210,7 +210,8 @@ historique ; événements `out/events/` ; convergence d'`iakatokencounter/` et d
 9. **Documentation** : `README`, `CLAUDE.md` (projet, commandes `fleet/`, backlog, **section Forgejo
    corrigée** `F16`), `docs/installation.md` de `fleet/` mis à jour ; `README.md` de renvoi dans
    `~/work/iakaFleet` (seul fichier touché dans ce dépôt, hors `specs/`).
-10. **Lot `L-INSTALL` — installation (décideur, Q3), APRÈS le Lot 0 amendé.** (a) **Mac d'abord** :
+10. **Lot `L-INSTALL` — installation (décideur, Q3), APRÈS le Lot 0 amendé ET APRÈS `G-EXEC-2`
+    (§ 13.1 : le démon ne s'installe en service qu'avec sa garde durcie et `node --permission`).** (a) **Mac d'abord** :
     démon `fleet/` en service (launchd) + **hooks du publieur** (copie dans `~/.claude/` et extrait
     `hooks` **ajouté** à `~/.claude/settings.json` — geste du décideur, guidé par la doc ; aucun agent
     n'écrit dans `~/.claude/`) ; vérifier `presence/cards_source_ok = true`. (b) **PC ensuite**, quand le
@@ -243,10 +244,25 @@ Aucune : les quatre questions du cadrage ont été tranchées le 2026-09-30 (cf.
 
 ## 11. Critères d'acceptation
 
-- [ ] **CA-1** — `fleet/` importé avec son historique (`git log -- fleet/` montre les commits d'iakaFleet) ; ses tests verts avant toute modification.
-- [ ] **CA-2** — Les **trois** pièces passent **tous** les vecteurs de `contract-vectors/` (Node `node --test`, Rust `cargo test`), vus rouges avant.
-- [ ] **CA-3** — `grep -rn "iakafleet/\|iaka/agents/out" fleet/src src-tauri/src publishers` ⇒ **0** (plus aucun topic v1).
-- [ ] **CA-4** — `G-EXEC` : aucun `child_process` dans `fleet/src`.
+- [ ] **CA-1** *(reformulé le 2026-09-30, écart n° 2 du gate)* — `fleet/` importé **avec l'historique
+      d'iakaFleet conservé dans le graphe** : le commit d'import a pour **second parent** la tête de
+      `feat/mvp-vue-flotte` (`6ae1eca`), et ces commits se lisent **à leurs chemins d'origine** (sans
+      préfixe `fleet/`) par `git log <commit d'import>^2 -- <chemin>` — **pas** par `git log -- fleet/`,
+      qui ne montre que les commits postérieurs à l'import (propriété de `git subtree add` sans
+      `--squash`). Vérif : `git rev-parse <commit d'import>^2` = `6ae1eca…` et
+      `git rev-list --count <commit d'import>^2` ≥ nombre de commits d'iakaFleet. Tests de `fleet/` verts
+      avant toute modification.
+- [ ] **CA-2** *(précisé le 2026-09-30, écart n° 3)* — Chaque pièce exécute **les vecteurs qu'elle
+      consomme selon la matrice de `specs/contrat-bus-iaka.md` § 6** (Node `node --test`, Rust
+      `cargo test`), vus rouges avant ; les cases « sans objet » sont des **exclusions déclarées**. Vérif :
+      pour chaque case « oui » de la matrice, un test nommé charge le fichier de vecteurs correspondant.
+- [ ] **CA-3** *(réécrit le 2026-09-30, écart n° 1)* — Plus aucun **topic** v1 :
+      `grep -rnE '(^|[^.])iakafleet/|iaka/agents/out' fleet/src src-tauri/src publishers` ⇒ **0**. Le motif
+      exclut délibérément `~/.iakafleet/.env`, **nom de chemin conservé** (Q4, `D6`) qui n'est pas un topic ;
+      l'ancien motif `iakafleet/` le comptait à tort (8 lignes, défaut de rédaction, pas du code).
+- [ ] **CA-4** — `G-EXEC` (niveau 1, livré) : aucun `child_process` dans `fleet/src` ni `fleet/bin`.
+      ⚠️ **Contournable** (chaîne concaténée, `process.binding`…) : le durcissement est le lot
+      **`G-EXEC-2`** (§ 13), **exigé avant `L-INSTALL`**.
 - [ ] **CA-5** — Relais : fixture de fiche ⇒ publiée sous `iaka/<node>/out/agents/<runner>/<sid12>/<agentId>`, `sessionId` = `<sid12>`, `cwd` relatif ; fiche supprimée ⇒ payload vide retenu ; **sans réglage ⇒ `task` = `null`** (masqué par
 défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAMES=1` ⇒ `name` des sessions à `null`.
 - [ ] **CA-6** — Aucun `sessionId` brut, `bridgeSessionId`, `messagingSocketPath` ni chemin absolu dans un payload vers le central (test sur toutes les publications d'un scénario).
@@ -280,3 +296,74 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
 **Inconnues** : contenu réel de la branche Fleet (`M1`) ; TLS `rumqttc` contre le VPS (`M4`) ; hooks jamais
 installés (`F6`) ; accès au PC Windows (volet (b) de `L-INSTALL`). Maquette écartée (Q2). *Ordre de grandeur
 révisable, pas un engagement ferme.*
+
+## 13. Suites du gate Legolas (PASS, `feat/fusion-flotte` @ `a5f4b2c`) — ajouté le 2026-09-30
+
+> Quatre écarts **non bloquants** entre l'instruction et le code/la réalité, instruits ici ; plus deux
+> décisions laissées au décideur par Gimli. Les écarts 1 à 3 étaient des **défauts de rédaction** :
+> corrigés dans CA-1, CA-2, CA-3 et dans la matrice du contrat § 6, **sans changement de code exigé**.
+
+### 13.1 `G-EXEC-2` — durcissement de la garde d'exécution (écart n° 4) — **lot suivant, AVANT `L-INSTALL`**
+
+**Constat** : `fleet/test/guard-exec.test.js:18-21` cherche la seule chaîne `child_process` ; un
+`import('node:child_pro' + 'cess')`, `process.binding('spawn_sync')` ou un `Worker` passeraient sans rougir.
+Une liste d'interdits s'allonge sans jamais être complète : **on retourne la garde**. Deux couches :
+
+1. **Statique — liste blanche des modules**, pas liste noire. Dans `fleet/src` et `fleet/bin`, tout
+   `import` statique doit viser un spécifieur de la liste blanche **versionnée dans le test** (modules
+   `node:` réellement utilisés — `fs`, `path`, `os`, `crypto`, `url`… — plus `mqtt` et les chemins
+   relatifs). Sont **rouges** en plus, quelle que soit leur forme : `import(` **dynamique**, `require(`,
+   `eval(`, `new Function`, `Function(`, `process.binding`, `process._linkedBinding`, `process.dlopen`,
+   `worker_threads`, `node:cluster`, `node:vm`, `child_process` (y compris concaténé : la garde lit aussi
+   les **littéraux de chaîne adjacents**). Un module ajouté à la liste blanche exige une ligne de
+   motif dans le test (registre motivé, pas une liste muette). Analyse par expressions régulières sur le
+   texte source, **sans dépendance d'analyse AST** (le dépôt n'en a pas ; une dépendance de plus pour une
+   garde est un mauvais échange).
+2. **Exécution — modèle de permissions de Node** : les gabarits de service (`fleet/deploy/*`) lancent le
+   démon avec **`node --permission`**, sans `--allow-child-process` ni `--allow-worker`, et avec
+   `--allow-fs-read` borné au home de l'utilisateur. Toute tentative de lancer un processus échoue alors
+   **au runtime** (`ERR_ACCESS_DENIED`), quelle que soit la ruse du code. Le modèle est **stable depuis
+   Node 22.14 / 23.5** ([Node.js — Permissions](https://nodejs.org/api/permissions.html)) ⇒ `engines.node`
+   de `fleet/` passe à **`>=22.14`**. **Mesure préalable** : version de Node sur le PC Windows (sur le Mac
+   et le VPS : v24 connue).
+
+**Hors couverture, déclaré** : le code **des dépendances** (`mqtt` et son arbre) n'est pas lu par la
+garde statique ; il est couvert par la couche 2 (le permis vaut pour tout le processus) et par
+l'épinglage + lockfile.
+
+**Critères** : `CA-G1` — chaque forme interdite ci-dessus, déposée dans un fichier témoin sous
+`fleet/src`, rend la garde **rouge** (test de contrefactuel, un cas par forme) ; `CA-G2` — un import
+hors liste blanche rend la garde rouge ; `CA-G3` — démon lancé par le gabarit de service : un
+`child_process.spawn` injecté en test d'intégration échoue en `ERR_ACCESS_DENIED` ; le démon publie
+normalement (lecture de `~/.claude/sessions`, `~/.cache/iaka-agents`, `.git/HEAD` permise).
+**Estimation : ≈ 0,4 j-h.**
+
+### 13.2 Squelette iakaframe importé sous `fleet/` — **à trancher par le décideur** (décision a)
+
+**Constat** : l'import a amené le squelette de l'ex-dépôt : `fleet/.claude/commands/` (35 commandes),
+`fleet/global/` (copies des gardes par hooks), `fleet/iakaframe.json`, `fleet/.iakaframe`, `fleet/specs/`
+(PROJET, état des lieux, instruction MVP) et **`fleet/CLAUDE.md`**, qui porte encore un remote
+`iakaFleet.git`, un backlog « Lot 0 `iakafleet/` » et des consignes d'ex-projet. Claude Code charge les
+`CLAUDE.md` des sous-dossiers qu'il lit : **un agent qui travaille dans `fleet/` recevrait ces consignes
+périmées comme instructions**.
+
+**Recommandation : NETTOYER**, dans un commit dédié `chore(fleet): retirer le squelette de l'ex-depot` :
+supprimer `fleet/.claude/`, `fleet/global/`, `fleet/iakaframe.json`, `fleet/.iakaframe`, `fleet/specs/` et
+`fleet/CLAUDE.md` ; reporter dans **`fleet/README.md`** ce qui reste utile (commandes, arborescence, règles
+dures, et la commande de lecture de l'historique d'import de CA-1). Conserver `fleet/.env.example`,
+`fleet/.gitignore`, `fleet/docs/`, `fleet/deploy/`. **Rien ne se perd** : ces fichiers restent dans
+l'historique (second parent de l'import) et dans le dépôt iakaFleet archivé ; l'instruction MVP y reste
+la référence des parties réutilisées. **Coût ≈ 0,15 j-h.** Alternative — les laisser — : zéro coût, mais
+deux jeux d'instructions concurrents dans le même dépôt et des copies de gardes qui divergeront.
+
+### 13.3 Historique de l'import — **à trancher par le décideur** (décision b)
+
+**Recommandation : ACCEPTER TEL QUEL.** L'historique d'iakaFleet **est** conservé (second parent
+`6ae1eca`), seulement **à ses chemins d'origine** ; CA-1 est reformulé en conséquence et la commande de
+lecture est documentée (`fleet/README.md`, § 13.2).
+Ré-importer « chemins réécrits sous `fleet/` » (`git filter-repo --to-subdirectory-filter fleet` sur un
+clone, puis fusion) rendrait `git log -- fleet/` continu, mais : il **réécrit** les 15 commits (nouvelles
+empreintes, deux historiques d'iakaFleet coexistant), il oblige à **reconstruire une branche déjà
+poussée et gatée** — sans `push --force`, donc sur une branche neuve —, il demande un outil absent du
+dépôt, et il **invalide le gate PASS** (re-gate complet). **Coût ≈ 0,5 j-h + re-gate**, pour un gain de
+confort de lecture seulement.

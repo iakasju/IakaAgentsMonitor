@@ -106,8 +106,19 @@ voit son poste ; sans local, le Monitor lit les fichiers ; le démon de machine 
 
 `contract-vectors/` (racine du dépôt) : JSON de cas → résultats attendus pour (a) la normalisation de
 `<node>`, (b) le hachage de `<sid>`, (c) la construction des topics, (d) la règle d'état de machine
-(en ligne / muette / hors ligne / inconnue / sessions illisibles). **Le démon Node, le publieur de
-hooks et l'app Rust passent tous les trois ces vecteurs** — c'est ce qui rend la convention unique
+(en ligne / muette / hors ligne / inconnue / sessions illisibles). **Chaque pièce consomme les
+vecteurs de ce qu'elle calcule, et seulement ceux-là** (précisé le 2026-09-30 après le gate Legolas :
+l'ancienne formule « les trois passent tous les vecteurs » était trop forte) :
+
+| Fichier de vecteurs | Démon `fleet/` (Node) | Publieur de hooks (Node) | App (Rust) |
+|---|---|---|---|
+| `node-normalization.json` | **oui** — nomme sa branche | **oui** — nomme sa branche locale | **oui** — exclut son propre `<node>` de « Autres machines » |
+| `sid-hash.json` | **oui** — seul à hacher (vers le central) | **sans objet** : écrit le `sessionId` **brut** sur le bus **local** (§ 1) | **sans objet** : ne hache jamais, compare des `<sid>` déjà hachés |
+| `topics.json` | **oui** — `presence/`, `sessions/`, `agents/` | **oui**, **cas `agents/` seulement** | **oui** — analyse des topics reçus |
+| `machine-state.json` | **oui** — CLI | **sans objet** : ne juge aucune machine | **oui** — zone « Autres machines » |
+
+« Sans objet » est une **exclusion déclarée et motivée**, pas un trou : si une pièce se met un jour à
+calculer ce qu'un vecteur couvre, elle **doit** l'exécuter. C'est ce qui rend la convention unique
 vérifiable, et non déclarative.
 
 ## 7. Versionnage
