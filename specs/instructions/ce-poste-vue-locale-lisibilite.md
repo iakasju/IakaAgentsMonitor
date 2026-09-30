@@ -149,8 +149,10 @@ Exigences :
    en-têtes) **≥ 13 px** ; **rien sous 12 px**, lettres de pastille comprises.
 3. **Trois crans de taille : corps 14 / 16 / 18 px**, repris des crans `s / m / l` de Loki (`data-size`,
    l. 10-12 : sec 13 / 14,5 / 16 px, etc.) ; **réglage dans la barre du haut**, mémorisé comme le thème ;
-   la fenêtre se ré-ajuste (A6/A7). **Cran par défaut : 14 px** (`s`) — le plus proche de l'app actuelle et
-   le seul qui tient à 480 px sans défilement horizontal ; révisable en une phrase.
+   la fenêtre se ré-ajuste (A6/A7). **Cran par défaut : 16 px** (`m`, défaut des maquettes de Loki) —
+   tranché par le décideur le 2026-09-30 ; 14 et 18 px restent des crans de réglage (un clic pour passer à
+   14). Le plancher ci-dessus vaut pour le **plus petit** cran (14 px). Loki a mesuré qu'à 16 px la fenêtre
+   de 480 px tient sans défilement horizontal : c'est vérifié à ce cran (`CA-10`).
 4. **Contraste WCAG 2.x ≥ 4,5:1** pour **tout** texte, en **clair et en sombre**, sur ses fonds réels ;
    jamais l'exception « grand texte » ; seuls les éléments **décoratifs non textuels** (guides `├─`, filets)
    peuvent descendre à 3:1. `--sc-ink-faint` n'est plus employé pour du texte porteur d'information : ce
@@ -250,15 +252,17 @@ chiffres dans le commit. ✅ *Budget accepté par le décideur le 2026-09-30.*
 - [ ] **CA-6** — Titre exact `Ce poste — <node> · N session(s) · M agent(s)` et libellé démon **identique** à
       celui d'une machine distante dans le même état (même fonction, test).
 - [ ] **CA-7** — « Autres machines » vide : message `D5` avec l'hôte du broker, contraste ≥ 4,5:1.
-- [ ] **CA-8** — `grep -nE 'font-size:\s*[0-9]' src/styles.css` hors bloc de jetons ⇒ **0** ; au cran
-      14 px : texte courant **≥ 14 px**, texte secondaire **≥ 13 px**, **aucune** taille calculée < 12 px
-      (mesure `getComputedStyle` sur la fenêtre, consignée).
+- [ ] **CA-8** — `grep -nE 'font-size:\s*[0-9]' src/styles.css` hors bloc de jetons ⇒ **0** ; au **plus
+      petit** cran (14 px) : texte courant **≥ 14 px**, texte secondaire **≥ 13 px**, **aucune** taille calculée
+      < 12 px (mesure `getComputedStyle` sur la fenêtre, consignée) ; au cran par défaut (16 px), tailles
+      conformes à l'échelle `m` de Loki.
 - [ ] **CA-9** — `npm run test:contrast` : **tous** les couples du registre ≥ 4,5:1 en clair **et** en
       sombre, bandeaux `grp-*` ≥ 5:1 ; **contre-essai** : remettre `--sc-ink-faint` à `#a3a199` le fait rougir.
 - [ ] **CA-9b** — **Coloris conservés** (`D8`) : seuls les jetons listés en `D8` diffèrent de `styles.css`
       d'origine (`git diff` des jetons) ; pour chacun, teinte HSL à ± 5° de l'actuelle (vérif par le même script).
-- [ ] **CA-10** — Trois crans **14 / 16 / 18 px** dans la barre du haut, défaut 14, mémorisé au redémarrage,
-      fenêtre ré-ajustée ; à 480 px, deux lignes par agent, runner et modèle visibles, aucun défilement
+- [ ] **CA-10** — Trois crans **14 / 16 / 18 px** dans la barre du haut, **défaut 16 px**, mémorisé au
+      redémarrage, fenêtre ré-ajustée ; **à 480 px et au cran 16 px**, deux lignes par agent, runner et modèle
+      visibles, aucun défilement
       horizontal ; phrase d'état en tête de « Ce poste ».
 - [ ] **CA-11** — **Non-régression F11** : lettre/pastille, indentation, tri, compact/large, « Reste », bandeau
       de dépôt, État désactivé, ajustement de fenêtre, thèmes — vérifiés un par un (capture au gate).
@@ -290,7 +294,7 @@ session, réagencement du tableau V4 sans casser F11). **Inconnues** : `M1` (si 
 1. Source `D1` : **(i)** — acceptée.
 2. Bascule stricte Q3-A **remplacée** par l'union `D2` — acceptée.
 3. Détection par transcripts **gardée en repli par session** (`D3`) — acceptée.
-4. Plancher **14 / 13 px**, rien sous 12 px ; **trois crans 14 / 16 / 18 px** dans la barre du haut (`D6`) —
+4. Plancher **14 / 13 px**, rien sous 12 px ; **trois crans 14 / 16 / 18 px** dans la barre du haut, **défaut 16 px** (`D6`) —
    tranché (recommandation d'Odin, pas celle du cadrage initial).
 5. Budget CPU `D7` — accepté.
 6. Direction **A** + phrase d'état de **C** ; **coloris actuels conservés, un peu accentués** (`D8`) ; à 480 px

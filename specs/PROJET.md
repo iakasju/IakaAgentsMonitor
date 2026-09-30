@@ -113,6 +113,6 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
 - **2026-09-30** — **Lisibilité** : direction **A « Tableau calme »** de Loki + **phrase d'état** de C en tête
   de « Ce poste » ; **coloris actuels conservés, seulement un peu accentués** (aucune nouvelle teinte) ;
   plancher **14 px courant / 13 px secondaire**, rien sous 12 px ; **trois crans 14 / 16 / 18 px** dans la barre
-  du haut ; à 480 px **deux lignes par agent**, runner et modèle **visibles** (amende A4 point 1) ; bandeaux de
+  du haut, **défaut 16 px** (plancher valant pour le cran 14) ; à 480 px **deux lignes par agent**, runner et modèle **visibles** (amende A4 point 1) ; bandeaux de
   dépôt A7 retouchés dans la même limite. *Décideur : « A mes en gardant les coloris actuelles juste un peu
   accentués. reco ok ».* Maquettes : `~/work/iakagraph/etudes/IakaAgentsMonitor/lisibilite/`.
