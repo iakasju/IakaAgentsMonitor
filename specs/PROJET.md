@@ -18,6 +18,13 @@ besoin s'en fait sentir, une vue réunissant plusieurs machines.
 
 Première feature : `specs/instructions/liste-des-agents.md` (validée le 26/09/2026). Maquettes : `docs/maquettes/visu-agents-5-versions.html` (version 1 retenue).
 
+> **Remonté d'un cran le 2026-09-30 (décision du décideur, fusion avec iakaFleet)** : le Monitor
+> garde sa vue locale et **voit en plus les autres machines et leurs sessions** par le broker MQTT
+> du VPS (`mqtt.naonedge.com`, paramétrable). Il devient **le produit** ; le démon de machine et la
+> CLI d'iakaFleet y entrent sous `fleet/`. Il **marche toujours seul** : aucun broker n'est
+> obligatoire. Convention de bus unique : `specs/contrat-bus-iaka.md`. Instruction :
+> `specs/instructions/fusion-flotte-vue-distante.md`.
+
 ## Objectifs
 
 - <!-- objectif mesurable 1 -->
@@ -68,7 +75,11 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
 
 | Feature | Instruction | État |
 |---|---|---|
-| <!-- --> | `specs/instructions/feature-xxx.md` | à spécifier |
+| Liste des agents (A1–A7) | `specs/instructions/liste-des-agents.md` | validée 26/09 |
+| Temps restant | `specs/instructions/temps-restant.md` | validée |
+| Agnostique du runner par MQTT local | `specs/instructions/agnostique-mqtt.md` | lot de base codé (`a27a3c8`) ; A1 arbitré 27/09, non codé |
+| **Fusion iakaFleet + vue distante (lecture seule)** | `specs/instructions/fusion-flotte-vue-distante.md` | **validée 30/09 (P1→P2 franchi), en attente de P2** |
+| Ordres (point d'entrée `iaka/<node>/in/…`, converge A1 + Lot 6 BACKLOG + ordres iakaFleet) | à écrire | après la fusion |
 
 ---
 
@@ -76,4 +87,21 @@ Chaque feature reçoit son fichier dans `specs/instructions/` AVANT implémentat
 
 > Trace courte des arbitrages importants — le « pourquoi » qui se perd sinon.
 
-- **AAAA-MM-JJ** — <!-- décision + raison -->
+- **2026-09-30** — **Fusion iakaFleet → IakaAgentsMonitor** : « agentsmonitor remonte d'un cran et
+  regarde les autres machines/sessions en distance avec le mqtt vers le mqtt de naonedge vps ».
+  *Décideur, non rouvrable.*
+- **2026-09-30** — **Cadrage de fusion VALIDÉ** : **un seul dépôt** (IakaAgentsMonitor) à trois
+  pièces — app, publieur de hooks, `fleet/` (démon de machine + CLI, importé avec son historique).
+  Convention de bus **unique** `iaka/<node>/{out,in}/…` sur le bus local comme sur le central. *Décideur.*
+- **2026-09-30** — **Texte de tâche MASQUÉ PAR DÉFAUT sur le central**, activable machine par machine
+  (même mécanisme que le masquage des noms de session, défaut inversé). *Décideur (Q1).*
+- **2026-09-30** — **Groupement par machine MINIMAL** dans le tableau V4 ; pas de maquettes Loki, à
+  rouvrir seulement si le tableau devient illisible avec deux machines. *Décideur (Q2).*
+- **2026-09-30** — **Hooks du publieur + démon installés APRÈS le Lot 0 amendé**, Mac d'abord, PC
+  quand le lien sera rétabli : lot explicite de la recette. *Décideur (Q3).*
+- **2026-09-30** — Dépôt **iakaFleet archivé après l'import** (geste du décideur) ; **noms `iakafleet`
+  conservés** (CLI, `~/.iakafleet/.env`, Vaultwarden `work/iakaFleet`). *Décideur (Q4).*
+- **2026-09-30** — Règles héritées d'iakaFleet, gravées ici : ordre **remis à la session**, jamais
+  exécuté comme un shell ; TLS + un identifiant MQTT par machine + ACL par branche ; secrets dans
+  Vaultwarden ; confidentialité (pas d'identifiant de session ni de socket vers le central, masquage
+  facultatif des noms) ; aucun centre obligatoire ; CLI d'abord, puis GUI (= le Monitor).
