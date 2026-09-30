@@ -104,6 +104,10 @@ changement au publieur hors son topic. Fiche disparue du disque ⇒ effacement r
 
 - **Ce poste** : exactement comme aujourd'hui (bus local, repli fichiers). **Rien ne change si aucun
   broker central n'est configuré** : le Monitor marche seul.
+  ⚠️ **AMENDÉ le 2026-09-30** après recette : « exactement comme aujourd'hui » était mal posé (la vue locale
+  montrait moins que `iakafleet ls`). « Ce poste » est désormais alimenté par les **mêmes sources disque
+  que le démon** (toutes les sessions vivantes et tous leurs agents), avec un titre — cf.
+  **`specs/instructions/ce-poste-vue-locale-lisibilite.md`** (`D1`–`D4`). « Le Monitor marche seul » reste vrai.
 - **Autres machines** : nouvelle source `sources/remote.rs` — `rumqttc` en TLS (`F8`), abonnement
   `iaka/+/out/#`, identifiants du compte **de la machine** (`fleet-<node>`, lecture de toute la flotte)
   ou `fleet-console`, lus dans `~/.iakafleet/.env` (fichier du démon, `D6`). Les messages de **son propre
@@ -272,7 +276,9 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
 - [ ] **CA-R1** — Lot 0 **amendé** exécuté et coché (ACL `iaka/`, testament, refus sur `in/`).
 - [ ] **CA-R1b** — **`L-INSTALL` (a) fait sur le Mac** : démon en service, hooks installés par le décideur, `presence/cards_source_ok = true` ; (b) PC consigné « fait » ou « en attente du lien ».
 - [ ] **CA-R2** — CLI depuis le Mac **et** le PC : les deux machines, leurs sessions, et les agents là où les hooks sont installés (tâches affichées « masquée » sauf `IAKA_SHOW_TASKS=1`).
-- [ ] **CA-R3** *(mode d'observation reformulé le 2026-09-30)* — App sur le Mac : « Ce poste » + le PC dans
+- [ ] **CA-R3** *(mode d'observation reformulé le 2026-09-30 ; « Ce poste » s'entend avec son titre et
+      toutes ses sessions, `ce-poste-vue-locale-lisibilite.md` — à recetter **après** ce lot et
+      `corr-hors-ligne-duree.md`)* — App sur le Mac : « Ce poste » + le PC dans
       « Autres machines » ; démon du PC arrêté ⇒ PC **hors ligne** en ≤ 60 s dans l'app. **Comment
       l'observer** : un gestionnaire de service relance le démon en ~1 s (launchd `KeepAlive` ; le
       `ThrottleInterval` de 10 s ne joue pas pour un service qui a vécu longtemps), donc après un `kill -9`
@@ -281,7 +287,9 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
       recevoir `online=false` à la seconde du kill ; (ii) l'**état hors ligne durable**, par un **arrêt
       propre sans relance** (`launchctl bootout` sur le Mac, `Stop-ScheduledTask` puis désactivation sur le
       PC) — l'app doit afficher hors ligne en ≤ 60 s et **le rester** ; puis réinstaller le service.
-- [ ] **CA-R4** — Couper le réseau du Mac : la vue « Ce poste » continue ; « Autres machines » affiche le motif.
+- [ ] **CA-R4** — Couper le réseau du Mac : la vue « Ce poste » continue **avec toutes ses sessions et son
+      titre** (source disque, `ce-poste-vue-locale-lisibilite.md` `D1`), le libellé du démon passe à l'état
+      lu en dernier ; « Autres machines » affiche le motif. *(Précisé le 2026-09-30.)*
 - [ ] **CA-R5** — Aucun secret dans le dépôt ; secrets dans Vaultwarden `work/iakaFleet`.
 - [ ] **CA-R6** — **Testé par le décideur.**
 
@@ -293,7 +301,7 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
 | **CA-R1b** | **(a) fait sur le Mac** · **(b) PC en attente du lien** | Démon sous launchd, lancé sous **`node --permission`**, **TLS réel** vers `mqtt.naonedge.com:8883` ; hooks du publieur installés **par le décideur** ; fiches d'agents visibles sous leurs sessions dans `iakafleet ls` |
 | **CA-R2** | **Mac fait** · **PC non fait** | `iakafleet ls` sur le Mac : 4 sessions, agents rattachés sous `azime-be` et `work-2a`, tâches affichées « masquée » (défaut Q1) |
 | **CA-R3** | **non fait** | L'app Tauri n'a **jamais été lancée à l'écran** ; PC non joint. Mode d'observation reformulé ci-dessus |
-| **CA-R4** | **non fait** | App non lancée |
+| **CA-R4** | **non fait** | App non lancée au moment du relevé. *Mise à jour (2026-09-30, plus tard)* : app lancée en `tauri dev` par le décideur ; écarts constatés (pas de titre « Ce poste », vue locale incomplète, lisibilité, CPU) instruits dans `ce-poste-vue-locale-lisibilite.md` ; CA-R3/CA-R4 à recetter après ce lot |
 | **CA-R5** | **fait** | Legolas : `git grep` ⇒ 0 secret ; 3 items Vaultwarden `work/iakaFleet` conformes |
 | **CA-R6** | **partiel** | Le décideur a lancé `iakafleet ls` ; ni l'app ni le PC |
 

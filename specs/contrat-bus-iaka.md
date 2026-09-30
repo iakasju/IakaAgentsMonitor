@@ -123,6 +123,7 @@ l'ancienne formule « les trois passent tous les vecteurs » était trop forte) 
 | `sid-hash.json` | **oui** — seul à hacher (vers le central) | **sans objet** : écrit le `sessionId` **brut** sur le bus **local** (§ 1) | **sans objet** : ne hache jamais, compare des `<sid>` déjà hachés |
 | `topics.json` | **oui** — `presence/`, `sessions/`, `agents/` | **oui**, **cas `agents/` seulement** | **oui** — analyse des topics reçus |
 | `machine-state.json` | **oui** — CLI | **sans objet** : ne juge aucune machine | **oui** — zone « Autres machines » |
+| `local-sessions.json` *(à créer, `specs/instructions/ce-poste-vue-locale-lisibilite.md` `D2`)* | **oui** — lecture de `~/.claude/sessions` | **sans objet** : ne lit pas les sessions | **oui** — vue « Ce poste » |
 
 « Sans objet » est une **exclusion déclarée et motivée**, pas un trou : si une pièce se met un jour à
 calculer ce qu'un vecteur couvre, elle **doit** l'exécuter. C'est ce qui rend la convention unique
