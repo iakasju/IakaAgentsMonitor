@@ -107,7 +107,16 @@ pub fn machine_state(meta: &HashMap<String, CodeMsg>, now_s: i64) -> MachineStat
         return MachineState { state: State::Unknown, since: None, basis: None };
     };
     match &online.v {
-        Value::Bool(false) => MachineState { state: State::Offline, since: Some(online.t), basis: None },
+        // Le `t` d'un testament est l'instant de CONNEXION du démon, pas de sa mort (contrat § 2) :
+        // « depuis » = dernier signe de vie, max(online.t, last_tick_at.v). Jamais online.t seul.
+        Value::Bool(false) => match meta.get("last_tick_at").and_then(|m| m.v.as_f64()) {
+            Some(tick) => MachineState {
+                state: State::Offline,
+                since: Some(online.t.max(tick as i64)),
+                basis: Some(Basis::LastSeen),
+            },
+            None => MachineState { state: State::Offline, since: Some(online.t), basis: Some(Basis::Connected) },
+        },
         Value::Bool(true) => {
             let hb = meta
                 .get("heartbeat_s")
@@ -203,6 +212,8 @@ pub struct MachineView {
     pub node: String,
     pub state: State,
     pub since: Option<i64>,
+    /// Base du « depuis » hors ligne (`last_seen` | `connected`) ; `None` sinon.
+    pub basis: Option<Basis>,
     pub os: Option<String>,
     pub os_release: Option<String>,
     pub hostname: Option<String>,
@@ -210,7 +221,7 @@ pub struct MachineView {
     pub iakaframe_version: Option<String>,
     pub last_tick_at: Option<i64>,
     pub alerts: Vec<String>,
-    /// « en ligne » · « muette (dernier battement il y a 8 min) » · « hors ligne depuis 2 h » · « inconnue ».
+    /// « en ligne » · « muette (dernier battement il y a 8 min) » · « hors ligne (dernier signe de vie il y a 2 h) » · « inconnue ».
     pub state_label: String,
     pub cards_source_ok: Option<bool>,
     pub sessions: Vec<SessionView>,
@@ -225,7 +236,13 @@ pub fn machine_state_label(ms: &MachineState, now_s: i64) -> String {
             format!("muette (dernier battement il y a {})", format_duration_secs(now_s - t))
         }
         (State::Mute, None) => "muette".to_string(),
-        (State::Offline, Some(t)) => format!("hors ligne depuis {}", format_duration_secs(now_s - t)),
+        (State::Offline, Some(t)) => {
+            let d = format_duration_secs(now_s - t);
+            match ms.basis {
+                Some(Basis::LastSeen) => format!("hors ligne (dernier signe de vie il y a {d})"),
+                _ => format!("hors ligne (heure d'arrêt inconnue ; connecté il y a {d})"),
+            }
+        }
         (State::Offline, None) => "hors ligne".to_string(),
         (State::Unknown, _) => "inconnue".to_string(),
     }
@@ -352,6 +369,7 @@ pub fn build_fleet(store: &RemoteStore, own_node: Option<&str>, now_s: i64) -> V
                 node,
                 state: ms.state,
                 since: ms.since,
+                basis: ms.basis,
                 os: s(&slot.meta, "os"),
                 os_release: s(&slot.meta, "os_release"),
                 hostname: s(&slot.meta, "hostname"),
@@ -378,6 +396,19 @@ mod tests {
     }
 
     #[test]
+    fn libelle_hors_ligne_dernier_signe_de_vie_apres_testament() {
+        let now = 10_000;
+        let mut st = RemoteStore::default();
+        // testament : t = démarrage du démon (très ancien) ; dernier battement il y a 50 s
+        put(&mut st, "iaka/pc/out/presence/online/current", json!(false), 1_000);
+        put(&mut st, "iaka/pc/out/presence/last_tick_at/current", json!(now - 50), now - 50);
+        let pc = &build_fleet(&st, None, now)[0];
+        assert_eq!(pc.since, Some(now - 50));
+        assert_eq!(pc.basis, Some(Basis::LastSeen));
+        assert_eq!(pc.state_label, "hors ligne (dernier signe de vie il y a 50 s)");
+    }
+
+    #[test]
     fn libelles_machine_et_session_non_en_ligne_dernier_connu() {
         let now = 10_000;
         let mut st = RemoteStore::default();
@@ -389,7 +420,8 @@ mod tests {
         let fleet = build_fleet(&st, None, now);
         let mac2 = fleet.iter().find(|m| m.node == "mac2").unwrap();
         let pc = fleet.iter().find(|m| m.node == "pc").unwrap();
-        assert_eq!(pc.state_label, "hors ligne depuis 2 h");
+        assert_eq!(pc.state_label, "hors ligne (heure d'arrêt inconnue ; connecté il y a 2 h)");
+        assert_eq!(pc.basis, Some(Basis::Connected));
         assert_eq!(pc.sessions[0].status_label, "? (dernier connu : busy, il y a 2 h 1 min)");
         assert!(!pc.sessions[0].live);
         assert_eq!(mac2.state, State::Mute);
