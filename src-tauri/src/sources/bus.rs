@@ -16,9 +16,15 @@ use std::sync::{
 use std::time::Duration;
 
 use crate::card::{parse_card, AgentCard};
+use crate::contract;
 
-/// Filtre d'abonnement (contrat § Topics) : tout runner, toute session, tout agent.
-pub const TOPIC_FILTER: &str = "iaka/agents/out/+/+/+";
+/// Filtre d'abonnement du bus LOCAL (contrat v2 § 1) : `iaka/<node>/out/agents/+/+/+` — tout
+/// runner, toute session, tout agent de CETTE machine. Si le `<node>` ne peut pas être déterminé
+/// (nom d'hôte refusé), repli sur `+` : le bus local ne contient que les publieurs de la machine,
+/// mieux vaut lire trop large que ne rien voir.
+pub fn topic_filter(node: Option<&str>) -> String {
+    contract::agents_filter(node.unwrap_or("+"))
+}
 
 const CLIENT_ID_PREFIX: &str = "iakaagentsmonitor";
 const DEFAULT_PORT: u16 = 1883;
@@ -69,6 +75,14 @@ impl BusSource {
     /// Démarre le fil de connexion (hôte forcé à `127.0.0.1`, DA-M2). `port` explicite pour les
     /// tests d'intégration ; en production, [`port_from_env`].
     pub fn start(port: u16) -> Self {
+        let node = crate::fleet_config::load().node;
+        Self::start_for_node(port, node.as_deref())
+    }
+
+    /// Comme [`BusSource::start`], `<node>` explicite (tests d'intégration, indépendants du nom
+    /// d'hôte de la machine qui les lance).
+    pub fn start_for_node(port: u16, node: Option<&str>) -> Self {
+        let filter = topic_filter(node);
         let cards: Arc<Mutex<HashMap<String, AgentCard>>> = Arc::new(Mutex::new(HashMap::new()));
         let connected = Arc::new(AtomicBool::new(false));
         let stop = Arc::new(AtomicBool::new(false));
@@ -76,7 +90,7 @@ impl BusSource {
         let cards_clone = cards.clone();
         let connected_clone = connected.clone();
         let stop_clone = stop.clone();
-        std::thread::spawn(move || run_loop(port, cards_clone, connected_clone, stop_clone));
+        std::thread::spawn(move || run_loop(port, filter, cards_clone, connected_clone, stop_clone));
 
         BusSource { cards, connected, stop }
     }
@@ -104,6 +118,7 @@ fn client_id() -> String {
 
 fn run_loop(
     port: u16,
+    filter: String,
     cards: Arc<Mutex<HashMap<String, AgentCard>>>,
     connected: Arc<AtomicBool>,
     stop: Arc<AtomicBool>,
@@ -125,7 +140,7 @@ fn run_loop(
                 Ok(Event::Incoming(Packet::ConnAck(_))) => {
                     connected.store(true, Ordering::Relaxed);
                     backoff = RECONNECT_MIN_BACKOFF;
-                    let _ = client.subscribe(TOPIC_FILTER, QoS::AtLeastOnce);
+                    let _ = client.subscribe(filter.as_str(), QoS::AtLeastOnce);
                 }
                 Ok(Event::Incoming(Packet::Publish(p))) => {
                     apply_publish(&mut cards.lock().unwrap(), &p.topic, &p.payload);
@@ -174,7 +189,7 @@ mod tests {
     #[test]
     fn apply_publish_ajoute_une_fiche_valide() {
         let mut cards = HashMap::new();
-        let topic = "iaka/agents/out/essai/s1/main";
+        let topic = "iaka/mac/out/agents/essai/s1/main";
         apply_publish(&mut cards, topic, payload_of("s1", "main").as_bytes());
         assert_eq!(cards.len(), 1);
         assert!(cards.contains_key(topic));
@@ -183,7 +198,7 @@ mod tests {
     #[test]
     fn apply_publish_payload_vide_supprime_la_fiche() {
         let mut cards = HashMap::new();
-        let topic = "iaka/agents/out/essai/s1/main";
+        let topic = "iaka/mac/out/agents/essai/s1/main";
         apply_publish(&mut cards, topic, payload_of("s1", "main").as_bytes());
         apply_publish(&mut cards, topic, b"");
         assert!(cards.is_empty());
@@ -192,8 +207,21 @@ mod tests {
     #[test]
     fn apply_publish_fiche_invalide_est_ignoree() {
         let mut cards = HashMap::new();
-        let topic = "iaka/agents/out/essai/s1/main";
+        let topic = "iaka/mac/out/agents/essai/s1/main";
         apply_publish(&mut cards, topic, b"{ pas du json");
+        assert!(cards.is_empty());
+    }
+
+    #[test]
+    fn filtre_local_par_node_et_repli_large() {
+        assert_eq!(topic_filter(Some("mac")), "iaka/mac/out/agents/+/+/+");
+        assert_eq!(topic_filter(None), "iaka/+/out/agents/+/+/+");
+    }
+
+    #[test]
+    fn topic_v1_est_ignore() {
+        let mut cards = HashMap::new();
+        apply_publish(&mut cards, "iaka/agents/out/essai/s1/main", payload_of("s1", "main").as_bytes());
         assert!(cards.is_empty());
     }
 

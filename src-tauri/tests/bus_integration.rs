@@ -140,11 +140,11 @@ fn fiche_retenue_publiee_avant_abonnement_est_recue() {
     let port = free_port();
     start_ephemeral_broker(port);
 
-    let topic = "iaka/agents/out/essai/sess-int-1/main";
+    let topic = "iaka/testnode/out/agents/essai/sess-int-1/main";
     publish_retained(port, topic, card_json("essai", "sess-int-1", "main", now_secs()).as_bytes());
     std::thread::sleep(Duration::from_millis(300)); // laisse le retenu s'installer côté broker.
 
-    let bus = BusSource::start(port);
+    let bus = BusSource::start_for_node(port, Some("testnode"));
     assert!(wait_until(|| bus.is_connected(), Duration::from_secs(5)), "bus jamais connecte");
     assert!(wait_until(|| !bus.cards().is_empty(), Duration::from_secs(5)), "fiche jamais recue");
 
@@ -159,8 +159,8 @@ fn payload_vide_efface_la_fiche_retenue() {
     let port = free_port();
     start_ephemeral_broker(port);
 
-    let topic = "iaka/agents/out/essai/sess-int-2/main";
-    let bus = BusSource::start(port);
+    let topic = "iaka/testnode/out/agents/essai/sess-int-2/main";
+    let bus = BusSource::start_for_node(port, Some("testnode"));
     assert!(wait_until(|| bus.is_connected(), Duration::from_secs(5)));
 
     publish_retained(port, topic, card_json("essai", "sess-int-2", "main", now_secs()).as_bytes());
@@ -176,11 +176,11 @@ fn fiche_perimee_est_masquee_par_le_coeur_neutre() {
     start_ephemeral_broker(port);
 
     let now = now_secs();
-    let topic = "iaka/agents/out/essai/sess-int-3/main";
+    let topic = "iaka/testnode/out/agents/essai/sess-int-3/main";
     publish_retained(port, topic, card_json("essai", "sess-int-3", "main", now - 91).as_bytes());
     std::thread::sleep(Duration::from_millis(300));
 
-    let bus = BusSource::start(port);
+    let bus = BusSource::start_for_node(port, Some("testnode"));
     assert!(wait_until(|| bus.is_connected(), Duration::from_secs(5)));
     assert!(wait_until(|| !bus.cards().is_empty(), Duration::from_secs(5)));
 
@@ -198,11 +198,11 @@ fn broker_absent_vs_present_donnent_des_verdicts_is_connected_opposes() {
     // cours de test. C'est exactement le signal binaire dont depend la bascule Q3-A.
     let port_with_broker = free_port();
     start_ephemeral_broker(port_with_broker);
-    let bus_ok = BusSource::start(port_with_broker);
+    let bus_ok = BusSource::start_for_node(port_with_broker, Some("testnode"));
     assert!(wait_until(|| bus_ok.is_connected(), Duration::from_secs(5)));
 
     let port_without_broker = free_port(); // libéré juste après : rien n'y écoute.
-    let bus_absent = BusSource::start(port_without_broker);
+    let bus_absent = BusSource::start_for_node(port_without_broker, Some("testnode"));
     std::thread::sleep(Duration::from_millis(300));
     assert!(!bus_absent.is_connected(), "aucun broker sur ce port : doit rester deconnecte");
 }

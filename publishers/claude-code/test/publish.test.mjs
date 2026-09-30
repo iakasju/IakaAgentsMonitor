@@ -33,6 +33,7 @@ let usedSessionIds = [];
 beforeEach(async () => {
   broker = await startFakeBroker();
   process.env.IAKAAM_MQTT_PORT = String(broker.port);
+  process.env.IAKA_NODE = "testnode";
   usedSessionIds = [];
 });
 
@@ -72,7 +73,7 @@ test("SessionStart publie une fiche main retenue sur le bon topic", async () => 
 
   assert.equal(broker.events.publishes.length, 1);
   const pub = broker.events.publishes[0];
-  assert.equal(pub.topic, `iaka/agents/out/claude-code/${sessionId}/main`);
+  assert.equal(pub.topic, `iaka/testnode/out/agents/claude-code/${sessionId}/main`);
   assert.equal(pub.retain, true);
   assert.equal(pub.qos, 1);
   const card = JSON.parse(pub.payload);
@@ -114,7 +115,7 @@ test("SessionEnd publie un payload vide retenu et supprime l'etat", async () => 
   await handleEvent({ hook_event_name: "SessionEnd", session_id: sessionId }, deadline());
 
   const last = broker.events.publishes.at(-1);
-  assert.equal(last.topic, `iaka/agents/out/claude-code/${sessionId}/main`);
+  assert.equal(last.topic, `iaka/testnode/out/agents/claude-code/${sessionId}/main`);
   assert.equal(last.payload, "");
   assert.equal(last.retain, true);
   assert.equal(readState(sessionId, "main"), null);
@@ -154,7 +155,7 @@ test("SubagentStop publie un payload vide retenu pour cet agent seulement", asyn
     deadline(),
   );
   const last = broker.events.publishes.at(-1);
-  assert.equal(last.topic, `iaka/agents/out/claude-code/${sessionId}/abc`);
+  assert.equal(last.topic, `iaka/testnode/out/agents/claude-code/${sessionId}/abc`);
   assert.equal(last.payload, "");
   assert.equal(last.retain, true);
 });
@@ -284,4 +285,22 @@ test("writeState puis readState round-trip", () => {
 
 test("readState d'une session inexistante renvoie null", () => {
   assert.equal(readState("inexistante-xyz", "main"), null);
+});
+
+// ---------------------------- <node> (contrat v2) ----------------------------
+
+test("IAKA_NODE refusé (contient /) -> aucune publication, jamais de topic mal formé", async () => {
+  process.env.IAKA_NODE = "a/b";
+  const sessionId = uniqueSessionId("badnode");
+  usedSessionIds.push(sessionId);
+  await handleEvent({ hook_event_name: "SessionStart", session_id: sessionId, cwd: "/tmp/proj" }, deadline());
+  assert.equal(broker.events.publishes.length, 0);
+});
+
+test("IAKA_NODE normalisé dans le topic (majuscules, .local)", async () => {
+  process.env.IAKA_NODE = "MBP-de-sjupin.local";
+  const sessionId = uniqueSessionId("nodenorm");
+  usedSessionIds.push(sessionId);
+  await handleEvent({ hook_event_name: "SessionStart", session_id: sessionId, cwd: "/tmp/proj" }, deadline());
+  assert.equal(broker.events.publishes[0].topic, `iaka/mbp-de-sjupin/out/agents/claude-code/${sessionId}/main`);
 });

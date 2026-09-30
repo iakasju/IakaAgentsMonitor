@@ -8,12 +8,15 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::labels;
 use crate::roster::Roster;
-use crate::sources::{bus::BusSource, claude_code_files};
+use crate::sources::{bus::BusSource, claude_code_files, remote::{RemoteSource, RemoteView}};
 use crate::state::AppState;
 use crate::tree::{self, AgentsSnapshot};
 
 /// Nom d'événement poussé à la webview à chaque changement d'instantané agents.
 pub const AGENTS_EVENT: &str = "tray://agents";
+
+/// Nom d'événement poussé à la webview quand la vue « Autres machines » change.
+pub const FLEET_EVENT: &str = "tray://fleet";
 
 /// Cadence du watcher dédié.
 const TICK: Duration = Duration::from_secs(5);
@@ -45,10 +48,20 @@ pub fn get_running_agents(state: tauri::State<'_, AppState>) -> AgentsSnapshot {
     state.running_agents.lock().unwrap().clone()
 }
 
+/// Commande : vue « Autres machines » courante (central). Lit ce que le watcher a posé.
+#[tauri::command]
+pub fn get_fleet(state: tauri::State<'_, AppState>) -> Option<RemoteView> {
+    state.remote_fleet.lock().unwrap().clone()
+}
+
 /// Lance la source bus + le watcher dédié dans un thread détaché.
 pub fn start_watcher(app: AppHandle) {
     let bus = BusSource::start(crate::sources::bus::port_from_env());
-    std::thread::spawn(move || run_watcher(app, bus));
+    // Central : `~/.iakafleet/.env` + environnement. Sans identifiants → aucune connexion, le
+    // Monitor marche seul (CA-7) ; configuration refusée ou broker injoignable → dit, jamais vide.
+    let cfg = crate::fleet_config::load();
+    let remote = RemoteSource::start(&cfg.remote, cfg.node);
+    std::thread::spawn(move || run_watcher(app, bus, remote));
 }
 
 /// Libellé de source affiché dans l'infobulle du tray (étape 7).
@@ -60,11 +73,12 @@ pub fn source_label(bus_connected: bool) -> &'static str {
     }
 }
 
-fn run_watcher(app: AppHandle, bus: BusSource) {
+fn run_watcher(app: AppHandle, bus: BusSource, remote: RemoteSource) {
     let labels = labels::load_labels();
     let roster = Roster::new();
     let mut last: Option<AgentsSnapshot> = None;
     let mut last_source: &str = "";
+    let mut last_fleet: Option<RemoteView> = None;
 
     loop {
         let now = now_secs();
@@ -92,6 +106,17 @@ fn run_watcher(app: AppHandle, bus: BusSource) {
             crate::tray::update_title(&app, snap.count, source);
             last = Some(snap);
             last_source = source;
+        }
+
+        // « Autres machines » : posé à chaque tick, poussé seulement quand la vue change.
+        let fleet = remote.view(now);
+        {
+            let state = app.state::<AppState>();
+            *state.remote_fleet.lock().unwrap() = Some(fleet.clone());
+        }
+        if last_fleet.as_ref() != Some(&fleet) {
+            let _ = app.emit(FLEET_EVENT, &fleet);
+            last_fleet = Some(fleet);
         }
         std::thread::sleep(TICK);
     }

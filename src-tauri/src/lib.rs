@@ -1,12 +1,15 @@
 //! IakaAgentsMonitor — GUI tray (Tauri v2) : qui travaille en ce moment, pour quel projet, pour
 //! qui. Agnostique du runner (specs/instructions/agnostique-mqtt.md) : les fiches d'agent
-//! arrivent soit par le bus MQTT local (tout runner qui publie sur `iaka/agents/out/…`), soit,
+//! arrivent soit par le bus MQTT local (tout runner qui publie sur `iaka/<node>/out/agents/…`), soit,
 //! en repli quand le broker est absent, par l'adaptateur Claude Code (lecture des transcripts
 //! déjà écrits localement). Aucun autre service, aucun port en écoute côté app.
 
 pub mod card;
 mod claude_paths;
+pub mod contract;
 pub mod estimate;
+pub mod fleet_config;
+pub mod fleet_model;
 pub mod labels;
 pub mod roster;
 pub mod sources;
@@ -25,6 +28,7 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             watcher::get_running_agents,
+            watcher::get_fleet,
             tray::set_window_mode,
             tray::fit_window_width,
             tray::fit_window_height

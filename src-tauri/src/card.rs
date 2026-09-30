@@ -1,4 +1,4 @@
-//! card — la fiche d'agent normalisée du contrat MQTT v1
+//! card — la fiche d'agent normalisée (JSON v1 du Monitor, portée par le contrat de bus v2)
 //! (specs/instructions/agnostique-mqtt.md § « Contrat sur le fil »).
 //!
 //! Module NEUTRE : aucun nom de runner ni de fournisseur de modèle. Une fiche est reçue soit
@@ -8,14 +8,13 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::contract::{self, Topic};
+
 /// Taille maximale d'un payload de fiche (contrat § « Fiche »).
 pub const MAX_PAYLOAD_BYTES: usize = 4096;
 
 /// Version majeure du contrat acceptée par cette app. Toute autre valeur -> fiche ignorée.
 pub const SUPPORTED_VERSION: u32 = 1;
-
-/// Longueur maximale d'un segment de topic (`<runner>`, `<sessionId>`, `<agentId>`).
-const MAX_SEGMENT_LEN: usize = 128;
 
 /// Une fiche d'agent normalisée (contrat v1). Champs en camelCase sur le fil (`#[serde]`).
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -68,29 +67,14 @@ pub enum CardError {
     TopicMismatch,
 }
 
-/// Un segment de topic valide : `[A-Za-z0-9._-]{1,128}`, jamais `+`, `#` ni `/`.
-fn is_valid_segment(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= MAX_SEGMENT_LEN
-        && s.chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-}
-
-/// Segments `(runner, sessionId, agentId)` extraits d'un topic
-/// `iaka/agents/out/<runner>/<sessionId>/<agentId>`. `None` si la forme ne correspond pas.
-fn parse_topic(topic: &str) -> Option<(&str, &str, &str)> {
-    let rest = topic.strip_prefix("iaka/agents/out/")?;
-    let mut parts = rest.split('/');
-    let runner = parts.next()?;
-    let session_id = parts.next()?;
-    let agent_id = parts.next()?;
-    if parts.next().is_some() {
-        return None; // segment supplémentaire -> topic incohérent.
+/// Segments `(runner, sid, agentId)` extraits d'un topic
+/// `iaka/<node>/out/agents/<runner>/<sid>/<agentId>` (contrat v2, `crate::contract`). `None` si la
+/// forme ne correspond pas.
+fn parse_topic(topic: &str) -> Option<(String, String, String)> {
+    match contract::parse_topic(topic)? {
+        Topic::Agent { runner, sid, agent_id, .. } => Some((runner, sid, agent_id)),
+        _ => None,
     }
-    if !is_valid_segment(runner) || !is_valid_segment(session_id) || !is_valid_segment(agent_id) {
-        return None;
-    }
-    Some((runner, session_id, agent_id))
 }
 
 /// Parse une fiche reçue sur `topic` avec le `payload` donné.
@@ -110,7 +94,7 @@ pub fn parse_card(topic: &str, payload: &[u8]) -> Result<Option<AgentCard>, Card
     if payload.len() > MAX_PAYLOAD_BYTES {
         return Err(CardError::TooLarge);
     }
-    let (t_runner, t_session, t_agent) = parse_topic(topic).ok_or(CardError::InvalidTopic)?;
+    let (t_runner, t_sid, t_agent) = parse_topic(topic).ok_or(CardError::InvalidTopic)?;
 
     let card: AgentCard =
         serde_json::from_slice(payload).map_err(|_| CardError::InvalidJson)?;
@@ -127,7 +111,7 @@ pub fn parse_card(topic: &str, payload: &[u8]) -> Result<Option<AgentCard>, Card
     if card.session_id.is_empty() {
         return Err(CardError::MissingField("sessionId"));
     }
-    if card.runner != t_runner || card.session_id != t_session || card.agent_id != t_agent {
+    if card.runner != t_runner || card.session_id != t_sid || card.agent_id != t_agent {
         return Err(CardError::TopicMismatch);
     }
 
@@ -138,7 +122,7 @@ pub fn parse_card(topic: &str, payload: &[u8]) -> Result<Option<AgentCard>, Card
 mod tests {
     use super::*;
 
-    const TOPIC: &str = "iaka/agents/out/essai/sess-1/main";
+    const TOPIC: &str = "iaka/mac/out/agents/essai/sess-1/main";
 
     fn valid_payload() -> String {
         serde_json::json!({
@@ -196,7 +180,7 @@ mod tests {
     #[test]
     fn topic_incoherent_avec_la_fiche_est_rejete() {
         let payload = valid_payload(); // sessionId = "sess-1"
-        let other_topic = "iaka/agents/out/essai/sess-2/main";
+        let other_topic = "iaka/mac/out/agents/essai/sess-2/main";
         assert_eq!(
             parse_card(other_topic, payload.as_bytes()),
             Err(CardError::TopicMismatch)
@@ -206,7 +190,7 @@ mod tests {
     #[test]
     fn topic_mal_forme_est_rejete() {
         assert_eq!(
-            parse_card("iaka/agents/out/essai/sess-1", valid_payload().as_bytes()),
+            parse_card("iaka/mac/out/agents/essai/sess-1", valid_payload().as_bytes()),
             Err(CardError::InvalidTopic)
         );
         assert_eq!(
@@ -218,7 +202,7 @@ mod tests {
     #[test]
     fn segment_avec_caractere_interdit_est_rejete() {
         assert_eq!(
-            parse_card("iaka/agents/out/cla+ude/sess-1/main", valid_payload().as_bytes()),
+            parse_card("iaka/mac/out/agents/cla+ude/sess-1/main", valid_payload().as_bytes()),
             Err(CardError::InvalidTopic)
         );
     }
@@ -244,7 +228,7 @@ mod tests {
         let mut v: serde_json::Value = serde_json::from_str(&valid_payload()).unwrap();
         v["parentId"] = serde_json::json!("main");
         v["agentId"] = serde_json::json!("child-1");
-        let topic = "iaka/agents/out/essai/sess-1/child-1";
+        let topic = "iaka/mac/out/agents/essai/sess-1/child-1";
         let card = parse_card(topic, v.to_string().as_bytes()).unwrap().unwrap();
         assert_eq!(card.parent_id, Some("main".to_string()));
     }

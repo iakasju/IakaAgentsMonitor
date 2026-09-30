@@ -5,3 +5,4 @@
 
 pub mod bus;
 pub mod claude_code_files;
+pub mod remote;

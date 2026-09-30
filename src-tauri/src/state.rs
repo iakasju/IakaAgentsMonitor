@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 use tauri::Rect;
 
+use crate::sources::remote::RemoteView;
 use crate::tree::AgentsSnapshot;
 
 /// Etat applicatif partagé (manage Tauri).
@@ -13,6 +14,9 @@ pub struct AppState {
     /// Instantané des agents Claude Code en cours. Le `Mutex` sérialise le watcher (écrit à
     /// chaque tick) et la commande `get_running_agents` (lit).
     pub running_agents: Mutex<AgentsSnapshot>,
+    /// Vue « Autres machines » (source distante, central) : `None` tant que le watcher n'a rien
+    /// posé. Sans central configuré, statut `not_configured` et aucune machine.
+    pub remote_fleet: Mutex<Option<RemoteView>>,
     /// Dernier rect connu de l'icône de barre de menus (amendement A4, point 1). Mémorisé à
     /// chaque clic sur l'icône (`tray::toggle_window`) ; réutilisé par `tray::set_window_mode`
     /// pour réancrer la fenêtre sous l'icône après un changement de taille déclenché depuis le
@@ -46,6 +50,7 @@ impl Default for AppState {
     fn default() -> Self {
         AppState {
             running_agents: Mutex::new(AgentsSnapshot::default()),
+            remote_fleet: Mutex::new(None),
             last_tray_rect: Mutex::new(None),
             compact: Mutex::new(true),
             compact_width: Mutex::new(520.0),

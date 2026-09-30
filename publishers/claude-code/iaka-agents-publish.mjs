@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// iaka-agents-publish.mjs — publieur Claude Code du contrat MQTT v1
-// (specs/instructions/agnostique-mqtt.md, étape 9). Node >= 18, AUCUNE dépendance (client MQTT
+// iaka-agents-publish.mjs — publieur Claude Code du contrat de bus iaka v2
+// (specs/contrat-bus-iaka.md ; fiche : specs/instructions/agnostique-mqtt.md, étape 9). Node >= 18, AUCUNE dépendance (client MQTT
 // 3.1.1 minimal écrit à la main, patron repris de ~/.claude/delegation-guard.mjs).
 //
 // Appelé par des hooks Claude Code (hook_event_name lu sur stdin) : SessionStart,
 // UserPromptSubmit, Stop, SessionEnd, SubagentStart, SubagentStop, PostToolUse. Publie/efface des
-// fiches sur `iaka/agents/out/claude-code/<sessionId>/<agentId>` (retenues, QoS 1) — jamais
+// fiches sur `iaka/<node>/out/agents/claude-code/<sessionId>/<agentId>` (retenues, QoS 1) — jamais
 // ailleurs. Toujours code de sortie 0, jamais de sortie sur stdout (DA-M3) : ce script ne doit
 // JAMAIS ralentir ni bloquer une session Claude Code, même si le broker est absent ou lent.
 //
@@ -351,8 +351,49 @@ export function buildCard({ agentId, parentId, sessionId, startedAt, lastSeenAt,
   };
 }
 
-function topicFor(sessionId, agentId) {
-  return `iaka/agents/out/${RUNNER_ID}/${sessionId}/${agentId}`;
+/** Contrat v2 par. 1 : forme normalisée du `<node>` (même règle que fleet/src/shared/contract.js et
+ * src-tauri/src/contract.rs, prouvée par contract-vectors/node-normalization.json). `null` si refusé
+ * (vide, ou contenant `+ # /`) : jamais de publication sur un topic mal formé. */
+export function normalizeNode(raw) {
+  if (typeof raw !== "string" || /[+#/]/.test(raw)) return null;
+  const node = raw
+    .trim()
+    .toLowerCase()
+    .replace(/\.local$/, "")
+    .replace(/[^a-z0-9-]/gu, "-");
+  return node === "" || /^-+$/.test(node) ? null : node;
+}
+
+/** Valeur de `key` dans `~/.iakafleet/.env` (lecture seule, tolérante) — même fichier que le démon,
+ * pour que le `<node>` du bus local et celui du central restent identiques. */
+function envFileValue(key) {
+  try {
+    const text = fs.readFileSync(path.join(os.homedir(), ".iakafleet", ".env"), "utf8");
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      const eq = line.indexOf("=");
+      if (line.startsWith("#") || eq < 1 || line.slice(0, eq).trim() !== key) continue;
+      const v = line.slice(eq + 1).trim().replace(/^(["'])(.*)\1$/, "$2");
+      if (v !== "") return v;
+    }
+  } catch {
+    /* fichier absent ou illisible : repli sur le nom d'hôte */
+  }
+  return undefined;
+}
+
+/** `<node>` de cette machine : IAKA_NODE (env puis ~/.iakafleet/.env), alias IAKAFLEET_HOST, sinon
+ * le nom d'hôte. Lu à CHAQUE appel. `null` si la valeur est refusée. */
+export function nodeId() {
+  const raw =
+    process.env.IAKA_NODE || envFileValue("IAKA_NODE") ||
+    process.env.IAKAFLEET_HOST || envFileValue("IAKAFLEET_HOST") || os.hostname();
+  return normalizeNode(raw);
+}
+
+/** Topic d'une fiche : `iaka/<node>/out/agents/<runner>/<sid>/<agentId>` (bus local : `<sid>` = sessionId brut). */
+export function agentTopic(node, runner, sid, agentId) {
+  return `iaka/${node}/out/agents/${runner}/${sid}/${agentId}`;
 }
 
 /** Publie une fiche (ou une suppression) si et seulement si les segments du topic sont valides
@@ -360,13 +401,15 @@ function topicFor(sessionId, agentId) {
  * epoch ms au-delà duquel on n'essaie même plus (budget global du script, DA-M3). */
 async function publishCardOrDelete(sessionId, agentId, cardOrNull, deadline) {
   if (!isValidSegment(sessionId) || !isValidSegment(agentId)) return;
+  const node = nodeId();
+  if (node === null) return; // <node> refusé : jamais de publication sur un topic mal formé
   const remaining = deadline - Date.now();
   if (remaining <= 0) return;
   const payloadBuf = cardOrNull ? Buffer.from(JSON.stringify(cardOrNull), "utf8") : Buffer.alloc(0);
   await publishOnce({
     host: MQTT_HOST,
     port: mqttPort(),
-    topic: topicFor(sessionId, agentId),
+    topic: agentTopic(node, RUNNER_ID, sessionId, agentId),
     payloadBuf,
     budgetMs: remaining,
   });
