@@ -155,6 +155,9 @@ pub struct AgentNode {
     pub model: String,
     /// Libellé du runner (résolu via `labels::Labels::runner_label`), amendement de l'étape 8.
     pub runner: String,
+    /// État d'exécution de l'agent (`running` | `idle`, contrat § Fiche champ `state`) ; vide pour
+    /// le marqueur de débordement. Sert à la phrase d'état de « Ce poste » (agents actifs).
+    pub state: String,
     pub estimate: Option<estimate::EstimateView>,
     pub tooltip: String,
     pub children: Vec<AgentNode>,
@@ -175,6 +178,9 @@ pub struct AgentsSnapshot {
     pub count: u32,
     pub sessions: Vec<SessionNode>,
     pub overflow_sessions: Option<u32>,
+    /// Agents dont la session n'est pas (ou plus) vivante mais dont la fiche est fraîche (D2.5 de
+    /// `ce-poste-vue-locale-lisibilite.md`) : « agents non rattachés », jamais perdus.
+    pub unattached: Vec<AgentNode>,
 }
 
 pub(crate) fn format_duration_secs(secs: i64) -> String {
@@ -260,6 +266,7 @@ pub fn build_snapshot(
         } else {
             None
         },
+        unattached: Vec::new(),
     }
 }
 
@@ -364,6 +371,7 @@ fn build_session_node(
                     started_secs: Some(started_secs),
                     model: card.model.as_deref().map(|m| labels.model_label(m)).unwrap_or_else(|| "—".to_string()),
                     runner: runner_label.clone(),
+                    state: state.to_string(),
                     estimate: None, // DA-T6 : la session principale n'a jamais d'estimation.
                     tooltip: format!(
                         "{} (coordinateur){state_suffix} — actif il y a {elapsed} s",
@@ -396,6 +404,7 @@ fn build_session_node(
                     started_secs: None,
                     model: "—".to_string(),
                     runner: runner_label.clone(),
+                    state: "idle".to_string(),
                     estimate: None,
                     tooltip: format!("{} (coordinateur, terminé)", resolved.key),
                     children: coordinator_children,
@@ -508,6 +517,7 @@ fn build_children(
                 started_secs: Some(started_secs),
                 model: card.model.as_deref().map(|m| labels.model_label(m)).unwrap_or_else(|| "—".to_string()),
                 runner: runner_label.to_string(),
+                state: card.state_or_default().to_string(),
                 estimate: estimate_view,
                 tooltip,
                 children,
@@ -527,6 +537,7 @@ fn build_children(
             started_secs: None,
             model: String::new(),
             runner: String::new(),
+            state: String::new(),
             estimate: None,
             tooltip: format!("+{overflow} agent(s) supplémentaire(s)"),
             children: Vec::new(),
