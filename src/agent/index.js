@@ -122,7 +122,11 @@ export function createAgent(cfg, deps) {
         publisher.goOffline(),
         new Promise((r) => timers.setTimeout(r, 2000)),
       ]);
-      await new Promise((r) => client.end(false, r));
+      // Ne jamais rester pendu a la sortie : si le broker ne repond pas, on force apres 2 s.
+      await Promise.race([
+        new Promise((r) => client.end(false, r)),
+        new Promise((r) => timers.setTimeout(r, 2000)),
+      ]);
     },
     onlineTopic: metaTopic(cfg.host, 'online'),
   };
