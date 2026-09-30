@@ -3,8 +3,14 @@
 # Placeholders a substituer avant installation (voir docs/installation.md) :
 #   __NODE__      chemin ABSOLU du binaire node
 #   __NODE_DIR__  dossier contenant node ET le bin `iakaframe`
-#   __REPO__      racine du depot iakaFleet
+#   __REPO__      racine du depot IakaAgentsMonitor, sous-dossier fleet/ (ex. <depot>/fleet)
 #   __HOME__      home de l'utilisateur
+#   __PROJECTS_ROOT__  racine des depots git des sessions (ex. __HOME__/work) : .git/HEAD lu seul
+#   __IAKAFRAME_PKG__  chemin ABSOLU du package.json d'@naonedge/iakaframe
+#
+# G-EXEC-2, couche 2 : `node --permission`, LECTURES seules, sans --allow-child-process ni
+# --allow-worker ni --allow-fs-write : un lancement de processus echoue en ERR_ACCESS_DENIED.
+# Node >= 22.14. `npm ci --omit=dev`. Non recette sous Linux.
 #
 # L'agent charge lui-meme ~/.iakafleet/.env : pas d'EnvironmentFile, aucun secret ici.
 #
@@ -21,7 +27,18 @@ Description=iakafleet agent (presence et etat des sessions Claude Code sur MQTT)
 [Service]
 Type=simple
 WorkingDirectory=__REPO__
-ExecStart=__NODE__ __REPO__/bin/iakafleet-agent.js
+ExecStart=__NODE__ --permission \
+  --allow-fs-read=__REPO__/bin \
+  --allow-fs-read=__REPO__/src \
+  --allow-fs-read=__REPO__/package.json \
+  --allow-fs-read=__REPO__/node_modules \
+  --allow-fs-read=__HOME__/.iakafleet \
+  --allow-fs-read=__HOME__/.claude/sessions \
+  --allow-fs-read=__HOME__/.cache/iaka-agents \
+  --allow-fs-read=__PROJECTS_ROOT__ \
+  --allow-fs-read=__IAKAFRAME_PKG__ \
+  __REPO__/bin/iakafleet-agent.js
+Environment=IAKAFLEET_IAKAFRAME_PKG=__IAKAFRAME_PKG__
 Environment=PATH=__NODE_DIR__:/usr/local/bin:/usr/bin:/bin
 Restart=on-failure
 RestartSec=10

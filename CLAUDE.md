@@ -41,9 +41,10 @@ le modifier) et, **seulement si `~/.iakafleet/.env` porte des identifiants**, le
 (`mqtts://mqtt.naonedge.com:8883` par défaut, `IAKAFLEET_MQTT_URL`), abonnement `iaka/+/out/#`, jamais `in/`.
 **Sans configuration le Monitor marche seul, rien ne change.** Central injoignable ⇒ la zone « Autres
 machines » dit « broker injoignable : <motif> », jamais une liste vide. Aucun ordre n'est jamais exécuté
-comme un shell (`fleet/` n'importe pas `child_process`). Complète iakaTokenCounter sans le recouvrir.
+comme un shell (`fleet/` n'importe pas `child_process` : garde statique par liste blanche de modules `G-EXEC` **et** démon lancé
+sous `node --permission` par les gabarits de service, sans `--allow-child-process`, `G-EXEC-2`). Complète iakaTokenCounter sans le recouvrir.
 
-Stack : Tauri 2 (Rust) + TypeScript/Vite ; `fleet/` : Node ≥ 20, JS sans build, dépendance `mqtt` (épinglée).
+Stack : Tauri 2 (Rust) + TypeScript/Vite ; `fleet/` : Node ≥ 22.14 (modèle de permissions), JS sans build, dépendance `mqtt` (épinglée).
 Client MQTT (`rumqttc`, TLS rustls déjà inclus) et parseur TOML (`toml`) sont les deux seules dépendances
 Rust non-Tauri ; aucun nom de runner ni de fournisseur de modèle hors de
 `src-tauri/config/labels.default.toml`, `src-tauri/src/sources/claude_code_files.rs` et
@@ -69,7 +70,7 @@ cargo test               # ~130 tests (fiche, config, roster, arbre, sources, bu
 cargo clippy --all-targets -- -D warnings
 
 cd fleet                 # démon de machine + CLI (ex-iakaFleet)
-npm ci && npm test       # node --test, sans réseau ni broker
+npm ci && npm test       # node --test, aucune connexion externe (test/permission.test.js : démon sous --permission contre un faux broker sur 127.0.0.1)
 npm run lint
 node bin/iakafleet.js ls|watch [--json]     # CLI : machines, sessions, agents
 node bin/iakafleet-agent.js                 # démon (en pratique lancé par un service : fleet/deploy/)

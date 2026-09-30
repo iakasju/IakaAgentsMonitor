@@ -7,7 +7,9 @@ Ce dossier est une piece d'IakaAgentsMonitor ; les noms `iakafleet` sont conserv
 
 ## Prerequis
 
-- Node >= 20, `npm install` dans le depot (une seule dependance : `mqtt`, epinglee).
+- **Node >= 22.14** (modele de permissions `--permission` stable ; `engines` de `package.json`), `npm ci --omit=dev`
+  dans `fleet/` (une seule dependance : `mqtt`, epinglee). Version de Node : Mac v24.18.0 (mesuree) ; PC Windows
+  **non mesuree** : `node --version` a relever avant `L-INSTALL` (b) ; en dessous de 22.14, l'installeur Windows refuse.
 - Un compte MQTT par machine (`fleet-<node>`) et un compte console (`fleet-console`), poses
   par le **Lot 0** (`naonedge-vps/specs/instructions/mqtt-acl-iakafleet.md`, **amende** pour la racine `iaka/<node>/out/#`). Sans ce lot, le
   broker refuse (ou jette en silence) toute publication.
@@ -41,7 +43,19 @@ Le service est l'**unique** lanceur de l'agent (un seul client id `iakafleet-age
 Le demon lit aussi les fiches du publieur de hooks (`IAKAFLEET_CARDS_DIR`) : **sans les hooks installes**
 (`~/.claude/settings.json`), il publie `presence/cards_source_ok = false` et la CLI/l'app affichent
 « fiches d'agents : aucune source sur cette machine » (l'installation des hooks est un geste du decideur,
-lot `L-INSTALL`). Substituer les placeholders (`__NODE__`, `__NODE_DIR__`, `__REPO__`, `__HOME__`).
+lot `L-INSTALL`). Substituer les placeholders (`__NODE__`, `__NODE_DIR__`, `__REPO__` = le dossier `fleet/`, `__HOME__`,
+`__PROJECTS_ROOT__`, `__IAKAFRAME_PKG__`).
+
+**Le demon est lance sous `node --permission`** (G-EXEC-2, couche 2), avec des **lectures** accordees une a une :
+`bin/`, `src/`, `package.json`, `node_modules/` du depot, `~/.iakafleet` (config), `~/.claude/sessions`,
+`~/.cache/iaka-agents`, le `package.json` d'iakaframe (`__IAKAFRAME_PKG__`, aussi passe en
+`IAKAFLEET_IAKAFRAME_PKG`) et `__PROJECTS_ROOT__` (racine des depots git dont il lit `.git/HEAD` ; le modele de
+Node n'accepte pas de joker au milieu d'un chemin : c'est la seule lecture large, **a restreindre** a vos racines
+de projets, ex. `~/work`). **Aucune** ecriture, aucun `--allow-child-process`, aucun `--allow-worker` : un
+lancement de processus echoue en `ERR_ACCESS_DENIED`. Effet a connaitre : un repertoire non accorde n'arrete pas
+le demon, il **degrade en ecrit** (`sessions_dir_ok=false`, `cards_source_ok=false`, `iakaframe_version=null`,
+`repo`/`branch` = `null` si `__PROJECTS_ROOT__` ne couvre pas le depot d'une session). Un `mqtts://` reel sous
+`--permission` n'a pas ete exerce (le test tourne contre un faux broker local en clair).
 
 - **macOS** : `deploy/launchd/com.naonedge.iakafleet-agent.plist` vers `~/Library/LaunchAgents/`,
   `mkdir -p ~/.iakafleet/logs`, puis `launchctl bootstrap gui/$(id -u) <plist>`.

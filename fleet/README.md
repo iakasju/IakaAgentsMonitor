@@ -15,7 +15,7 @@ lit la flotte (machines, sessions, agents).
 
 ## Stack
 
-**Node >= 20**, ESM, JavaScript sans build, une seule
+**Node >= 22.14** (`engines` ; modele de permissions de Node stable, cf. regles dures), ESM, JavaScript sans build, une seule
 dependance applicative `mqtt` (epinglee exactement, `package-lock.json` commite), tests `node --test`
 (zero dependance de test). Broker par defaut `mqtts://mqtt.naonedge.com:8883`. Config :
 `~/.iakafleet/.env` (modele : `.env.example`).
@@ -28,7 +28,7 @@ publisher, index) - `src/console/` (fleetModel, render, index) - `bin/` (points 
 
 ```bash
 npm ci                             # une dependance : mqtt (epinglee)
-npm test                           # node --test (sans reseau, sans broker)
+npm test                           # node --test (aucune connexion externe ; faux broker sur 127.0.0.1 pour permission.test.js)
 npm run lint                       # syntaxe + regles du projet (JS sans build : pas de typecheck)
 node bin/iakafleet-agent.js        # demon (en pratique lance par le service, deploy/)
 node bin/iakafleet.js ls|watch [--json]   # console (code de sortie 2 = broker/auth/config en echec)
@@ -37,7 +37,13 @@ IAKAFLEET_LIVE=1 npm test          # ajoute la mesure reelle de la version d'iak
 
 ## Regles dures
 
-- **Aucun `child_process`** dans `src/` ni `bin/` : garde `G-EXEC` (`test/guard-exec.test.js`).
+- **Aucun `child_process`** (ni worker, vm, cluster, eval, `Function`, import dynamique, `require`,
+  `process.binding`...) dans `src/` ni `bin/`. Deux couches (`G-EXEC-2`) :
+  1. **statique** : liste blanche MOTIVEE de modules importables (`test/guard-exec.test.js`) ; hors
+     couverture declare : le code des dependances (`mqtt`), couvert par la couche 2 et le lockfile ;
+  2. **execution** : les gabarits de service lancent le demon avec `node --permission` (lectures
+     accordees une a une, **sans** `--allow-child-process`, `--allow-worker`, `--allow-fs-write`) :
+     tout lancement de processus echoue en `ERR_ACCESS_DENIED` (`test/permission.test.js`).
 - Un ordre recu n'est jamais execute comme un shell.
 - La verification TLS n'est pas debrayable.
 - Aucun secret dans le depot (Vaultwarden `work/iakaFleet`, config dans `~/.iakafleet/.env`).

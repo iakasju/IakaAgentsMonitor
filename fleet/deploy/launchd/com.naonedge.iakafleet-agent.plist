@@ -6,8 +6,19 @@
   Placeholders a substituer avant installation (voir docs/installation.md) :
     __NODE__      chemin ABSOLU du binaire node   (ex. /Users/<vous>/.nvm/versions/node/v24.x/bin/node)
     __NODE_DIR__  dossier contenant node ET le bin `iakaframe` (l'agent y lit la version d'iakaframe)
-    __REPO__      racine du depot iakaFleet
+    __REPO__      racine du depot IakaAgentsMonitor, sous-dossier fleet/ (ex. <depot>/fleet)
     __HOME__      home de l'utilisateur
+    __PROJECTS_ROOT__  racine sous laquelle vivent les depots git dont les sessions Claude Code
+                  ont le cwd (ex. __HOME__/work) : le demon y lit .git/HEAD, en lecture seule
+    __IAKAFRAME_PKG__  chemin ABSOLU du package.json d'@naonedge/iakaframe (version publiee en
+                  presence ; ex. <node>/../lib/node_modules/@naonedge/iakaframe/package.json)
+
+  G-EXEC-2, couche 2 : le demon est lance avec `node --permission` (modele de permissions de Node,
+  stable depuis Node 22.14). Seules des LECTURES sont accordees ; ni --allow-child-process, ni
+  --allow-worker, ni --allow-fs-write, ni --allow-addons, ni --allow-wasi : tout lancement de
+  processus echoue en ERR_ACCESS_DENIED, quelle que soit la ruse du code. Ce gabarit est execute
+  tel quel par fleet/test/permission.test.js. Installer les dependances avec `npm ci --omit=dev`
+  (node_modules = le strict necessaire : mqtt et son arbre).
 
   L'agent charge lui-meme ~/.iakafleet/.env : aucune injection de secret ici.
   Ce service est l'UNIQUE lanceur de l'agent (un seul client id par machine, cf. R7).
@@ -20,6 +31,16 @@
   <key>ProgramArguments</key>
   <array>
     <string>__NODE__</string>
+    <string>--permission</string>
+    <string>--allow-fs-read=__REPO__/bin</string>
+    <string>--allow-fs-read=__REPO__/src</string>
+    <string>--allow-fs-read=__REPO__/package.json</string>
+    <string>--allow-fs-read=__REPO__/node_modules</string>
+    <string>--allow-fs-read=__HOME__/.iakafleet</string>
+    <string>--allow-fs-read=__HOME__/.claude/sessions</string>
+    <string>--allow-fs-read=__HOME__/.cache/iaka-agents</string>
+    <string>--allow-fs-read=__PROJECTS_ROOT__</string>
+    <string>--allow-fs-read=__IAKAFRAME_PKG__</string>
     <string>__REPO__/bin/iakafleet-agent.js</string>
   </array>
 
@@ -32,6 +53,8 @@
     <string>__NODE_DIR__:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>HOME</key>
     <string>__HOME__</string>
+    <key>IAKAFLEET_IAKAFRAME_PKG</key>
+    <string>__IAKAFRAME_PKG__</string>
   </dict>
 
   <key>RunAtLoad</key>
