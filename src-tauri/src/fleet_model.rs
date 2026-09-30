@@ -13,6 +13,7 @@ use serde_json::Value;
 
 use crate::card::AgentCard;
 use crate::contract::{parse_topic, Topic};
+use crate::tree::format_duration_secs;
 
 /// Battement par défaut (s) quand `heartbeat_s` est absent ou invalide.
 pub const DEFAULT_HEARTBEAT_S: f64 = 60.0;
@@ -144,6 +145,10 @@ pub struct AgentView {
     pub started_at: i64,
     pub last_seen_at: i64,
     pub live: bool,
+    /// Libellés déjà formatés (D9 : la webview ne calcule rien).
+    pub state_label: String,
+    pub active_ago: String,
+    pub started_ago: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -166,6 +171,8 @@ pub struct SessionView {
     pub last_known_t: i64,
     /// `false` dès que la machine n'est pas « en ligne » : jamais présentée comme tournante.
     pub live: bool,
+    /// « busy » · « busy ? » (suspecte) · « ? (dernier connu : busy, il y a 2 h) » (machine non en ligne).
+    pub status_label: String,
     pub agents: Vec<AgentView>,
 }
 
@@ -182,9 +189,38 @@ pub struct MachineView {
     pub iakaframe_version: Option<String>,
     pub last_tick_at: Option<i64>,
     pub alerts: Vec<String>,
+    /// « en ligne » · « muette (dernier battement il y a 8 min) » · « hors ligne depuis 2 h » · « inconnue ».
+    pub state_label: String,
     pub cards_source_ok: Option<bool>,
     pub sessions: Vec<SessionView>,
     pub unattached_agents: Vec<AgentView>,
+}
+
+/// Libellé d'état d'une machine (mêmes mots que la CLI `iakafleet`).
+pub fn machine_state_label(ms: &MachineState, now_s: i64) -> String {
+    match (ms.state, ms.since) {
+        (State::Online, _) => "en ligne".to_string(),
+        (State::Mute, Some(t)) => {
+            format!("muette (dernier battement il y a {})", format_duration_secs(now_s - t))
+        }
+        (State::Mute, None) => "muette".to_string(),
+        (State::Offline, Some(t)) => format!("hors ligne depuis {}", format_duration_secs(now_s - t)),
+        (State::Offline, None) => "hors ligne".to_string(),
+        (State::Unknown, _) => "inconnue".to_string(),
+    }
+}
+
+/// Statut d'une session : « ? (dernier connu…) » si la machine n'est pas en ligne, « busy ? » si
+/// suspecte — jamais présentée comme tournante à tort.
+fn session_status_label(s: &SessionView, now_s: i64) -> String {
+    let st = s.status.as_deref().unwrap_or("inconnu");
+    if !s.live {
+        return format!("? (dernier connu : {st}, il y a {})", format_duration_secs(now_s - s.last_known_t));
+    }
+    if s.stuck_suspect && st == "busy" {
+        return "busy ?".to_string();
+    }
+    st.to_string()
 }
 
 fn s(m: &HashMap<String, CodeMsg>, code: &str) -> Option<String> {
@@ -253,9 +289,13 @@ pub fn build_fleet(store: &RemoteStore, own_node: Option<&str>, now_s: i64) -> V
                     started_at: i(codes, "started_at"),
                     last_known_t: codes.values().map(|c| c.t).max().unwrap_or(0),
                     live,
+                    status_label: String::new(),
                     agents: Vec::new(),
                 })
                 .collect();
+            for sess in &mut sessions {
+                sess.status_label = session_status_label(sess, now_s);
+            }
             slot.cards.sort_by(|a, b| {
                 (a.0.as_str(), a.1.agent_id.as_str()).cmp(&(b.0.as_str(), b.1.agent_id.as_str()))
             });
@@ -274,6 +314,13 @@ pub fn build_fleet(store: &RemoteStore, own_node: Option<&str>, now_s: i64) -> V
                     started_at: card.started_at,
                     last_seen_at: card.last_seen_at,
                     live,
+                    state_label: if live {
+                        card.state_or_default().to_string()
+                    } else {
+                        format!("? (dernier connu : {})", card.state_or_default())
+                    },
+                    active_ago: format_duration_secs(now_s - card.last_seen_at),
+                    started_ago: format_duration_secs(now_s - card.started_at),
                 };
                 match sessions.iter_mut().find(|x| x.sid.as_deref() == Some(sid.as_str())) {
                     Some(owner) => owner.agents.push(view),
@@ -291,10 +338,65 @@ pub fn build_fleet(store: &RemoteStore, own_node: Option<&str>, now_s: i64) -> V
                 iakaframe_version: s(&slot.meta, "iakaframe_version"),
                 last_tick_at: i(&slot.meta, "last_tick_at"),
                 alerts: machine_alerts(&slot.meta),
+                state_label: machine_state_label(&ms, now_s),
                 cards_source_ok: b(&slot.meta, "cards_source_ok"),
                 sessions,
                 unattached_agents: unattached,
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn put(store: &mut RemoteStore, topic: &str, v: Value, t: i64) {
+        store.codes.insert(topic.to_string(), CodeMsg { v, t });
+    }
+
+    #[test]
+    fn libelles_machine_et_session_non_en_ligne_dernier_connu() {
+        let now = 10_000;
+        let mut st = RemoteStore::default();
+        put(&mut st, "iaka/pc/out/presence/online/current", json!(false), now - 7200);
+        put(&mut st, "iaka/pc/out/sessions/9/status/current", json!("busy"), now - 7300);
+        put(&mut st, "iaka/mac2/out/presence/online/current", json!(true), now - 9000);
+        put(&mut st, "iaka/mac2/out/presence/last_tick_at/current", json!(now - 500), now - 500);
+        put(&mut st, "iaka/mac2/out/sessions/1/status/current", json!("idle"), now - 500);
+        let fleet = build_fleet(&st, None, now);
+        let mac2 = fleet.iter().find(|m| m.node == "mac2").unwrap();
+        let pc = fleet.iter().find(|m| m.node == "pc").unwrap();
+        assert_eq!(pc.state_label, "hors ligne depuis 2 h");
+        assert_eq!(pc.sessions[0].status_label, "? (dernier connu : busy, il y a 2 h 1 min)");
+        assert!(!pc.sessions[0].live);
+        assert_eq!(mac2.state, State::Mute);
+        assert!(mac2.state_label.starts_with("muette (dernier battement il y a 8 min"));
+        assert_eq!(mac2.sessions[0].status_label, "? (dernier connu : idle, il y a 8 min)");
+    }
+
+    #[test]
+    fn session_suspecte_busy_point_d_interrogation_et_own_node_exclu() {
+        let now = 10_000;
+        let mut st = RemoteStore::default();
+        for n in ["a", "own"] {
+            put(&mut st, &format!("iaka/{n}/out/presence/online/current"), json!(true), now - 5);
+            put(&mut st, &format!("iaka/{n}/out/presence/last_tick_at/current"), json!(now - 5), now - 5);
+            put(&mut st, &format!("iaka/{n}/out/sessions/1/status/current"), json!("busy"), now - 5);
+            put(&mut st, &format!("iaka/{n}/out/sessions/1/stuck_suspect/current"), json!(true), now - 5);
+        }
+        let fleet = build_fleet(&st, Some("own"), now);
+        assert_eq!(fleet.len(), 1);
+        assert_eq!(fleet[0].sessions[0].status_label, "busy ?");
+    }
+
+    #[test]
+    fn decode_code_msg_strict() {
+        assert_eq!(decode_code_msg(b""), Ok(None));
+        assert!(matches!(decode_code_msg(br#"{"v":1,"t":2}"#), Ok(Some(_))));
+        for bad in [&b"nope"[..], b"[]", br#"{"v":1}"#, br#"{"v":{},"t":1}"#, br#"{"v":1,"t":1,"x":2}"#, br#"{"v":1,"t":1.5}"#] {
+            assert!(decode_code_msg(bad).is_err(), "{}", String::from_utf8_lossy(bad));
+        }
+    }
 }

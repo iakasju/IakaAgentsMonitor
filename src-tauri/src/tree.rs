@@ -177,7 +177,7 @@ pub struct AgentsSnapshot {
     pub overflow_sessions: Option<u32>,
 }
 
-fn format_duration_secs(secs: i64) -> String {
+pub(crate) fn format_duration_secs(secs: i64) -> String {
     let secs = secs.max(0);
     if secs < 60 {
         return format!("{secs} s");

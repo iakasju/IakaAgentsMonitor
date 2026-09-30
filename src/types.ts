@@ -71,3 +71,51 @@ export interface AgentsSnapshot {
   sessions: SessionNode[];
   overflowSessions: number | null;
 }
+
+// ---- Vue « Autres machines » (central) : miroir Rust `sources::remote::RemoteView` -----------
+// Tout est déjà résolu côté Rust (libellés, états, rattachement des agents) : la webview ne fait
+// que peindre. Sans central configuré, `status` = "not_configured" et la section est absente.
+
+/** Un agent d'une autre machine. `taskMasked` : la machine ne publie pas le texte de tâche. */
+export interface FleetAgent {
+  sid: string;
+  agentId: string;
+  parentId: string | null;
+  persona: string | null;
+  model: string | null;
+  project: string | null;
+  task: string | null;
+  taskMasked: boolean;
+  stateLabel: string;
+  activeAgo: string;
+  startedAgo: string;
+  live: boolean;
+}
+
+export interface FleetSession {
+  pid: number;
+  statusLabel: string;
+  name: string | null;
+  repo: string | null;
+  branch: string | null;
+  cwd: string | null;
+  live: boolean;
+  agents: FleetAgent[];
+}
+
+export interface FleetMachine {
+  node: string;
+  state: "online" | "mute" | "offline" | "unknown";
+  os: string | null;
+  stateLabel: string;
+  alerts: string[];
+  sessions: FleetSession[];
+  unattachedAgents: FleetAgent[];
+}
+
+export interface RemoteView {
+  status: "not_configured" | "connecting" | "connected" | "unreachable";
+  reason: string | null;
+  machines: FleetMachine[];
+  ownNode: string | null;
+}

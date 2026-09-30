@@ -14,7 +14,15 @@
 // aperçu produit, groupé par dépôt), adaptée ici avec indentation hiérarchique au lieu d'une
 // liste plate.
 
-import type { AgentNode, AgentsSnapshot, SessionNode } from "./types";
+import type {
+  AgentNode,
+  AgentsSnapshot,
+  FleetAgent,
+  FleetMachine,
+  FleetSession,
+  RemoteView,
+  SessionNode,
+} from "./types";
 
 /** Colonnes triables du tableau. "runner" et "status" n'en font PAS partie : "runner" est
  * désormais un libellé résolu côté Rust (agnostique-mqtt.md, étape 8), mais un seul lot MQTT de
@@ -486,6 +494,148 @@ export function renderAgents(snap: AgentsSnapshot): void {
   }
 }
 
+// ---- « Autres machines » (vue distante, instruction de fusion D4) --------------------------------
+// Tableau V4 existant (mêmes jetons, aucun nouveau composant), GROUPÉ PAR MACHINE : ligne de groupe
+// (nom, OS, état), puis sessions, puis agents indentés sous leur session quand leur <sid> s'y
+// rattache, sinon « agents non rattachés ». Tout est déjà résolu côté Rust (libellés, états).
+// L'absence ne se déguise jamais : central injoignable ⇒ « broker injoignable : <motif> », jamais
+// une section vide ; texte de tâche non publié ⇒ « tâche masquée », jamais une cellule vide.
+
+const FLEET_COLUMNS = ["Session / agent", "Projet", "État", "Tâche", "Actif"];
+
+function fleetCell(text: string, className = ""): HTMLElement {
+  const td = document.createElement("td");
+  if (className) td.className = className;
+  td.textContent = text;
+  return td;
+}
+
+function fleetNote(text: string, className: string): HTMLElement {
+  const p = document.createElement("p");
+  p.className = className;
+  p.textContent = text;
+  return p;
+}
+
+function fleetSpanRow(text: string, className: string): HTMLElement {
+  const tr = document.createElement("tr");
+  tr.className = className;
+  const td = document.createElement("td");
+  td.colSpan = FLEET_COLUMNS.length;
+  td.textContent = text;
+  tr.appendChild(td);
+  return tr;
+}
+
+function fleetAgentRow(a: FleetAgent, guide: string): HTMLElement {
+  const tr = document.createElement("tr");
+  tr.className = a.live ? "" : "fleet-row--stale";
+  const first = document.createElement("td");
+  first.className = "agents-cell-agent";
+  const g = document.createElement("span");
+  g.className = "tree-guide";
+  g.textContent = guide;
+  first.appendChild(g);
+  const who = document.createElement("span");
+  who.className = "agents-persona";
+  who.textContent = a.persona ?? a.agentId;
+  first.appendChild(who);
+  tr.appendChild(first);
+  tr.appendChild(fleetCell(a.project ?? "—"));
+  tr.appendChild(fleetCell(a.stateLabel));
+  tr.appendChild(
+    a.taskMasked
+      ? fleetCell("tâche masquée", "agents-cell-task fleet-task--masked")
+      : fleetCell(a.task ?? "—", "agents-cell-task"),
+  );
+  tr.appendChild(fleetCell(a.activeAgo));
+  return tr;
+}
+
+function fleetSessionRow(s: FleetSession): HTMLElement {
+  const tr = document.createElement("tr");
+  tr.className = s.live ? "" : "fleet-row--stale";
+  const where = s.repo ? `${s.repo}@${s.branch ?? "—"}` : (s.cwd ?? "—");
+  tr.appendChild(fleetCell(s.name ? `${s.pid} · ${s.name}` : String(s.pid), "agents-cell-agent"));
+  tr.appendChild(fleetCell(where));
+  tr.appendChild(fleetCell(s.statusLabel));
+  tr.appendChild(fleetCell(""));
+  tr.appendChild(fleetCell(""));
+  return tr;
+}
+
+function fleetMachineRows(m: FleetMachine, index: number): HTMLElement[] {
+  const rows: HTMLElement[] = [];
+  rows.push(
+    fleetSpanRow(
+      `${m.node} · ${m.os ?? "?"} · ${m.stateLabel}`,
+      `agents-group-row agents-group-row--c${index % 6}`,
+    ),
+  );
+  for (const alert of m.alerts) rows.push(fleetSpanRow(`! ${alert}`, "fleet-alert"));
+  if (m.sessions.length === 0 && m.unattachedAgents.length === 0) {
+    rows.push(fleetSpanRow("(aucune session publiée)", "fleet-none"));
+  }
+  for (const s of m.sessions) {
+    rows.push(fleetSessionRow(s));
+    s.agents.forEach((a, i) => rows.push(fleetAgentRow(a, i === s.agents.length - 1 ? "└─" : "├─")));
+  }
+  if (m.unattachedAgents.length > 0) {
+    rows.push(fleetSpanRow("agents non rattachés", "fleet-none"));
+    m.unattachedAgents.forEach((a) => rows.push(fleetAgentRow(a, "·")));
+  }
+  return rows;
+}
+
+/** Rend la section « Autres machines ». Cachée tant qu'aucun central n'est configuré (le Monitor
+ * marche seul : rien ne change sans configuration). */
+export function renderFleet(view: RemoteView): void {
+  const section = document.getElementById("fleet");
+  if (!section) return;
+  section.replaceChildren();
+  if (view.status === "not_configured") {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  const title = document.createElement("div");
+  title.className = "fleet-title";
+  title.textContent = "Autres machines";
+  section.appendChild(title);
+
+  if (view.status === "unreachable") {
+    section.appendChild(fleetNote(`broker injoignable : ${view.reason ?? "motif inconnu"}`, "fleet-notice fleet-notice--down"));
+  } else if (view.status === "connecting") {
+    section.appendChild(fleetNote("connexion au broker…", "fleet-notice"));
+  }
+
+  if (view.machines.length === 0) {
+    if (view.status === "connected") {
+      section.appendChild(fleetNote("Aucune autre machine n'a publié", "empty"));
+    }
+    return;
+  }
+  if (view.status === "unreachable") {
+    section.appendChild(fleetNote("dernier état connu :", "fleet-notice"));
+  }
+  const table = document.createElement("table");
+  table.className = "agents-table compact fleet-table";
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  for (const label of FLEET_COLUMNS) {
+    const th = document.createElement("th");
+    th.className = "not-sortable";
+    th.textContent = label;
+    hr.appendChild(th);
+  }
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  view.machines.forEach((m, i) => fleetMachineRows(m, i).forEach((r) => tbody.appendChild(r)));
+  table.appendChild(tbody);
+  section.appendChild(table);
+}
+
 /** Mesure la largeur NATURELLE (« max-content ») du tableau actuellement peint (amendement A6,
  * point 1) : seule la webview connaît le rendu réel des polices, donc seule elle peut mesurer.
  * Passe temporairement le tableau en largeur libre, mesure son rendu, puis restaure — même
@@ -496,12 +646,15 @@ export function renderAgents(snap: AgentsSnapshot): void {
  * (`fit_window_width`), qui borne (480–1200 px) et applique l'hystérésis — cette fonction ne
  * décide de rien, elle mesure. */
 export function measureContentWidth(): number | null {
-  const table = document.querySelector<HTMLTableElement>("#agents table");
-  if (!table) return null;
-  const previous = table.style.width;
-  table.style.width = "max-content";
-  const width = Math.ceil(table.getBoundingClientRect().width);
-  table.style.width = previous;
+  const tables = document.querySelectorAll<HTMLTableElement>("#agents table, #fleet table");
+  if (tables.length === 0) return null;
+  let width = 0;
+  tables.forEach((table) => {
+    const previous = table.style.width;
+    table.style.width = "max-content";
+    width = Math.max(width, Math.ceil(table.getBoundingClientRect().width));
+    table.style.width = previous;
+  });
   return width;
 }
 
@@ -523,7 +676,10 @@ export function measureContentHeight(): number | null {
   section.style.maxHeight = "none";
   const contentHeight = section.scrollHeight;
   section.style.maxHeight = previous;
+  // « Autres machines » : sa hauteur s'ajoute à celle du tableau local (section absente = 0).
+  const fleet = document.getElementById("fleet");
+  const fleetHeight = fleet && !fleet.hidden ? fleet.getBoundingClientRect().height : 0;
   const chromeHeight =
     (topbar?.getBoundingClientRect().height ?? 0) + (footbar?.getBoundingClientRect().height ?? 0);
-  return Math.ceil(contentHeight + chromeHeight);
+  return Math.ceil(contentHeight + fleetHeight + chromeHeight);
 }

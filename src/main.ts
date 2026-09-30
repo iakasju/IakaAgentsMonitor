@@ -5,8 +5,14 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { measureContentHeight, measureContentWidth, renderAgents, setCompactMode } from "./render";
-import type { AgentsSnapshot } from "./types";
+import {
+  measureContentHeight,
+  measureContentWidth,
+  renderAgents,
+  renderFleet,
+  setCompactMode,
+} from "./render";
+import type { AgentsSnapshot, RemoteView } from "./types";
 
 // ---- Largeur et hauteur de fenetre ajustees au contenu (amendements A6 point 1 et A7 point 1) --
 // Mesurees ici (webview = seule couche qui connait le rendu reel des polices), appliquees cote
@@ -42,7 +48,27 @@ listen<AgentsSnapshot>("tray://agents", (event) => {
   fitWindowToContent();
 }).catch((e) => console.error("listen tray://agents a echoue", e));
 
+// « Autres machines » (central) : même mécanique — instantané initial + événement. Sans central
+// configuré, le backend renvoie `not_configured` et la section reste cachée : rien ne change.
+async function refreshFleet(): Promise<void> {
+  try {
+    const view = await invoke<RemoteView | null>("get_fleet");
+    if (view) {
+      renderFleet(view);
+      fitWindowToContent();
+    }
+  } catch (e) {
+    console.error("get_fleet a echoue", e);
+  }
+}
+
+listen<RemoteView>("tray://fleet", (event) => {
+  renderFleet(event.payload);
+  fitWindowToContent();
+}).catch((e) => console.error("listen tray://fleet a echoue", e));
+
 void refreshAgents();
+void refreshFleet();
 
 // ---- Fenetre compacte (5 colonnes, 520x360) / complete (8 colonnes, ~1000x420) -----------
 // Amendement A4, point 1. Le choix est memorise (localStorage, meme mecanique que le theme) et

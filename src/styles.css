@@ -508,3 +508,46 @@ button:focus-visible {
   color: var(--sc-ink-faint);
   padding: 6px 8px;
 }
+
+/* « Autres machines » (vue distante, instruction de fusion D4) : même tableau V4, mêmes jetons ;
+   seulement de quoi dire l'absence (broker injoignable, tâche masquée, dernier état connu). */
+.fleet {
+  border-top: 1px solid var(--sc-border);
+  padding: 0;
+}
+.fleet[hidden] {
+  display: none;
+}
+.fleet-title {
+  font-family: var(--sc-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sc-ink-muted);
+  padding: 8px 8px 4px;
+}
+.fleet-notice {
+  font-family: var(--sc-font-mono);
+  font-size: 11px;
+  color: var(--sc-ink-muted);
+  padding: 4px 8px;
+  margin: 0;
+}
+.fleet-notice--down {
+  color: var(--sc-danger);
+}
+.fleet-alert td {
+  color: var(--sc-warn);
+  font-family: var(--sc-font-mono);
+}
+.fleet-none td {
+  color: var(--sc-ink-faint);
+  font-family: var(--sc-font-mono);
+}
+.fleet-task--masked {
+  color: var(--sc-ink-faint);
+  font-style: italic;
+}
+.fleet-row--stale td {
+  color: var(--sc-ink-faint);
+}
