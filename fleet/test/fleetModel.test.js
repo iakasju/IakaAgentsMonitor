@@ -55,7 +55,7 @@ test('CA-9 : online=true sans last_tick_at => muette, jamais en ligne', () => {
 
 test('CA-9 : sessions d\'une machine non en ligne => "? (dernier connu ...)"', () => {
   const txt = renderFleet(fleet(), NOW);
-  assert.match(txt, /c {2}\[hors ligne depuis 2 h\]/);
+  assert.match(txt, /c {2}\[hors ligne \(heure d'arrêt inconnue ; connecté il y a 2 h\)\]/);
   assert.match(txt, /\? \(dernier connu : busy, il y a 2 h\)/);
   assert.match(txt, /\? \(dernier connu : idle, il y a 8 min\)/); // machine muette
   assert.equal(get(fleet(), 'c').sessions[0].live, false);
@@ -109,4 +109,16 @@ test('R2 : cards_source_ok=false => alerte ecrite ; rendu des agents (tache masq
   const txt = renderFleet(buildFleet(t, NOW), NOW);
   assert.match(txt, /- Gimli .*tache masquee/);
   assert.match(txt, /- Legolas .*revue du lot 2/);
+});
+
+test('D2 : libelle hors ligne = dernier signe de vie (testament apres longue vie), jamais « depuis »', () => {
+  const s = new Map();
+  put(s, 'z', 'online', false, NOW - 100000); // t du testament = demarrage du demon, tres ancien
+  put(s, 'z', 'last_tick_at', NOW - 50);
+  const f = buildFleet(s, NOW);
+  assert.equal(f.machines[0].since, NOW - 50);
+  assert.equal(f.machines[0].basis, 'last_seen');
+  const txt = renderFleet(f, NOW);
+  assert.match(txt, /z {2}\[hors ligne \(dernier signe de vie il y a 50 s\)\]/);
+  assert.doesNotMatch(txt, /hors ligne depuis/);
 });

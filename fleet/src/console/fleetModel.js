@@ -9,15 +9,21 @@ export const STALE_FACTOR = 3;
 /** Etat d'une machine a partir de ses codes meta (Map code -> {v,t}). */
 export function machineState(meta, nowS) {
   const online = meta.get('online');
-  if (!online) return { state: 'unknown', since: null };
-  if (online.v === false) return { state: 'offline', since: online.t };
+  if (!online) return { state: 'unknown', since: null, basis: null };
+  if (online.v === false) {
+    // Le `t` d'un testament est l'instant de CONNEXION du demon, pas de sa mort (contrat § 2) :
+    // « depuis » = dernier signe de vie connu, max(online.t, last_tick_at.v). Jamais online.t seul.
+    const tick = meta.get('last_tick_at')?.v;
+    if (typeof tick === 'number') return { state: 'offline', since: Math.max(online.t, tick), basis: 'last_seen' };
+    return { state: 'offline', since: online.t, basis: 'connected' };
+  }
   if (online.v === true) {
     const hb = Number(meta.get('heartbeat_s')?.v) > 0 ? Number(meta.get('heartbeat_s').v) : DEFAULT_HEARTBEAT_S;
     const tick = meta.get('last_tick_at')?.v;
-    if (typeof tick === 'number' && nowS - tick <= STALE_FACTOR * hb) return { state: 'online', since: online.t };
-    return { state: 'mute', since: typeof tick === 'number' ? tick : online.t };
+    if (typeof tick === 'number' && nowS - tick <= STALE_FACTOR * hb) return { state: 'online', since: online.t, basis: null };
+    return { state: 'mute', since: typeof tick === 'number' ? tick : online.t, basis: null };
   }
-  return { state: 'unknown', since: null };
+  return { state: 'unknown', since: null, basis: null };
 }
 
 export const ALERT_SESSIONS_UNREADABLE = 'sessions illisibles';
@@ -75,7 +81,7 @@ export function buildFleet(store, nowS) {
   const machines = [...nodes.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([host, { meta, sessions, cards }]) => {
-      const { state, since } = machineState(meta, nowS);
+      const { state, since, basis } = machineState(meta, nowS);
       const mv = (c) => (meta.has(c) ? meta.get(c).v : null);
       const alerts = machineAlerts(meta);
       const list = [...sessions.entries()]
@@ -115,6 +121,7 @@ export function buildFleet(store, nowS) {
         host,
         state,
         since,
+        basis,
         os: mv('os'),
         osRelease: mv('os_release'),
         hostname: mv('hostname'),

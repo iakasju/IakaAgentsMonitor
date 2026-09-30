@@ -17,7 +17,13 @@ const STATE_LABEL = {
 
 export function machineStateLabel(m, nowS) {
   const base = STATE_LABEL[m.state];
-  if (m.state === 'offline' && m.since != null) return `${base} depuis ${formatDuration(nowS - m.since)}`;
+  if (m.state === 'offline' && m.since != null) {
+    const d = formatDuration(nowS - m.since);
+    // Le « depuis » d'une machine hors ligne n'est jamais affirme : dernier signe de vie, ou heure d'arret inconnue.
+    return m.basis === 'last_seen'
+      ? `${base} (dernier signe de vie il y a ${d})`
+      : `${base} (heure d'arrêt inconnue ; connecté il y a ${d})`;
+  }
   if (m.state === 'mute' && m.since != null) return `${base} (dernier battement il y a ${formatDuration(nowS - m.since)})`;
   return base;
 }
