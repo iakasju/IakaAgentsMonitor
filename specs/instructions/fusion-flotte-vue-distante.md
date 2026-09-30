@@ -272,10 +272,35 @@ défaut, Q1) ; `IAKA_SHOW_TASKS=1` ⇒ `task` publié tel quel ; `IAKA_MASK_NAME
 - [ ] **CA-R1** — Lot 0 **amendé** exécuté et coché (ACL `iaka/`, testament, refus sur `in/`).
 - [ ] **CA-R1b** — **`L-INSTALL` (a) fait sur le Mac** : démon en service, hooks installés par le décideur, `presence/cards_source_ok = true` ; (b) PC consigné « fait » ou « en attente du lien ».
 - [ ] **CA-R2** — CLI depuis le Mac **et** le PC : les deux machines, leurs sessions, et les agents là où les hooks sont installés (tâches affichées « masquée » sauf `IAKA_SHOW_TASKS=1`).
-- [ ] **CA-R3** — App sur le Mac : « Ce poste » + le PC dans « Autres machines » ; `kill -9` du démon du PC ⇒ PC **hors ligne** en ≤ 60 s dans l'app.
+- [ ] **CA-R3** *(mode d'observation reformulé le 2026-09-30)* — App sur le Mac : « Ce poste » + le PC dans
+      « Autres machines » ; démon du PC arrêté ⇒ PC **hors ligne** en ≤ 60 s dans l'app. **Comment
+      l'observer** : un gestionnaire de service relance le démon en ~1 s (launchd `KeepAlive` ; le
+      `ThrottleInterval` de 10 s ne joue pas pour un service qui a vécu longtemps), donc après un `kill -9`
+      l'état hors ligne n'est visible que ~1 s. On prouve donc **séparément** : (i) le **testament**, par un
+      **abonné lancé avant** le `kill -9` (`mosquitto_sub … -t 'iaka/<node>/out/presence/#' -v`), qui doit
+      recevoir `online=false` à la seconde du kill ; (ii) l'**état hors ligne durable**, par un **arrêt
+      propre sans relance** (`launchctl bootout` sur le Mac, `Stop-ScheduledTask` puis désactivation sur le
+      PC) — l'app doit afficher hors ligne en ≤ 60 s et **le rester** ; puis réinstaller le service.
 - [ ] **CA-R4** — Couper le réseau du Mac : la vue « Ce poste » continue ; « Autres machines » affiche le motif.
 - [ ] **CA-R5** — Aucun secret dans le dépôt ; secrets dans Vaultwarden `work/iakaFleet`.
 - [ ] **CA-R6** — **Testé par le décideur.**
+
+### 11.1 État de la recette au 2026-09-30 (soir) — consigné, **rien n'est coché sans le décideur**
+
+| Critère | État | Preuve / reste |
+|---|---|---|
+| **CA-R1** | **prouvé côté Mac** | Lot 0 amendé rejoué avec les vrais secrets : **0 FAIL**. Testament prouvé **en réel** : abonné console présent pendant `launchctl kill SIGKILL`, `{"v":false,…}` reçu à la seconde du kill (l'ACL le couvre, #3552 écarté). **Reste** : volet PC de CA-5 du Lot 0 (décideur, quand le lien sera rétabli) |
+| **CA-R1b** | **(a) fait sur le Mac** · **(b) PC en attente du lien** | Démon sous launchd, lancé sous **`node --permission`**, **TLS réel** vers `mqtt.naonedge.com:8883` ; hooks du publieur installés **par le décideur** ; fiches d'agents visibles sous leurs sessions dans `iakafleet ls` |
+| **CA-R2** | **Mac fait** · **PC non fait** | `iakafleet ls` sur le Mac : 4 sessions, agents rattachés sous `azime-be` et `work-2a`, tâches affichées « masquée » (défaut Q1) |
+| **CA-R3** | **non fait** | L'app Tauri n'a **jamais été lancée à l'écran** ; PC non joint. Mode d'observation reformulé ci-dessus |
+| **CA-R4** | **non fait** | App non lancée |
+| **CA-R5** | **fait** | Legolas : `git grep` ⇒ 0 secret ; 3 items Vaultwarden `work/iakaFleet` conformes |
+| **CA-R6** | **partiel** | Le décideur a lancé `iakafleet ls` ; ni l'app ni le PC |
+
+**Écart instruit pendant cette recette** : la durée « hors ligne depuis » est fausse après un testament
+(le `t` du testament est l'instant de **connexion** du démon — mesure : testament `t=1790797786`
+antérieur au `true` du même démon `t=1790797788`). Correctif cadré :
+**`specs/instructions/corr-hors-ligne-duree.md`** (≈ 0,3 j-h), à livrer **avant** la recette de CA-R3.
 
 ## 12. Estimation (jalon P1→P2)
 

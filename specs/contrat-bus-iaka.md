@@ -51,6 +51,13 @@ par `/` crée un premier niveau vide, source classique d'erreurs d'ACL.
   seraient le même écran vide) et `sessions/<pid>/sid/current` (`sha256(sessionId)` sur 12 hex, § 1 : la
   **clé de rattachement** d'une fiche d'agent à sa session ; ajout compatible, v2 inchangée, § 7 —
   **ajouté en P2 par Gimli** : l'instruction D4 exige ce rattachement sans le nommer dans les codes).
+- 🛑 **`presence/online` et le testament** (ajouté le 2026-09-30, `specs/instructions/corr-hors-ligne-duree.md`) :
+  le testament `{"v":false,"t":…}` est déposé **à la connexion** ; son `t` est l'**instant de connexion du
+  démon, pas celui de son départ** (MQTT 3.1.1 ne permet pas de le mettre à jour sans se reconnecter). Un
+  `online=false` d'**arrêt propre** porte, lui, l'instant de l'arrêt. Tout lecteur calcule donc
+  « hors ligne depuis » comme le **dernier signe de vie** `max(online.t, last_tick_at.v)`, repli sur
+  `online.t` marqué « heure d'arrêt inconnue » si `last_tick_at` manque — **jamais `online.t` seul**.
+  Règle prouvée par `contract-vectors/machine-state.json` (champ `basis`).
 - **`agents/`** : **exception déclarée** au modèle code/valeur — la **fiche d'agent JSON v1** du Monitor
   (`agnostique-mqtt.md` § « Fiche »), inchangée champ pour champ, **retain, QoS 1**, effacement = payload
   vide. Motif : une fiche est un **document** cohérent (persona, tâche, parent, modèle) que le Monitor
