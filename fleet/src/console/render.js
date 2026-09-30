@@ -32,8 +32,19 @@ export function sessionStatusLabel(s, nowS) {
 
 const dash = (v) => (v === null || v === undefined ? '-' : String(v));
 
+export const TASK_MASKED = 'tache masquee';
+
+/** Ligne d'un agent (D5) : persona, tache (masquee cote machine => dit, jamais une cellule vide), duree. */
+export function agentLine(a, nowS, indent) {
+  const who = `${a.persona ?? a.agentId ?? '?'}`;
+  const task = a.task === null ? TASK_MASKED : a.task;
+  const since = a.startedAt != null ? formatDuration(nowS - a.startedAt) : '-';
+  const st = a.live ? dash(a.state) : `? (dernier connu : ${dash(a.state)})`;
+  return `${indent}- ${who.padEnd(10)} ${st.padEnd(8)} ${task}  (${since}${a.model ? `, ${a.model}` : ''})`;
+}
+
 export function renderFleet(fleet, nowS) {
-  if (fleet.machines.length === 0) return "aucune machine n'a publie sur iakafleet/.\n";
+  if (fleet.machines.length === 0) return "aucune machine n'a publie sur iaka/.\n";
   const lines = [];
   for (const m of fleet.machines) {
     lines.push(`${m.host}  [${machineStateLabel(m, nowS)}]`);
@@ -48,6 +59,11 @@ export function renderFleet(fleet, nowS) {
         `  ${String(s.pid).padEnd(7)} ${sessionStatusLabel(s, nowS).padEnd(11)} ${where}  ${dash(s.cwd)}  ` +
           `${s.rc ? 'rc' : '--'}  ${dash(s.name)}  v${dash(s.claudeVersion)} ${dash(s.entrypoint)}`,
       );
+      for (const a of s.agents ?? []) lines.push(agentLine(a, nowS, '           '));
+    }
+    if ((m.unattachedAgents ?? []).length > 0) {
+      lines.push('  agents non rattaches :');
+      for (const a of m.unattachedAgents) lines.push(agentLine(a, nowS, '    '));
     }
     lines.push('');
   }

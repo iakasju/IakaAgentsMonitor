@@ -26,11 +26,11 @@ function harness(setup, envOver = {}) {
 const feed = (c) => {
   c.emit('connect');
   setTimeout(() => {
-    c.deliver('iakafleet/m1/meta/online/current', '{"v":true,"t":4990}');
-    c.deliver('iakafleet/m1/meta/last_tick_at/current', '{"v":4990,"t":4990}');
-    c.deliver('iakafleet/m1/meta/heartbeat_s/current', '{"v":60,"t":4990}');
-    c.deliver('iakafleet/m1/sessions/7/status/current', '{"v":"idle","t":4990}');
-    c.deliver('iakafleet/m1/sessions/7/repo/current', 'pas du json');
+    c.deliver('iaka/m1/out/presence/online/current', '{"v":true,"t":4990}');
+    c.deliver('iaka/m1/out/presence/last_tick_at/current', '{"v":4990,"t":4990}');
+    c.deliver('iaka/m1/out/presence/heartbeat_s/current', '{"v":60,"t":4990}');
+    c.deliver('iaka/m1/out/sessions/7/status/current', '{"v":"idle","t":4990}');
+    c.deliver('iaka/m1/out/sessions/7/repo/current', 'pas du json');
   }, 5);
 };
 
@@ -40,7 +40,7 @@ test('ls : instantane texte, code 0, et la console ne publie JAMAIS', async () =
   assert.match(h.out.join(''), /m1 {2}\[en ligne\]/);
   assert.match(h.out.join(''), /idle/);
   assert.equal(h.client.published.length, 0);
-  assert.equal(h.client.subscribed[0].topic, 'iakafleet/#');
+  assert.equal(h.client.subscribed[0].topic, 'iaka/+/out/#');
   assert.equal(h.err.join(''), '');
 });
 
@@ -57,9 +57,9 @@ test('un code efface (payload vide) disparait de la vue', async () => {
   const h = harness((c) => {
     c.emit('connect');
     setTimeout(() => {
-      c.deliver('iakafleet/m1/meta/online/current', '{"v":true,"t":4990}');
-      c.deliver('iakafleet/m1/sessions/7/status/current', '{"v":"idle","t":4990}');
-      c.deliver('iakafleet/m1/sessions/7/status/current', '');
+      c.deliver('iaka/m1/out/presence/online/current', '{"v":true,"t":4990}');
+      c.deliver('iaka/m1/out/sessions/7/status/current', '{"v":"idle","t":4990}');
+      c.deliver('iaka/m1/out/sessions/7/status/current', '');
     }, 5);
   });
   await run(['ls', '--json'], h.deps);
@@ -102,4 +102,32 @@ test('usage : commande inconnue => code 1 ; --help => 0', async () => {
   const h = harness(() => {});
   assert.equal(await run(['nope'], h.deps), 1);
   assert.equal(await run(['--help'], h.deps), 0);
+});
+
+test('D5 : ls affiche les agents sous leur session (tache masquee dite), --json les inclut', async () => {
+  const card = (o) => JSON.stringify({ v: 1, runner: 'claude-code', agentId: 'main', parentId: null, persona: 'Gimli', sessionId: 'aaaaaaaaaaaa', startedAt: 4880, lastSeenAt: 4990, state: 'running', task: null, ...o });
+  const setup = (c) => {
+    c.emit('connect');
+    setTimeout(() => {
+      c.deliver('iaka/m1/out/presence/online/current', '{"v":true,"t":4990}');
+      c.deliver('iaka/m1/out/presence/last_tick_at/current', '{"v":4990,"t":4990}');
+      c.deliver('iaka/m1/out/presence/heartbeat_s/current', '{"v":60,"t":4990}');
+      c.deliver('iaka/m1/out/sessions/7/status/current', '{"v":"busy","t":4990}');
+      c.deliver('iaka/m1/out/sessions/7/sid/current', '{"v":"aaaaaaaaaaaa","t":4990}');
+      c.deliver('iaka/m1/out/agents/claude-code/aaaaaaaaaaaa/main', card({}));
+      c.deliver('iaka/m1/out/agents/claude-code/aaaaaaaaaaaa/kid', card({ agentId: 'kid', parentId: 'main', persona: 'Legolas', task: 'relire' }));
+      c.deliver('iaka/m1/out/agents/claude-code/cccccccccccc/main', 'pas du json');
+      c.deliver('iaka/m1/out/agents/claude-code/dddddddddddd/main', '[1]');
+    }, 5);
+  };
+  const h = harness(setup);
+  assert.equal(await run(['ls'], h.deps), 0);
+  const txt = h.out.join('');
+  assert.match(txt, /- Gimli .*tache masquee/);
+  assert.match(txt, /- Legolas .*relire/);
+  const j = harness(setup);
+  await run(['ls', '--json'], j.deps);
+  const m = JSON.parse(j.out.join('')).machines[0];
+  assert.deepEqual(m.sessions[0].agents.map((a) => a.persona), ['Legolas', 'Gimli']);
+  assert.deepEqual(m.unattachedAgents, []);
 });

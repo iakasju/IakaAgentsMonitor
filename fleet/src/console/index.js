@@ -1,6 +1,6 @@
 // Console CLI (D9) : lecture seule. Ne publie JAMAIS. L'absence ne se deguise pas en vide.
 import { loadConfig } from '../shared/config.js';
-import { ALL_TOPICS, decode, ContractError } from '../shared/contract.js';
+import { ALL_TOPICS, decode, parseTopic, ContractError } from '../shared/contract.js';
 import { buildFleet } from './fleetModel.js';
 import { renderFleet } from './render.js';
 
@@ -21,7 +21,7 @@ function describe(e, url) {
 }
 
 /**
- * Se connecte, s'abonne a iakafleet/# et accumule les retained dans `store`.
+ * Se connecte, s'abonne a iaka/+/out/# et accumule les retained dans `store`.
  * Resout {client, store, done} ; done() -> promesse resolue quand plus rien n'arrive depuis settleMs.
  */
 function open(cfg, deps, { reconnect }) {
@@ -61,12 +61,29 @@ function open(cfg, deps, { reconnect }) {
       else deps.stderr.write(`iakafleet : erreur MQTT : ${e.message}\n`);
     });
     client.on('message', (topic, payload) => {
+      const p = parseTopic(topic);
+      if (!p) return; // hors contrat : ignore
       let m;
-      try {
-        m = decode(payload);
-      } catch (e) {
-        if (e instanceof ContractError) return; // message hors contrat : ignore
-        throw e;
+      if (p.kind === 'agent') {
+        // Fiche d'agent : JSON v1 (exception declaree au modele {v,t}) ; vide = efface.
+        const raw = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload));
+        if (raw.length === 0) m = null;
+        else {
+          if (raw.length > 4096) return;
+          try {
+            m = JSON.parse(raw.toString('utf8'));
+          } catch {
+            return;
+          }
+          if (m === null || typeof m !== 'object' || Array.isArray(m)) return;
+        }
+      } else {
+        try {
+          m = decode(payload);
+        } catch (e) {
+          if (e instanceof ContractError) return; // message hors contrat : ignore
+          throw e;
+        }
       }
       if (m === null) store.delete(topic);
       else store.set(topic, m);
@@ -77,7 +94,7 @@ function open(cfg, deps, { reconnect }) {
       client.subscribe(ALL_TOPICS, { qos: 1 }, (err, granted) => {
         if (err) return fail(err);
         if (granted?.some((g) => g.qos === 128)) {
-          return fail(new Error('abonnement iakafleet/# refuse par le broker (ACL)'));
+          return fail(new Error('abonnement iaka/+/out/# refuse par le broker (ACL)'));
         }
         if (settled) return;
         settled = true;

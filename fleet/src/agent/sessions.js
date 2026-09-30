@@ -39,6 +39,8 @@ export function normalizeSession(raw, fallbackPid) {
     raw.updatedAt > raw.statusUpdatedAt;
   return {
     pid,
+    // Reste LOCAL a la machine : n'est publie que sous forme de <sid> (sha256, 12 hex), jamais brut.
+    sessionId: str(raw.sessionId),
     status: str(raw.status),
     statusSince: secs(raw.statusUpdatedAt),
     stuckSuspect: stuck,

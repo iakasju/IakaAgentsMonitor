@@ -3,7 +3,7 @@
 import { homedir, hostname as osHostname } from 'node:os';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { normalizeHost, ContractError } from './contract.js';
+import { normalizeNode, ContractError } from './contract.js';
 
 export const DEFAULT_URL = 'mqtts://mqtt.naonedge.com:8883';
 
@@ -74,17 +74,18 @@ export function loadConfig(deps = {}) {
   const url = checkBrokerUrl(get('IAKAFLEET_MQTT_URL') ?? DEFAULT_URL);
   const hostnameFn = deps.hostname ?? osHostname;
   const hostnameRaw = hostnameFn();
-  const rawHost = get('IAKAFLEET_HOST') ?? hostnameRaw;
-  let host;
+  // IAKA_NODE prioritaire (contrat v2 par. 1) ; IAKAFLEET_HOST reste un alias (D6).
+  const rawNode = get('IAKA_NODE') ?? get('IAKAFLEET_HOST') ?? hostnameRaw;
+  let node;
   try {
-    host = normalizeHost(rawHost);
+    node = normalizeNode(rawNode);
   } catch (e) {
     if (e instanceof ContractError) throw new ConfigError(e.message);
     throw e;
   }
   return {
     url,
-    host,
+    node,
     hostnameRaw,
     home,
     agentUser: get('IAKAFLEET_AGENT_USER'),
@@ -95,6 +96,10 @@ export function loadConfig(deps = {}) {
     scanS: positiveInt('IAKAFLEET_SCAN_S', get('IAKAFLEET_SCAN_S'), 5),
     heartbeatS: positiveInt('IAKAFLEET_HEARTBEAT_S', get('IAKAFLEET_HEARTBEAT_S'), 60),
     iakaframePkg: get('IAKAFLEET_IAKAFRAME_PKG'),
-    maskNames: get('IAKAFLEET_MASK_NAMES') === '1',
+    // Par. 4 : noms publies par defaut (IAKA_MASK_NAMES=1 les masque) ; taches MASQUEES par defaut
+    // (IAKA_SHOW_TASKS=1 les publie). Alias historique : IAKAFLEET_MASK_NAMES.
+    maskNames: (get('IAKA_MASK_NAMES') ?? get('IAKAFLEET_MASK_NAMES')) === '1',
+    showTasks: get('IAKA_SHOW_TASKS') === '1',
+    cardsDir: get('IAKAFLEET_CARDS_DIR') ?? join(home, '.cache', 'iaka-agents'),
   };
 }

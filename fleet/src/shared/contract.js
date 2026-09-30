@@ -1,16 +1,19 @@
-// Contrat sur le fil v1 (D4) : partage par l'agent ET la console, source unique.
-// Topic = code ; payload = {"v":<scalaire|null>,"t":<epoch s>} ; retained, QoS 1.
+// Contrat du bus iaka v2 (specs/contrat-bus-iaka.md) : partage par le demon ET la console, source
+// unique cote Node. Presence/sessions : topic = code ; payload = {"v":<scalaire|null>,"t":<epoch s>} ;
+// retained, QoS 1. Agents : fiche JSON v1 du Monitor (exception declaree au modele code/valeur).
+import { createHash } from 'node:crypto';
 
-export const ROOT = 'iakafleet';
+export const ROOT = 'iaka';
 
-export const META_CODES = [
+export const PRESENCE_CODES = [
   'online', 'os', 'os_release', 'hostname', 'agent_version', 'node_version',
   'iakaframe_version', 'sessions_dir_ok', 'sessions_count', 'heartbeat_s', 'last_tick_at',
+  'cards_source_ok',
 ];
 
 export const SESSION_CODES = [
   'status', 'status_since', 'stuck_suspect', 'name', 'kind', 'entrypoint',
-  'claude_version', 'cwd', 'repo', 'branch', 'rc', 'started_at',
+  'claude_version', 'cwd', 'repo', 'branch', 'rc', 'started_at', 'sid',
 ];
 
 export class ContractError extends Error {
@@ -20,31 +23,46 @@ export class ContractError extends Error {
   }
 }
 
-/** D5 : forme normalisee du <host>. Refus nomme si vide ou contenant + # /. */
-export function normalizeHost(raw) {
-  if (typeof raw !== 'string') throw new ContractError('host invalide : chaine attendue');
-  if (/[+#/]/.test(raw)) throw new ContractError(`host invalide : "${raw}" contient +, # ou /`);
-  const host = raw
+/** Par. 1 : forme normalisee du <node>. Refus nomme si vide ou contenant + # /. */
+export function normalizeNode(raw) {
+  if (typeof raw !== 'string') throw new ContractError('node invalide : chaine attendue');
+  if (/[+#/]/.test(raw)) throw new ContractError(`node invalide : "${raw}" contient +, # ou /`);
+  const node = raw
     .trim()
     .toLowerCase()
     .replace(/\.local$/, '')
-    .replace(/[^a-z0-9-]/g, '-');
-  if (host === '' || /^-+$/.test(host)) throw new ContractError(`host invalide : "${raw}" donne une valeur vide`);
-  return host;
+    .replace(/[^a-z0-9-]/gu, '-');
+  if (node === '' || /^-+$/.test(node)) throw new ContractError(`node invalide : "${raw}" donne une valeur vide`);
+  return node;
 }
 
-export const metaTopic = (host, code) => `${ROOT}/${host}/meta/${code}/current`;
-export const sessionTopic = (host, pid, code) => `${ROOT}/${host}/sessions/${pid}/${code}/current`;
-export const sessionsWildcard = (host) => `${ROOT}/${host}/sessions/#`;
-export const ALL_TOPICS = `${ROOT}/#`;
+/** Par. 1 : <sid> sur un broker central = sha256(sessionId) hex, 12 premiers caracteres. */
+export function sidOf(sessionId) {
+  return createHash('sha256').update(String(sessionId)).digest('hex').slice(0, 12);
+}
+
+const SEGMENT_RE = /^[A-Za-z0-9._-]{1,128}$/;
+export const isValidSegment = (s) => typeof s === 'string' && SEGMENT_RE.test(s);
+
+export const presenceTopic = (node, code) => `${ROOT}/${node}/out/presence/${code}/current`;
+export const sessionTopic = (node, pid, code) => `${ROOT}/${node}/out/sessions/${pid}/${code}/current`;
+export const agentTopic = (node, runner, sid, agentId) => `${ROOT}/${node}/out/agents/${runner}/${sid}/${agentId}`;
+export const sessionsWildcard = (node) => `${ROOT}/${node}/out/sessions/#`;
+export const agentsWildcard = (node) => `${ROOT}/${node}/out/agents/#`;
+export const agentsFilter = (node) => `${ROOT}/${node}/out/agents/+/+/+`;
+export const ALL_TOPICS = `${ROOT}/+/out/#`;
 
 /** Decompose un topic du contrat ; null s'il ne le respecte pas. */
 export function parseTopic(topic) {
   const p = String(topic).split('/');
-  if (p[0] !== ROOT || p[p.length - 1] !== 'current') return null;
-  if (p.length === 5 && p[2] === 'meta') return { host: p[1], kind: 'meta', code: p[3] };
-  if (p.length === 6 && p[2] === 'sessions' && /^\d+$/.test(p[3])) {
-    return { host: p[1], kind: 'session', pid: Number(p[3]), code: p[4] };
+  if (p[0] !== ROOT || p[2] !== 'out' || !isValidSegment(p[1])) return null;
+  const node = p[1];
+  if (p[3] === 'presence' && p.length === 6 && p[5] === 'current') return { node, kind: 'presence', code: p[4] };
+  if (p[3] === 'sessions' && p.length === 7 && p[6] === 'current' && /^\d+$/.test(p[4])) {
+    return { node, kind: 'session', pid: Number(p[4]), code: p[5] };
+  }
+  if (p[3] === 'agents' && p.length === 7 && [p[4], p[5], p[6]].every(isValidSegment)) {
+    return { node, kind: 'agent', runner: p[4], sid: p[5], agentId: p[6] };
   }
   return null;
 }

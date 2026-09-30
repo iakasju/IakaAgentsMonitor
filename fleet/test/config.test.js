@@ -22,7 +22,7 @@ test('checkBrokerUrl : mqtt:// clair seulement en local (CA-11)', () => {
 test('loadConfig : defauts, priorite env > fichier, masquage', () => {
   const file = 'IAKAFLEET_HOST=fromfile\nIAKAFLEET_SCAN_S=9\nIAKAFLEET_AGENT_USER=u\n';
   const c = loadConfig({ env: { IAKAFLEET_SCAN_S: '3' }, readFile: () => file, home: '/h', hostname: () => 'X' });
-  assert.equal(c.host, 'fromfile');
+  assert.equal(c.node, 'fromfile');
   assert.equal(c.scanS, 3);
   assert.equal(c.heartbeatS, 60);
   assert.equal(c.agentUser, 'u');
@@ -31,9 +31,9 @@ test('loadConfig : defauts, priorite env > fichier, masquage', () => {
   assert.match(c.sessionsDir, /\.claude[\\/]sessions$/);
 });
 
-test('loadConfig : host derive du hostname, invalide => refus nomme (CA-11)', () => {
+test('loadConfig : node derive du hostname, invalide => refus nomme (CA-11)', () => {
   const c = loadConfig({ env: {}, readFile: noFile, home: '/h', hostname: () => 'MBP-de-sjupin.local' });
-  assert.equal(c.host, 'mbp-de-sjupin');
+  assert.equal(c.node, 'mbp-de-sjupin');
   assert.throws(() => loadConfig({ env: { IAKAFLEET_HOST: 'a/b' }, readFile: noFile, home: '/h' }), ConfigError);
   assert.throws(() => loadConfig({ env: {}, readFile: noFile, home: '/h', hostname: () => '' }), ConfigError);
 });
@@ -50,6 +50,24 @@ test('loadConfig : IAKAFLEET_MASK_NAMES=1 seulement', () => {
   assert.equal(mk('1'), true);
   assert.equal(mk('0'), false);
   assert.equal(mk(undefined), false);
+});
+
+test('loadConfig : IAKA_NODE prioritaire sur IAKAFLEET_HOST (alias), refus nomme', () => {
+  const mk = (env) => loadConfig({ env, readFile: noFile, home: '/h', hostname: () => 'h' });
+  assert.equal(mk({ IAKA_NODE: 'Mac-Pro', IAKAFLEET_HOST: 'ancien' }).node, 'mac-pro');
+  assert.equal(mk({ IAKAFLEET_HOST: 'ancien' }).node, 'ancien');
+  assert.throws(() => mk({ IAKA_NODE: 'a#b' }), ConfigError);
+});
+
+test('loadConfig : IAKA_MASK_NAMES (alias IAKAFLEET_MASK_NAMES) ; IAKA_SHOW_TASKS defaut DESACTIVE (Q1)', () => {
+  const mk = (env) => loadConfig({ env, readFile: noFile, home: '/h', hostname: () => 'h' });
+  assert.equal(mk({}).showTasks, false);
+  assert.equal(mk({ IAKA_SHOW_TASKS: '1' }).showTasks, true);
+  assert.equal(mk({ IAKA_SHOW_TASKS: 'true' }).showTasks, false);
+  assert.equal(mk({ IAKA_MASK_NAMES: '1' }).maskNames, true);
+  assert.equal(mk({ IAKAFLEET_MASK_NAMES: '1' }).maskNames, true);
+  assert.equal(mk({ IAKA_MASK_NAMES: '0', IAKAFLEET_MASK_NAMES: '1' }).maskNames, false);
+  assert.match(mk({}).cardsDir, /\.cache[\\/]iaka-agents$/);
 });
 
 test('loadConfig : entier invalide refuse', () => {

@@ -36,4 +36,4 @@ async function shutdown() {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-log(`agent demarre : host=${cfg.host} broker=${cfg.url}`);
+log(`agent demarre : node=${cfg.node} broker=${cfg.url}`);

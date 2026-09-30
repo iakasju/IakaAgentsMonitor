@@ -1,7 +1,11 @@
-// Agent de flotte (D6) : lit, en lecture seule, les fichiers de session et publie sur MQTT.
-// Il ne lance aucun processus, n'execute aucun ordre, ne s'abonne qu'a son propre sous-arbre
-// de sessions (et seulement le temps de la purge de demarrage).
-import { metaTopic, sessionsWildcard, parseTopic } from '../shared/contract.js';
+// Demon de machine (D6, contrat v2) : lit, en lecture seule, les fichiers de session ET les fiches
+// d'agents ecrites par le publieur de hooks, puis publie sur MQTT sous iaka/<node>/out/.
+// Il ne lance aucun processus, n'execute aucun ordre (jamais de shell), ne s'abonne qu'a son propre
+// sous-arbre out/ (et seulement le temps de la purge de demarrage) : aucun ordre `in/` n'est lu.
+import {
+  presenceTopic, sessionsWildcard, agentsWildcard, agentTopic, parseTopic, sidOf,
+} from '../shared/contract.js';
+import { readCards as defaultReadCards, toCentral } from './cards.js';
 import { Publisher, buildConnectOptions } from './publisher.js';
 import { readSessions as defaultReadSessions, isPidAlive, relativeToHome } from './sessions.js';
 import { findGit as defaultFindGit } from './gitHead.js';
@@ -21,6 +25,8 @@ export function sessionCodes(s, git, cfg) {
     branch: git.branch,
     rc: s.rc,
     started_at: s.startedAt,
+    // Jamais le sessionId brut : <sid> = sha256 tronque, cle de rattachement des fiches d'agents.
+    sid: s.sessionId ? sidOf(s.sessionId) : null,
   };
 }
 
@@ -32,6 +38,7 @@ export function createAgent(cfg, deps) {
   const nowS = deps.nowS ?? (() => Math.floor(Date.now() / 1000));
   const log = deps.log ?? (() => {});
   const readSessions = deps.readSessions ?? defaultReadSessions;
+  const readCards = deps.readCards ?? defaultReadCards;
   const findGit = deps.findGit ?? defaultFindGit;
   const findVersion = deps.findVersion ?? defaultFindVersion;
   const alive = deps.alive ?? isPidAlive;
@@ -40,9 +47,9 @@ export function createAgent(cfg, deps) {
 
   const client = deps.connect(
     cfg.url,
-    buildConnectOptions({ host: cfg.host, username: cfg.agentUser, password: cfg.agentPass, nowS: nowS() }),
+    buildConnectOptions({ node: cfg.node, username: cfg.agentUser, password: cfg.agentPass, nowS: nowS() }),
   );
-  const publisher = new Publisher({ client, host: cfg.host, nowS });
+  const publisher = new Publisher({ client, node: cfg.node, nowS });
 
   let scanTimer = null;
   let settleTimer = null;
@@ -60,8 +67,9 @@ export function createAgent(cfg, deps) {
       iakaframeVersion = findVersion(); // relu a chaque battement (D8)
     }
     const { dirOk, sessions } = readSessions(cfg.sessionsDir, { log, alive });
+    const { dirOk: cardsOk, cards } = liveCards();
     publisher.sync({
-      meta: {
+      presence: {
         online: true,
         os: deps.info.platform,
         os_release: deps.info.release,
@@ -73,9 +81,17 @@ export function createAgent(cfg, deps) {
         sessions_count: sessions.length,
         heartbeat_s: cfg.heartbeatS,
         last_tick_at: lastTick,
+        cards_source_ok: cardsOk, // false ECRIT, jamais sous-entendu (R2)
       },
       sessions: sessions.map((s) => ({ pid: s.pid, codes: sessionCodes(s, findGit(s.cwd), cfg) })),
+      cards,
     });
+  }
+
+  /** Fiches du disque, filtrees pour le central (liste blanche, sid, cwd, task masquee). */
+  function liveCards() {
+    const { dirOk, cards } = readCards(cfg.cardsDir, { log });
+    return { dirOk, cards: cards.map((c) => toCentral(c, cfg)).filter(Boolean) };
   }
 
   function stopTimers() {
@@ -90,12 +106,15 @@ export function createAgent(cfg, deps) {
     publisher.resetMemory(); // republication integrale apres (re)connexion
     purging = true;
     retained = [];
-    client.subscribe(sessionsWildcard(cfg.host), { qos: 1 }, (err) => {
+    client.subscribe([sessionsWildcard(cfg.node), agentsWildcard(cfg.node)], { qos: 1 }, (err) => {
       if (err) log(`abonnement de purge refuse : ${err.message}`);
       settleTimer = timers.setTimeout(() => {
         purging = false;
-        publisher.purgeRetained(retained, alive);
-        client.unsubscribe?.(sessionsWildcard(cfg.host));
+        const live = new Set(
+          liveCards().cards.map((c) => agentTopic(cfg.node, c.topicParts.runner, c.topicParts.sid, c.topicParts.agentId)),
+        );
+        publisher.purgeRetained(retained, alive, live);
+        client.unsubscribe?.([sessionsWildcard(cfg.node), agentsWildcard(cfg.node)]);
         scan();
         scanTimer = timers.setInterval(scan, cfg.scanS * 1000);
       }, settleMs);
@@ -128,6 +147,6 @@ export function createAgent(cfg, deps) {
         new Promise((r) => timers.setTimeout(r, 2000)),
       ]);
     },
-    onlineTopic: metaTopic(cfg.host, 'online'),
+    onlineTopic: presenceTopic(cfg.node, 'online'),
   };
 }

@@ -1,21 +1,7 @@
+// Formes du contrat v2 hors vecteurs partages (ceux-ci : vectors.test.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  normalizeHost, encode, decode, parseTopic, metaTopic, sessionTopic, ContractError,
-} from '../src/shared/contract.js';
-
-test('normalizeHost : minuscules, .local retire, hors [a-z0-9-] => tiret', () => {
-  assert.equal(normalizeHost('MBP-de-sjupin.local'), 'mbp-de-sjupin');
-  assert.equal(normalizeHost('DESKTOP-DP5CQVK'), 'desktop-dp5cqvk');
-  assert.equal(normalizeHost('Mon Mac_2'), 'mon-mac-2');
-});
-
-test('normalizeHost : refus nommes (CA-11)', () => {
-  for (const bad of ['', '   ', '.local', '+', 'a/b', 'a#b', 'a+b']) {
-    assert.throws(() => normalizeHost(bad), ContractError, bad);
-  }
-  assert.throws(() => normalizeHost(undefined), ContractError);
-});
+import { encode, decode, ContractError, sidOf } from '../src/shared/contract.js';
 
 test('encode : deux cles exactement, v scalaire ou null, t entier (CA-2)', () => {
   assert.deepEqual(JSON.parse(encode('idle', 5)), { v: 'idle', t: 5 });
@@ -34,12 +20,8 @@ test('decode : vide => null ; invalide => refus ; aller-retour', () => {
   }
 });
 
-test('topics : construction et parse', () => {
-  assert.equal(metaTopic('h', 'online'), 'iakafleet/h/meta/online/current');
-  assert.equal(sessionTopic('h', 42, 'status'), 'iakafleet/h/sessions/42/status/current');
-  assert.deepEqual(parseTopic('iakafleet/h/meta/os/current'), { host: 'h', kind: 'meta', code: 'os' });
-  assert.deepEqual(parseTopic('iakafleet/h/sessions/42/rc/current'), { host: 'h', kind: 'session', pid: 42, code: 'rc' });
-  assert.equal(parseTopic('iakaframe/h/meta/os/current'), null);
-  assert.equal(parseTopic('iakafleet/h/sessions/x/rc/current'), null);
-  assert.equal(parseTopic('iakafleet/h/meta/os'), null);
+test('sidOf : deterministe, 12 hex, sans lien lisible avec le sessionId', () => {
+  assert.equal(sidOf('x'), sidOf('x'));
+  assert.notEqual(sidOf('x'), sidOf('y'));
+  assert.match(sidOf('sess-1'), /^[0-9a-f]{12}$/);
 });

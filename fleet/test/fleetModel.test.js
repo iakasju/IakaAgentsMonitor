@@ -4,8 +4,8 @@ import { buildFleet } from '../src/console/fleetModel.js';
 import { renderFleet, formatDuration } from '../src/console/render.js';
 
 const NOW = 10_000;
-const put = (store, host, code, v, t = NOW) => store.set(`iakafleet/${host}/meta/${code}/current`, { v, t });
-const sess = (store, host, pid, code, v, t = NOW) => store.set(`iakafleet/${host}/sessions/${pid}/${code}/current`, { v, t });
+const put = (store, host, code, v, t = NOW) => store.set(`iaka/${host}/out/presence/${code}/current`, { v, t });
+const sess = (store, host, pid, code, v, t = NOW) => store.set(`iaka/${host}/out/sessions/${pid}/${code}/current`, { v, t });
 const get = (fleet, host) => fleet.machines.find((m) => m.host === host);
 
 function fleet() {
@@ -78,4 +78,35 @@ test('formatDuration', () => {
   assert.equal(formatDuration(150), '2 min');
   assert.equal(formatDuration(7200), '2 h');
   assert.equal(formatDuration(200000), '2 j');
+});
+
+const card = (over = {}) => ({ v: 1, runner: 'claude-code', agentId: 'main', parentId: null, persona: 'Gimli', model: 'sonnet', sessionId: 'aaaaaaaaaaaa', project: 'p', task: null, startedAt: NOW - 120, lastSeenAt: NOW - 5, state: 'running', ...over });
+
+test('D5 : agents rattaches a leur session par <sid> ; sinon "non rattaches", jamais perdus (R3)', () => {
+  const s = new Map();
+  put(s, 'a', 'online', true); put(s, 'a', 'heartbeat_s', 60); put(s, 'a', 'last_tick_at', NOW - 1);
+  sess(s, 'a', 1, 'status', 'busy'); sess(s, 'a', 1, 'sid', 'aaaaaaaaaaaa');
+  s.set('iaka/a/out/agents/claude-code/aaaaaaaaaaaa/main', card());
+  s.set('iaka/a/out/agents/claude-code/aaaaaaaaaaaa/child', card({ agentId: 'child', parentId: 'main', persona: 'Legolas' }));
+  s.set('iaka/a/out/agents/claude-code/bbbbbbbbbbbb/main', card({ sessionId: 'bbbbbbbbbbbb' }));
+  const m = buildFleet(s, NOW).machines[0];
+  assert.deepEqual(m.sessions[0].agents.map((x) => x.agentId), ['child', 'main']);
+  assert.equal(m.sessions[0].agents[1].task, null); // masquee => null, le rendu le dit
+  assert.equal(m.unattachedAgents.length, 1);
+  assert.equal(m.unattachedAgents[0].sid, 'bbbbbbbbbbbb');
+});
+
+test('R2 : cards_source_ok=false => alerte ecrite ; rendu des agents (tache masquee)', () => {
+  const s = new Map();
+  put(s, 'a', 'online', true); put(s, 'a', 'heartbeat_s', 60); put(s, 'a', 'last_tick_at', NOW - 1);
+  put(s, 'a', 'cards_source_ok', false);
+  assert.match(renderFleet(buildFleet(s, NOW), NOW), /! fiches d'agents : aucune source sur cette machine/);
+  const t = new Map();
+  put(t, 'a', 'online', true); put(t, 'a', 'heartbeat_s', 60); put(t, 'a', 'last_tick_at', NOW - 1);
+  sess(t, 'a', 1, 'status', 'busy'); sess(t, 'a', 1, 'sid', 'aaaaaaaaaaaa');
+  t.set('iaka/a/out/agents/claude-code/aaaaaaaaaaaa/main', card());
+  t.set('iaka/a/out/agents/claude-code/aaaaaaaaaaaa/x', card({ agentId: 'x', persona: 'Legolas', task: 'revue du lot 2' }));
+  const txt = renderFleet(buildFleet(t, NOW), NOW);
+  assert.match(txt, /- Gimli .*tache masquee/);
+  assert.match(txt, /- Legolas .*revue du lot 2/);
 });

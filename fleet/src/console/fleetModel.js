@@ -1,4 +1,5 @@
-// Modele de la flotte (D9) : module PUR. Regle unique de l'etat d'une machine.
+// Modele de la flotte (D9) : module PUR. Regle unique de l'etat d'une machine, prouvee par
+// contract-vectors/machine-state.json (memes cas cote Rust : src-tauri/src/fleet_model.rs).
 // L'absence ne se deguise jamais : une machine sans code `online` est "inconnue", pas "hors ligne".
 import { parseTopic } from '../shared/contract.js';
 
@@ -19,33 +20,64 @@ export function machineState(meta, nowS) {
   return { state: 'unknown', since: null };
 }
 
+export const ALERT_SESSIONS_UNREADABLE = 'sessions illisibles';
+export const ALERT_NO_CARDS_SOURCE = "fiches d'agents : aucune source sur cette machine";
+
+/** Alertes d'une machine (R2 : « pas de hooks » ne se deguise jamais en « aucun agent »). */
+export function machineAlerts(meta) {
+  const alerts = [];
+  if (meta.get('sessions_dir_ok')?.v === false) alerts.push(ALERT_SESSIONS_UNREADABLE);
+  if (meta.get('cards_source_ok')?.v === false) alerts.push(ALERT_NO_CARDS_SOURCE);
+  return alerts;
+}
+
+/** Fiche distante -> vue d'agent. `task` null = masquee cote machine (jamais une cellule vide). */
+function agentView(sid, card, live) {
+  const c = card && typeof card === 'object' ? card : {};
+  const str = (v) => (typeof v === 'string' ? v : null);
+  return {
+    sid,
+    agentId: str(c.agentId),
+    parentId: str(c.parentId),
+    persona: str(c.persona),
+    model: str(c.model),
+    project: str(c.project),
+    task: str(c.task),
+    state: str(c.state),
+    startedAt: Number.isInteger(c.startedAt) ? c.startedAt : null,
+    lastSeenAt: Number.isInteger(c.lastSeenAt) ? c.lastSeenAt : null,
+    live,
+  };
+}
+
 /**
- * store : Map topic -> {v,t} (deja decode, les codes effaces en sont retires).
- * Retourne { machines: [...] } trie par host.
+ * store : Map topic -> valeur deja decodee ({v,t} pour presence/sessions ; fiche JSON pour agents ;
+ * les codes effaces en sont retires). Retourne { machines: [...] } trie par node.
+ * Agents rattaches a leur session quand `sid` (code de session) = <sid> de la fiche ; sinon
+ * `unattachedAgents` (R3 : jamais perdus).
  */
 export function buildFleet(store, nowS) {
-  const hosts = new Map();
-  const slot = (host) => {
-    if (!hosts.has(host)) hosts.set(host, { meta: new Map(), sessions: new Map() });
-    return hosts.get(host);
+  const nodes = new Map();
+  const slot = (node) => {
+    if (!nodes.has(node)) nodes.set(node, { meta: new Map(), sessions: new Map(), cards: [] });
+    return nodes.get(node);
   };
   for (const [topic, msg] of store) {
     const p = parseTopic(topic);
     if (!p) continue;
-    const h = slot(p.host);
-    if (p.kind === 'meta') h.meta.set(p.code, msg);
-    else {
+    const h = slot(p.node);
+    if (p.kind === 'presence') h.meta.set(p.code, msg);
+    else if (p.kind === 'session') {
       if (!h.sessions.has(p.pid)) h.sessions.set(p.pid, new Map());
       h.sessions.get(p.pid).set(p.code, msg);
-    }
+    } else h.cards.push({ sid: p.sid, card: msg });
   }
-  const machines = [...hosts.entries()]
+  const machines = [...nodes.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([host, { meta, sessions }]) => {
+    .map(([host, { meta, sessions, cards }]) => {
       const { state, since } = machineState(meta, nowS);
       const mv = (c) => (meta.has(c) ? meta.get(c).v : null);
-      const alerts = [];
-      if (mv('sessions_dir_ok') === false) alerts.push('sessions illisibles');
+      const alerts = machineAlerts(meta);
       const list = [...sessions.entries()]
         .sort(([a], [b]) => a - b)
         .map(([pid, codes]) => {
@@ -64,11 +96,21 @@ export function buildFleet(store, nowS) {
             repo: sv('repo'),
             branch: sv('branch'),
             rc: sv('rc') === true,
+            sid: sv('sid'),
             startedAt: sv('started_at'),
             lastKnownT: lastT,
             live: state === 'online', // hors "en ligne" : jamais presentee comme tournante
+            agents: [],
           };
         });
+      const bySid = new Map(list.filter((s) => typeof s.sid === 'string' && s.sid !== '').map((s) => [s.sid, s]));
+      const unattachedAgents = [];
+      for (const { sid, card } of cards.sort((a, b) => `${a.sid}/${a.card?.agentId}`.localeCompare(`${b.sid}/${b.card?.agentId}`))) {
+        const view = agentView(sid, card, state === 'online');
+        const owner = bySid.get(sid);
+        if (owner) owner.agents.push(view);
+        else unattachedAgents.push(view);
+      }
       return {
         host,
         state,
@@ -82,7 +124,9 @@ export function buildFleet(store, nowS) {
         sessionsCount: mv('sessions_count'),
         lastTickAt: mv('last_tick_at'),
         alerts,
+        cardsSourceOk: meta.has('cards_source_ok') ? meta.get('cards_source_ok').v : null,
         sessions: list,
+        unattachedAgents,
       };
     });
   return { machines };
