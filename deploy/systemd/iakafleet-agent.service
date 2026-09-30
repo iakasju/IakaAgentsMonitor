@@ -1,0 +1,32 @@
+# Service systemd "user" pour l'agent iakafleet (Linux). NON RECETTE au MVP.
+#
+# Placeholders a substituer avant installation (voir docs/installation.md) :
+#   __NODE__      chemin ABSOLU du binaire node
+#   __NODE_DIR__  dossier contenant node ET le bin `iakaframe`
+#   __REPO__      racine du depot iakaFleet
+#   __HOME__      home de l'utilisateur
+#
+# L'agent charge lui-meme ~/.iakafleet/.env : pas d'EnvironmentFile, aucun secret ici.
+#
+# Installation :
+#   mkdir -p ~/.config/systemd/user ~/.iakafleet/logs
+#   cp deploy/systemd/iakafleet-agent.service ~/.config/systemd/user/   # apres substitution
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now iakafleet-agent
+#   loginctl enable-linger "$USER"
+
+[Unit]
+Description=iakafleet agent (presence et etat des sessions Claude Code sur MQTT)
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO__
+ExecStart=__NODE__ __REPO__/bin/iakafleet-agent.js
+Environment=PATH=__NODE_DIR__:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:__HOME__/.iakafleet/logs/agent.out.log
+StandardError=append:__HOME__/.iakafleet/logs/agent.err.log
+
+[Install]
+WantedBy=default.target
