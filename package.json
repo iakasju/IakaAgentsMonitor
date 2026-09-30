@@ -13,7 +13,7 @@
     "iakafleet-agent": "bin/iakafleet-agent.js"
   },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test",
     "lint": "node scripts/lint.mjs"
   },
   "dependencies": {
