@@ -386,17 +386,28 @@ function agentRow(row: AgentRow): HTMLElement {
     switch (id) {
       case "agent": {
         td.className = "agents-cell-agent";
+        // Ligne 1 : guide de délégation, pastille, persona. Ligne 2 (mode compact seulement, D6.5) :
+        // le MODÈLE, visible sans clic — le mode large a sa propre colonne Modèle.
+        const line = document.createElement("div");
+        line.className = "agent-line";
         if (row.guide) {
           const guideEl = document.createElement("span");
           guideEl.className = "tree-guide";
           guideEl.textContent = row.guide;
-          td.appendChild(guideEl);
+          line.appendChild(guideEl);
         }
-        td.appendChild(renderSpriteIcon(row.node));
+        line.appendChild(renderSpriteIcon(row.node));
         const name = document.createElement("span");
         name.className = "agents-persona";
         name.textContent = row.node.persona;
-        td.appendChild(name);
+        line.appendChild(name);
+        td.appendChild(line);
+        if (compact && !isOverflow) {
+          const sub = document.createElement("div");
+          sub.className = "agent-subline";
+          sub.appendChild(renderChip(row.node.model || "—"));
+          td.appendChild(sub);
+        }
         break;
       }
       case "runner":
