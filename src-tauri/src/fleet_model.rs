@@ -50,10 +50,31 @@ impl State {
     }
 }
 
+/// Sur quoi repose le « depuis » d'une machine hors ligne (contrat § 2, règle D1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Basis {
+    /// `max(online.t, last_tick_at.v)` : dernier signe de vie connu (ou heure d'un arrêt propre).
+    LastSeen,
+    /// Repli sur `online.t` : on ne connaît que l'heure de la dernière connexion.
+    Connected,
+}
+
+impl Basis {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Basis::LastSeen => "last_seen",
+            Basis::Connected => "connected",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MachineState {
     pub state: State,
     pub since: Option<i64>,
+    /// `Some` seulement pour `Offline`.
+    pub basis: Option<Basis>,
 }
 
 /// Payload hors du contrat `{v,t}`.
@@ -83,10 +104,10 @@ pub fn decode_code_msg(payload: &[u8]) -> Result<Option<CodeMsg>, NotInContract>
 /// État d'une machine à partir de ses codes de `presence/` (règle D9 du MVP Fleet).
 pub fn machine_state(meta: &HashMap<String, CodeMsg>, now_s: i64) -> MachineState {
     let Some(online) = meta.get("online") else {
-        return MachineState { state: State::Unknown, since: None };
+        return MachineState { state: State::Unknown, since: None, basis: None };
     };
     match &online.v {
-        Value::Bool(false) => MachineState { state: State::Offline, since: Some(online.t) },
+        Value::Bool(false) => MachineState { state: State::Offline, since: Some(online.t), basis: None },
         Value::Bool(true) => {
             let hb = meta
                 .get("heartbeat_s")
@@ -96,13 +117,13 @@ pub fn machine_state(meta: &HashMap<String, CodeMsg>, now_s: i64) -> MachineStat
             let tick = meta.get("last_tick_at").and_then(|m| m.v.as_f64());
             match tick {
                 Some(t) if (now_s as f64) - t <= STALE_FACTOR * hb => {
-                    MachineState { state: State::Online, since: Some(online.t) }
+                    MachineState { state: State::Online, since: Some(online.t), basis: None }
                 }
-                Some(t) => MachineState { state: State::Mute, since: Some(t as i64) },
-                None => MachineState { state: State::Mute, since: Some(online.t) },
+                Some(t) => MachineState { state: State::Mute, since: Some(t as i64), basis: None },
+                None => MachineState { state: State::Mute, since: Some(online.t), basis: None },
             }
         }
-        _ => MachineState { state: State::Unknown, since: None },
+        _ => MachineState { state: State::Unknown, since: None, basis: None },
     }
 }
 

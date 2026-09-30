@@ -48,7 +48,7 @@ test('vecteurs : regle d\'etat de machine + alertes', () => {
   assert.ok(cases.length > 0);
   for (const c of cases) {
     const meta = new Map(Object.entries(c.meta));
-    assert.deepEqual(machineState(meta, c.nowS), { state: c.expected.state, since: c.expected.since }, c.name);
+    assert.deepEqual(machineState(meta, c.nowS), { state: c.expected.state, since: c.expected.since, basis: c.expected.basis }, c.name);
     assert.deepEqual(machineAlerts(meta), c.expected.alerts, c.name);
   }
 });

@@ -89,6 +89,7 @@ fn vecteurs_etat_de_machine_et_alertes() {
         let got: MachineState = machine_state(&meta, now);
         assert_eq!(got.state.as_str(), exp["state"].as_str().unwrap(), "{name}");
         assert_eq!(got.since, exp["since"].as_i64(), "{name}");
+        assert_eq!(got.basis.map(|b| b.as_str()), exp["basis"].as_str(), "{name}");
         let alerts: Vec<String> = exp["alerts"].as_array().unwrap().iter().map(|a| a.as_str().unwrap().to_string()).collect();
         assert_eq!(machine_alerts(&meta), alerts, "{name}");
     }
