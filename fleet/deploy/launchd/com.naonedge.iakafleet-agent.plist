@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Gabarit LaunchAgent macOS pour l'agent iakafleet.
+
+  Placeholders a substituer avant installation (voir docs/installation.md) :
+    __NODE__      chemin ABSOLU du binaire node   (ex. /Users/<vous>/.nvm/versions/node/v24.x/bin/node)
+    __NODE_DIR__  dossier contenant node ET le bin `iakaframe` (l'agent y lit la version d'iakaframe)
+    __REPO__      racine du depot iakaFleet
+    __HOME__      home de l'utilisateur
+
+  L'agent charge lui-meme ~/.iakafleet/.env : aucune injection de secret ici.
+  Ce service est l'UNIQUE lanceur de l'agent (un seul client id par machine, cf. R7).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.naonedge.iakafleet-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__REPO__/bin/iakafleet-agent.js</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__NODE_DIR__:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/.iakafleet/logs/agent.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.iakafleet/logs/agent.err.log</string>
+</dict>
+</plist>

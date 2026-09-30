@@ -1,0 +1,22 @@
+{
+  "name": "iakafleet",
+  "version": "0.1.0",
+  "description": "Vue en lecture seule de la flotte de sessions Claude Code (agent par machine + console CLI, sur MQTT)",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "iakafleet": "bin/iakafleet.js",
+    "iakafleet-agent": "bin/iakafleet-agent.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/lint.mjs"
+  },
+  "dependencies": {
+    "mqtt": "5.16.0"
+  }
+}
