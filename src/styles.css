@@ -32,16 +32,25 @@
   --sc-well: #f0efeb;
   --sc-border: #e2e0d9;
   --sc-ink: #1c1c1a;
-  --sc-ink-muted: #6f6d64;
-  --sc-ink-faint: #a3a199;
+  --sc-ink-muted: #57554d;
+  --sc-ink-faint: #66645b;
   --sc-accent: #3454d1;
   --sc-accent-2: #0e8a82;
+  /* ACCENTUATION DES COLORIS (ce-poste-vue-locale-lisibilite.md D8, « coloris actuels conservés, juste
+     un peu accentués ») : seule la LUMINOSITÉ de sept jetons clairs et trois jetons sombres a bougé
+     (encres secondaires et faibles, ok/danger en clair, bandeaux de dépôt grp-3/4/5 en clair et grp-4 en
+     sombre), teinte à ± 5° de l'ancienne valeur (vérifié par `npm run test:contrast`, base versionnée
+     dans scripts/contrast-registry.json) pour atteindre ≥ 4,5:1 sur tout texte et ≥ 5:1 sur les
+     bandeaux. Rien d'autre ne change de couleur. Écart assumé avec CONTRASTES.md de l'étude de
+     lisibilité : --sc-ink-muted sombre #b4b4ac (et non #b4b3ab, teinte décalée de 6,7°) et
+     --sc-ink-faint sombre #989ba0 (et non #a1a099, teinte de 168° plus chaude) pour tenir la règle
+     des ± 5°. */
   /* Jetons de niveau (colonne « Reste », specs/instructions/temps-restant.md) — valeurs de la
      maquette finalisée par Loki (commit f671cc4) : l'orange clair a été ASSOMBRI (#b5790a ->
      #8f6108) pour passer le contraste texte AA (4,5:1) sur fond clair, mesuré 5,41:1. */
-  --sc-ok: #1a7f5a;
+  --sc-ok: #176b4b;
   --sc-warn: #8f6108;
-  --sc-danger: #c1372c;
+  --sc-danger: #b12f25;
   /* Fond léger d'accent (amendement A7, point 2) : boutons ⤢/⤡ et ☾/☀, fond + bordure/texte
      accent au repos, contraste texte/fond mesuré 5,59:1 en clair (cf. A7 point 3 pour le détail
      de calcul, même méthode). */
@@ -62,11 +71,11 @@
   --grp-2-bg: #edf5f2;
   --grp-2-fg: #187553;
   --grp-3-bg: #f6f2eb;
-  --grp-3-fg: #8f6108;
+  --grp-3-fg: #8a5e08;
   --grp-4-bg: #faefee;
-  --grp-4-fg: #c1372c;
+  --grp-4-fg: #ba352a;
   --grp-5-bg: #eef3f9;
-  --grp-5-fg: #2e6db1;
+  --grp-5-fg: #2c68a9;
   --sc-font-display: "Manrope", system-ui, sans-serif;
   --sc-font-body: "Public Sans", system-ui, sans-serif;
   --sc-font-mono: "Fira Code", "SF Mono", Consolas, monospace;
@@ -82,8 +91,8 @@
     --sc-well: #22252b;
     --sc-border: #2d3138;
     --sc-ink: #e9e8e4;
-    --sc-ink-muted: #9a9a92;
-    --sc-ink-faint: #63666c;
+    --sc-ink-muted: #b4b4ac;
+    --sc-ink-faint: #989ba0;
     --sc-accent: #7c93f0;
     --sc-accent-2: #3fd6c8;
     --sc-ok: #4ad393;
@@ -102,7 +111,7 @@
     --grp-3-bg: #2a2a2c;
     --grp-3-fg: #e0a83f;
     --grp-4-bg: #2a282d;
-    --grp-4-fg: #ef6b5e;
+    --grp-4-fg: #f07366;
     --grp-5-bg: #262b33;
     --grp-5-fg: #7fb2ec;
     color-scheme: dark;
@@ -114,8 +123,8 @@
   --sc-well: #22252b;
   --sc-border: #2d3138;
   --sc-ink: #e9e8e4;
-  --sc-ink-muted: #9a9a92;
-  --sc-ink-faint: #63666c;
+  --sc-ink-muted: #b4b4ac;
+  --sc-ink-faint: #989ba0;
   --sc-accent: #7c93f0;
   --sc-accent-2: #3fd6c8;
   --sc-ok: #4ad393;
@@ -131,7 +140,7 @@
   --grp-3-bg: #2a2a2c;
   --grp-3-fg: #e0a83f;
   --grp-4-bg: #2a282d;
-  --grp-4-fg: #ef6b5e;
+  --grp-4-fg: #f07366;
   --grp-5-bg: #262b33;
   --grp-5-fg: #7fb2ec;
   color-scheme: dark;
