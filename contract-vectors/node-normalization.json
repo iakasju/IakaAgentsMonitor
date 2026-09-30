@@ -1,0 +1,16 @@
+{
+  "_doc": "Contrat du bus iaka v2, par. 1 : normalisation de <node>. Passe par fleet/ (Node), publishers/ (Node) et src-tauri/ (Rust). Cas ASCII et BMP seulement (pas de caractere hors plan de base : le decoupage UTF-16 de JS et le decoupage en points de code de Rust divergeraient).",
+  "ok": [
+    { "input": "MBP-de-sjupin.local", "expected": "mbp-de-sjupin" },
+    { "input": "DESKTOP-DP5CQVK", "expected": "desktop-dp5cqvk" },
+    { "input": "Mon Mac_2", "expected": "mon-mac-2" },
+    { "input": "  Spaced  ", "expected": "spaced" },
+    { "input": "host.example.com", "expected": "host-example-com" },
+    { "input": "café", "expected": "caf-" },
+    { "input": "a.local.local", "expected": "a-local" },
+    { "input": "-x-", "expected": "-x-" }
+  ],
+  "refused": [
+    "", "   ", ".local", "-", "---", "+", "#", "a/b", "a#b", "a+b", "/", "..."
+  ]
+}

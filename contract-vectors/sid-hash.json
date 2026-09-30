@@ -1,0 +1,7 @@
+{
+  "_doc": "Contrat par. 1 : <sid> sur un broker central = sha256(sessionId) en hexadecimal, 12 premiers caracteres. Prouve par le demon Node (fleet/). Hors couverture DECLAREE : le publieur (bus local : sessionId brut) et l'app Rust (elle ne fait que comparer des sid deja haches) ne hachent pas.",
+  "cases": [
+    { "sessionId": "abc", "expected": "ba7816bf8f01" },
+    { "sessionId": "session-1", "expected": "84097828fc31" }
+  ]
+}

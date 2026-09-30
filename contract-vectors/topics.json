@@ -1,0 +1,40 @@
+{
+  "_doc": "Contrat par. 1 : construction et decomposition des topics. build : fleet/ (tout), publishers/ (agent), src-tauri/ (agent + filtre). parse : fleet/ et src-tauri/.",
+  "build": {
+    "presence": [
+      { "node": "mac", "code": "online", "expected": "iaka/mac/out/presence/online/current" },
+      { "node": "desktop-dp5cqvk", "code": "cards_source_ok", "expected": "iaka/desktop-dp5cqvk/out/presence/cards_source_ok/current" }
+    ],
+    "session": [
+      { "node": "mac", "pid": 42, "code": "status", "expected": "iaka/mac/out/sessions/42/status/current" },
+      { "node": "mac", "pid": 7, "code": "sid", "expected": "iaka/mac/out/sessions/7/sid/current" }
+    ],
+    "agent": [
+      { "node": "mac", "runner": "claude-code", "sid": "abcdef012345", "agentId": "main", "expected": "iaka/mac/out/agents/claude-code/abcdef012345/main" },
+      { "node": "pc", "runner": "essai", "sid": "s1", "agentId": "child-1", "expected": "iaka/pc/out/agents/essai/s1/child-1" }
+    ],
+    "sessionsWildcard": [
+      { "node": "mac", "expected": "iaka/mac/out/sessions/#" }
+    ],
+    "agentsFilter": [
+      { "node": "mac", "expected": "iaka/mac/out/agents/+/+/+" }
+    ],
+    "allOut": "iaka/+/out/#"
+  },
+  "parse": [
+    { "topic": "iaka/mac/out/presence/online/current", "expected": { "node": "mac", "kind": "presence", "code": "online" } },
+    { "topic": "iaka/mac/out/sessions/42/rc/current", "expected": { "node": "mac", "kind": "session", "pid": 42, "code": "rc" } },
+    { "topic": "iaka/mac/out/agents/claude-code/abcdef012345/main", "expected": { "node": "mac", "kind": "agent", "runner": "claude-code", "sid": "abcdef012345", "agentId": "main" } },
+    { "topic": "iaka/mac/out/events/x", "expected": null },
+    { "topic": "iaka/mac/in/agents/claude-code/s/main", "expected": null },
+    { "topic": "iakafleet/mac/meta/online/current", "expected": null },
+    { "topic": "iaka/agents/out/claude-code/s/main", "expected": null },
+    { "topic": "iakaframe/mac/out/presence/online/current", "expected": null },
+    { "topic": "iaka/mac/out/sessions/x/rc/current", "expected": null },
+    { "topic": "iaka/mac/out/presence/online", "expected": null },
+    { "topic": "iaka/mac/out/agents/claude-code/s", "expected": null },
+    { "topic": "iaka/mac/out/agents/claude-code/s/main/extra", "expected": null },
+    { "topic": "iaka/mac/out/agents/cla+ude/s/main", "expected": null },
+    { "topic": "/iaka/mac/out/presence/online/current", "expected": null }
+  ]
+}
