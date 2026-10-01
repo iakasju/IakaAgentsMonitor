@@ -8,5 +8,15 @@
     "dirty": false,
     "files": 50,
     "note": "onboarding initial"
+  },
+  {
+    "date": "2026-10-01 02:38",
+    "reason": "pause",
+    "version": "v0.1.0",
+    "branch": "feat/fusion-flotte",
+    "commit": "444518c docs(specs): recette du 2026-10-01 consignee (sans cocher) + lot de finition Ce poste",
+    "dirty": false,
+    "files": 196,
+    "note": "Fusion flotte : Lot 0, demon, L-INSTALL Mac, vue Ce poste + lisibilite livres et gates PASS ; budget CPU tenu ; reste PC (/rc), finition, fusion main"
   }
 ]
